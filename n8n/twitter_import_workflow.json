@@ -1,0 +1,82 @@
+{
+  "name": "Dialectree – Twitter Import",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://api.twitter.com/2/tweets/search/recent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "query", "value": "conversation_id:{{$json.conversation_id}}" },
+            { "name": "tweet.fields", "value": "author_id,created_at,in_reply_to_user_id,referenced_tweets" },
+            { "name": "max_results", "value": "100" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Fetch Twitter Thread",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300],
+      "typeVersion": 4,
+      "notes": "TODO: Configure Twitter API Bearer Token in credentials"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyse-Logik: Tweets als Argument-Kandidaten aufbereiten\n// TODO: Durch Embedding/LLM-Aufruf ersetzen für Position-Erkennung\nconst tweets = $input.all().map(item => {\n  const text = item.json.text || '';\n  const position = text.toLowerCase().includes('aber') || text.toLowerCase().includes('falsch') ? 'CONTRA' : 'PRO';\n  return {\n    json: {\n      title: text.substring(0, 300),\n      description: text,\n      position: position,\n      twitter_id: item.json.id,\n      parent_twitter_id: item.json.referenced_tweets?.[0]?.id || null\n    }\n  };\n});\nreturn tweets;"
+      },
+      "name": "Analyse Tweets",
+      "type": "n8n-nodes-base.code",
+      "position": [650, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/api/arguments/?user_id=1",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "topic_id", "value": "={{$json.topic_id}}" },
+            { "name": "title", "value": "={{$json.title}}" },
+            { "name": "description", "value": "={{$json.description}}" },
+            { "name": "position", "value": "={{$json.position}}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Create ArgumentNode",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 300],
+      "typeVersion": 4
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Fetch Twitter Thread", "type": "main", "index": 0 }]]
+    },
+    "Fetch Twitter Thread": {
+      "main": [[{ "node": "Analyse Tweets", "type": "main", "index": 0 }]]
+    },
+    "Analyse Tweets": {
+      "main": [[{ "node": "Create ArgumentNode", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "Importiert Twitter/X-Threads und erstellt Argumentknoten in Dialectree. TODO: Embedding-basierte Positionserkennung, Duplikat-Check, parent_id-Mapping."
+  }
+}
+
