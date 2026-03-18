@@ -45,6 +45,13 @@ class ArgumentNodeCreate(BaseModel):
     title: str
     description: Optional[str] = None
     position: str  # PRO / CONTRA / NEUTRAL
+    position_score: Optional[float] = None  # 0.0–1.0
+    statement_type: Optional[str] = "UNCLASSIFIED"
+    # Argument anatomy (taxonomy §3)
+    claim: Optional[str] = None
+    reason: Optional[str] = None
+    example: Optional[str] = None
+    implication: Optional[str] = None
 
 
 class ArgumentNodeOut(BaseModel):
@@ -56,6 +63,14 @@ class ArgumentNodeOut(BaseModel):
     title: str
     description: Optional[str]
     position: str
+    position_score: Optional[float]
+    statement_type: str
+    visibility: str
+    hidden_reason: Optional[str]
+    claim: Optional[str]
+    reason: Optional[str]
+    example: Optional[str]
+    implication: Optional[str]
     created_by: int
     created_at: datetime
 
@@ -64,6 +79,14 @@ class ArgumentNodeUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     position: Optional[str] = None
+    position_score: Optional[float] = None
+    statement_type: Optional[str] = None
+    visibility: Optional[str] = None
+    hidden_reason: Optional[str] = None
+    claim: Optional[str] = None
+    reason: Optional[str] = None
+    example: Optional[str] = None
+    implication: Optional[str] = None
 
 
 # ── ArgumentGroup ─────────────────────────────────────────────────────
@@ -162,11 +185,11 @@ class CommentOut(BaseModel):
 
 class EvidenceCreate(BaseModel):
     argument_node_id: int
-    evidence_type: str  # STUDY / STATISTIC / ARTICLE / HISTORICAL_EVENT
+    evidence_type: str  # See taxonomy §7: PROOF, META_ANALYSIS, STUDY, STATISTIC, LAW, etc.
     url: Optional[str] = None
     title: str
     description: Optional[str] = None
-    quality_score: Optional[float] = None
+    quality_score: Optional[float] = None  # If None, default derived from evidence_type
 
 
 class EvidenceOut(BaseModel):
@@ -186,7 +209,7 @@ class EvidenceOut(BaseModel):
 
 class NodeLabelCreate(BaseModel):
     argument_node_id: int
-    label_type: str  # FALLACY / DOUBLE_STANDARD / CIRCULAR
+    label_type: str  # See taxonomy §13: FALLACY, MISSING_EVIDENCE, OFF_TOPIC, SPAM, etc.
     justification: str
 
 
@@ -196,6 +219,8 @@ class NodeLabelOut(BaseModel):
     argument_node_id: int
     label_type: str
     justification: str
+    confirmed: int
+    confirmed_at: Optional[datetime]
     created_by: int
     created_at: datetime
 
@@ -251,7 +276,17 @@ class ArgumentTreeNode(BaseModel):
     title: str
     description: Optional[str]
     position: str
+    position_score: Optional[float] = None
+    statement_type: str = "UNCLASSIFIED"
+    visibility: str = "VISIBLE"
+    hidden_reason: Optional[str] = None
     parent_id: Optional[int]
+    argument_group_id: Optional[int] = None
+    # Argument anatomy
+    claim: Optional[str] = None
+    reason: Optional[str] = None
+    example: Optional[str] = None
+    implication: Optional[str] = None
     created_by: int = 0
     vote_score: int = 0
     tags: list[str] = []

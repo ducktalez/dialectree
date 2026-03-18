@@ -33,6 +33,8 @@ in this document.
 18. [Thought Experiments, Analogies & Transferability](#18-thought-experiments-analogies--transferability)
 19. [Propaganda, Manufacturing Consent & Systemic Manipulation](#19-propaganda-manufacturing-consent--systemic-manipulation)
 20. [Political Compass Mapping](#20-political-compass-mapping)
+21. [Meme Representation](#21-meme-representation)
+22. [Strategic Frameworks (Reference)](#22-strategic-frameworks-reference)
 
 ---
 
@@ -231,6 +233,9 @@ Not arguments at all — these are tactics to leave a losing discussion without 
 | **"Agree to Disagree"** (premature) | Ending debate before actual resolution when resolution is possible |
 | **Virtue Signalling Exit** | Leaving with a moral declaration instead of addressing the point |
 | **Concern Trolling** | Feigning sympathy to undermine ("I'm just worried about you…") |
+| **Cope / Copium** | Rationalising a lost position to avoid admitting being wrong. A face-saving denial mechanism — the person constructs increasingly strained justifications rather than conceding. Passive variant of denial. |
+| **Intimidation / Physical Coercion** | Raising voice, talking fast, invading personal space, or using threats of violence to suppress the opponent's argument through fear rather than logic |
+| **Volume / Speed Dominance** | Talking louder or faster to prevent the opponent from responding. Not an argument — pure channel control. |
 
 ---
 
@@ -255,6 +260,9 @@ itself (not the content). These are assignable as **multi-node patterns**.
 | **Whataboutism Chain** | Chaining Tu Quoque deflections across multiple exchanges |
 | **Poisoning the Well** | Preemptively discrediting a source before it's even cited |
 | **Double Standard** | Applying a principle to one side but not the other |
+| **Taboo Derailing** | Deliberately or inadvertently touching a culturally taboo topic, triggering performative outrage that derails the discussion. The derailer may not intend to provoke — the topic itself acts as a proxy trigger with high statistical success rate. |
+| **Performative Outrage** | Expressing exaggerated shock or offense to shut down a line of reasoning, especially near taboo topics. The outrage is strategic (conscious or unconscious) rather than genuine. |
+| **Non-Rational Seduction** | Using charm, attractiveness, alcohol, flattery, or emotional manipulation to influence the opponent's position — bypassing rational argument entirely. |
 
 Status: ⚠️ MultiNodePattern model exists, but detection / UI is not implemented.
 
@@ -357,6 +365,48 @@ foundations. Soft assignment: weights sum to 1.0 (e.g. 0.7 Care + 0.2 Fairness +
 | **Authority / Subversion** | Respect for hierarchy and tradition | Lawlessness, disrespect | "We must follow immigration law" |
 | **Sanctity / Degradation** | Purity, disgust, sacred values | Contamination, violation of the sacred | "Our culture is being eroded" |
 | **Liberty / Oppression** | Autonomy, resistance to domination | Tyranny, coercion | "People should be free to live where they choose" |
+
+### 10.1 Ethical Theories
+
+Moral Foundations (above) describe **intuitions** — fast, gut-level moral reactions.
+Ethical theories provide the **systematic frameworks** that justify or challenge those
+intuitions. An argument's moral weight depends on which theory the arguer implicitly assumes.
+
+| Theory | Core Principle | Decides by… | Example |
+|--------|---------------|-------------|---------|
+| **Utilitarianism** (Consequentialism) | Maximise overall well-being / happiness | Outcomes — the action that produces the most good for the most people | "Migration policy should be evaluated by net economic + social welfare impact" |
+| **Deontology** (Kant) | Act only according to rules you could universalise | Rules — some actions are inherently right or wrong, regardless of outcome | "People have a right to asylum, period — consequences are irrelevant to the duty" |
+| **Virtue Ethics** (Aristotle) | Cultivate virtuous character traits | Character — what would a virtuous person do? | "A compassionate society welcomes those in need" |
+| **Contractualism** (Rawls) | Agree on principles behind a veil of ignorance | Fairness — what rules would you accept not knowing your position? | "If you didn't know whether you'd be born a refugee or a citizen, what policy would you want?" |
+| **Care Ethics** (Gilligan) | Prioritise relationships and care for specific individuals | Responsibility — who is vulnerable and how do we respond? | "These are real people, not statistics — we have a personal responsibility" |
+| **Pragmatism** | What works in practice? | Practical outcomes — avoid ideology, evaluate empirically | "Let's try a points-based system and measure the results after 5 years" |
+| **Moral Relativism** | Morality is culturally constructed — no universal standard | Context — what is considered right in this culture/time? | "Western values shouldn't be imposed on other cultures" |
+| **Natural Law Theory** | Morality is derived from nature / reason / divine order | Nature — some things are inherently right or wrong by nature | "Migration is natural — humans have always moved" |
+
+> **System note:** Ethical theories can be tagged on moral-premise leaf nodes. When two
+> arguers disagree at the leaf level, surfacing their differing ethical frameworks
+> (e.g. utilitarian vs. deontological) makes the root cause of the disagreement visible.
+
+### 10.2 Game Theory & Rational Choice
+
+Some arguments implicitly assume rational actors making strategic decisions.
+Game-theoretic concepts can be tagged as **logical axioms** — ground truths that
+frame the argument's assumptions.
+
+| Concept | Description | Relevance to argumentation |
+|---------|-------------|---------------------------|
+| **Nash Equilibrium** | A state where no player can improve their outcome by changing strategy unilaterally | "Both sides are locked in — neither will budge because any concession would be exploited" |
+| **Pareto Efficiency** | A state where no one can be made better off without making someone else worse off | "This policy is Pareto-optimal — any change hurts someone" (can be used to block reform) |
+| **Prisoner's Dilemma** | Individual rationality leads to collective irrationality | "If every country refuses refugees, everyone loses — but no single country wants to go first" |
+| **Tragedy of the Commons** | Shared resources are overexploited when individuals act selfishly | "Without coordinated migration policy, every country free-rides on others' generosity" |
+| **Zero-Sum Thinking** | Assuming one side's gain is the other's loss (often a fallacy) | "Migrants taking jobs" assumes a fixed number of jobs — which is empirically false |
+| **Tit-for-Tat** | Cooperate first, then mirror the opponent's last move | Reciprocal trade agreements; "we'll accept your refugees if you accept ours" |
+| **Dominant Strategy** | A strategy that is best regardless of what others do | "Investing in integration is a dominant strategy — it pays off whether migration increases or decreases" |
+| **Rational Choice Theory** | Individuals maximise utility given constraints | Baseline assumption of most economic arguments — but humans are often irrational (see §10 Moral Foundations) |
+
+> **System note:** Game-theoretic tags are useful when an argument assumes rational actors.
+> When the assumption is violated (emotional decisions, bounded rationality), the tag
+> `Zero-Sum Thinking` or `Bounded Rationality` can flag the mismatch.
 
 ---
 
@@ -509,6 +559,10 @@ or statement is framed.
 | **Anchoring** | Setting an extreme reference point to make a moderate claim seem reasonable | "Some say deport everyone — I just want to reduce numbers a little" |
 | **Weasel Words** | Vague attribution to unnamed authorities | "Studies say…", "Many people think…" |
 | **Whataboutism** (as device) | Deflecting by pointing to another issue | "What about the homeless Germans?" |
+| **Polemic** | Deliberately provocative, one-sided argumentation designed to attack rather than persuade. Uses sharp, emotionally charged language. | "Only an idiot would support open borders." |
+| **Irony / Sarcasm** | Stating the opposite of what is meant, relying on context for the real message. Can be constructive (Socratic irony) or destructive (mockery). | "Oh sure, because banning things has always worked perfectly." |
+| **Satire / Parody** | Exaggerating a position to absurdity to expose its flaws. Related to Reductio ad Absurdum but using humour rather than logic. | "Let's just ban everything that's unhealthy — starting with Mondays." |
+| **Polarizing Vocabulary** | Using different emotionally charged words to describe the same concept, depending on political alignment. The word choice signals tribal affiliation and biases perception. | "Femizid" vs. "Ehrenmord"; "Freiheitskämpfer" vs. "Terrorist"; "Steuerlast" vs. "Solidarbeitrag" |
 
 ---
 
@@ -629,6 +683,9 @@ that undermine free, informed decision-making.
 | **Firehose of Falsehood** | Flooding information space with contradictory claims to erode trust | State propaganda producing multiple conflicting narratives simultaneously |
 | **Delayed Democracy** | Waiting until public opinion temporarily aligns before implementing a pre-decided policy | Polling until a favourable moment, then acting "democratically" |
 | **Hypnotic / Emotional Conditioning** | Bypassing rational evaluation through repetition, fear, or group pressure | Repeated slogans, rally atmospheres, religious fervour |
+| **Smear Campaign / Demonization** | Systematically destroying a person's or group's reputation to delegitimise their position, making the population consent to otherwise unacceptable actions | Bush administration's demonization of Saddam Hussein to build public consent for the Iraq War — shifting decision scope to the populace, then shaping their perception |
+| **Scope Manipulation** | Redefining who gets to decide (or what they decide about) to engineer a favourable outcome | Reframing a geopolitical decision as a domestic security question to invoke popular fear |
+| **Substance-Based Manipulation** | Using alcohol, drugs, or other substances to lower the opponent's rational defences in negotiation or discussion contexts | Business dinners with excessive alcohol to soften negotiation positions |
 
 ### 19.2 The Legitimacy Paradox
 
@@ -697,34 +754,115 @@ Arguments can be mapped onto a two-dimensional political compass as a descriptiv
 
 ---
 
+## 21. Meme Representation
+
+Memes are visual shorthand for argumentative patterns. A single meme template can encode
+a fallacy, a discussion dynamic, or an entire argument chain — often more effectively than
+a paragraph of text. This makes them both an **engagement driver** (fun, shareable) and a
+**classification tool** (instantly communicates a pattern).
+
+### Why Memes Matter for Dialectree
+
+| Insight | Explanation |
+|---------|-------------|
+| **pr0gramm effect** | Tags are one of pr0gramm's main assets because they're fun and creative. Memes have the same viral quality — users *want* to use them. |
+| **Pattern compression** | A meme like "Patrick Star's Wallet" instantly encodes: airtight proof chain + opponent denial + cognitive dissonance. No label or tag captures that as efficiently. |
+| **Cross-cultural recognition** | Meme templates are globally understood. A Spanish user and a German user both recognise "Expanding Brain" — no translation needed. |
+| **KI training signal** | Meme assignments by users are high-quality labeled data for pattern detection models. |
+
+### Concept Mapping (Overview)
+
+Every meme template maps to one or more argumentative concepts from this taxonomy.
+Selected examples:
+
+| Meme | Argumentative Pattern | Reference |
+|------|----------------------|-----------|
+| **Patrick Star's Wallet** | Denial despite complete proof chain | §4.2 Argument from Incredulity |
+| **Expanding Brain** | Reductio ad Absurdum (ironic escalation) | §2.1 Reductio |
+| **Spider-Man Pointing** | Tu Quoque / Hypocrisy | §4.2 Tu Quoque |
+| **Uno Reverse Card** | Counter-argument using opponent's own logic | §2.1 Modus Tollens |
+| **Change My Mind** | Burden of Proof challenge | §2.5, §11 Hitchens's Razor |
+| **Trolley Problem** | Ethical dilemma visualisation | §18 Thought Experiments |
+| **NPC Meme** | Thought-terminating cliché | §4.2, §5 Exit Moves |
+| **Clown Applying Makeup** | Self-defeating argument chain | §4.1 Circular Reasoning |
+| **Anakin & Padmé ("Right?")** | Hidden implication revealed | §3 Anatomy (missing implication) |
+| **It's a Trap!** | Loaded Question / Kafkatrap detected | §4.2, §14 |
+
+> **Full catalog:** see [`docs/meme-catalog.md`](meme-catalog.md) for the complete
+> meme-to-concept mapping with descriptions, all taxonomy references, and the
+> implementation plan for meme sequence generation.
+
+### Meme as Argument Visualisation
+
+An argument chain can be rendered as a meme sequence:
+
+```
+Argument:  Claim → Reason → Example → Implication → Opponent denies conclusion
+Meme:      Patrick Star's Wallet (4 panels)
+
+Panel 1:  "Is this your labour shortage?"    — "Yes"
+Panel 2:  "And healthcare needs workers?"    — "Yes"
+Panel 3:  "And migrants fill those jobs?"    — "Yes"
+Panel 4:  "So migration is important?"       — "No"
+```
+
+This is a future KI feature (see implementation plan, Phase 2).
+
+---
+
+## 22. Strategic Frameworks (Reference)
+
+Entire bodies of strategic thought that inform how arguments are deployed. These are not
+individual fallacies or tactics — they are **frameworks** that generate tactics. Dialectree
+can reference them as context when a user's behaviour matches a known pattern.
+
+| Framework | Origin | Core Idea | Relevance |
+|-----------|--------|-----------|-----------|
+| **36 Stratagems** | Chinese military/political tradition | 36 named strategies for conflict, deception, and negotiation | Many stratagems map directly to discussion tactics (e.g. "Kill with a borrowed knife" ≈ Label Argumentation; "Loot a burning house" ≈ exploiting a weakened opponent) |
+| **Sun Tzu: Art of War** | Chinese military philosophy | "The supreme art of war is to subdue the enemy without fighting" | Framing, positioning, and information asymmetry as weapons — directly applicable to propaganda (§19) and meta-strategies (§6) |
+| **Schopenhauer: The Art of Being Right** (Eristische Dialektik) | 19th century philosophy | 38 stratagems for winning arguments regardless of truth | The canonical reference for dishonest argumentation — many fallacies in §4 correspond to Schopenhauer's stratagems |
+| **Machiavelli: The Prince** | Renaissance political philosophy | Power maintenance through pragmatism over morality | "The end justifies the means" — framework for evaluating whether manipulation (§19) is legitimate |
+| **Robert Greene: 48 Laws of Power** | Modern popular strategy | Distilled power dynamics from historical examples | Maps to social manipulation patterns, reputation management, and strategic concession |
+
+> **System note:** These frameworks are listed as references, not as tag categories.
+> Individual tactics derived from them are tagged using existing taxonomy categories
+> (§4 Fallacies, §5 Exit Moves, §6 Meta-Strategies, §19 Propaganda).
+> A future feature could link tagged tactics back to their framework of origin.
+
+---
+
 ## Appendix: Implementation Status
 
 | Section | Enum / Model | Status |
 |---------|-------------|--------|
 | §1 Position | `PositionEnum` | ✅ |
 | §2 Argument Types | — | ❌ (tag-based, no enum yet) |
-| §3 Argument Anatomy | — | ❌ (single title/description field) |
+| §3 Argument Anatomy | `ArgumentNode.claim/reason/example/implication` | ✅ |
 | §4 Fallacies | `LabelTypeEnum.FALLACY` | ⚠️ (label exists, no fallacy sub-types) |
 | §5 Exit Moves | — | ❌ (tag-based when needed) |
 | §6 Meta-Discussion Strategies | `MultiNodePattern` | ⚠️ (model exists, no detection) |
-| §7 Evidence Hierarchy | `EvidenceTypeEnum` | ⚠️ (type exists, quality tiers incomplete) |
+| §7 Evidence Hierarchy | `EvidenceTypeEnum` (14 types) + `EVIDENCE_DEFAULT_QUALITY` | ✅ |
 | §8 Rule Systems | — | ❌ (tag-based when needed) |
 | §9 Consensus Mechanisms | — | ❌ |
 | §10 Moral Foundations | `Tag.moral_foundation` | ⚠️ (field exists, soft assignment missing) |
+| §10.1 Ethical Theories | — | ❌ (tag-based when needed) |
+| §10.2 Game Theory & Rational Choice | — | ❌ (tag-based when needed) |
 | §11 Philosophical Razors | — | ❌ (label-based when needed) |
 | §12 Tag Categories | `Tag`, `ArgumentNodeTag` | ⚠️ (flat tags exist, no meta-categories) |
 | §12.5 Tag Origins | — | ❌ (no origin tracking yet) |
 | §12.6 Tag Disputability | — | ❌ |
 | §12.7 Uncertainty Factor | — | ❌ |
-| §13 Label Types | `LabelTypeEnum` | ⚠️ (basic types exist, effects not enforced) |
-| §13 Irrelevance Types | — | ❌ (no unified irrelevance concept) |
+| §13 Label Types | `LabelTypeEnum` (12 types) + `confirmed` field | ✅ |
+| §13 Irrelevance Types | `Visibility` enum (6 types) + `hidden_reason` | ✅ |
 | §14 Rhetorical Devices | — | ❌ (tag-based when needed) |
-| §15 Positive vs. Normative | — | ❌ |
+| §15 Positive vs. Normative | `StatementType` enum + `statement_type` field | ✅ |
 | §16 Authority Types | — | ❌ |
 | §17 Scope & Branching | `DefinitionFork` | ⚠️ (model exists, scope logic missing) |
 | §18 Thought Experiments & Transferability | — | ❌ |
 | §19 Propaganda & Systemic Manipulation | — | ❌ |
 | §20 Political Compass Mapping | — | ❌ |
+| §21 Meme Representation | — | ❌ (catalog in `docs/meme-catalog.md`) |
+| §22 Strategic Frameworks | — | ❌ (reference only, no model needed) |
 
 
 

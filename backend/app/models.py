@@ -18,17 +18,72 @@ class Position(str, enum.Enum):
     NEUTRAL = "NEUTRAL"
 
 
+class Visibility(str, enum.Enum):
+    VISIBLE = "VISIBLE"
+    VOTED_DOWN = "VOTED_DOWN"
+    MOD_HIDDEN = "MOD_HIDDEN"
+    MOVED = "MOVED"
+    MERGED = "MERGED"
+    SUPERSEDED = "SUPERSEDED"
+    PENDING_REVIEW = "PENDING_REVIEW"
+
+
+class StatementType(str, enum.Enum):
+    POSITIVE = "POSITIVE"
+    NORMATIVE = "NORMATIVE"
+    MIXED = "MIXED"
+    UNCLASSIFIED = "UNCLASSIFIED"
+
+
 class EvidenceType(str, enum.Enum):
+    PROOF = "PROOF"
+    META_ANALYSIS = "META_ANALYSIS"
     STUDY = "STUDY"
     STATISTIC = "STATISTIC"
-    ARTICLE = "ARTICLE"
-    HISTORICAL_EVENT = "HISTORICAL_EVENT"
+    LAW = "LAW"
+    EXPERT_OPINION = "EXPERT_OPINION"
+    JOURNALISM = "JOURNALISM"
+    SURVEY = "SURVEY"
+    HISTORICAL = "HISTORICAL"
+    ANECDOTE = "ANECDOTE"
+    THOUGHT_EXPERIMENT = "THOUGHT_EXPERIMENT"
+    HEARSAY = "HEARSAY"
+    UNFALSIFIABLE = "UNFALSIFIABLE"
+    FABRICATION = "FABRICATION"
+
+
+# Default quality scores per evidence type (from taxonomy §7)
+EVIDENCE_DEFAULT_QUALITY: dict[EvidenceType, float] = {
+    EvidenceType.PROOF: 1.0,
+    EvidenceType.META_ANALYSIS: 0.95,
+    EvidenceType.STUDY: 0.9,
+    EvidenceType.STATISTIC: 0.85,
+    EvidenceType.LAW: 0.8,
+    EvidenceType.EXPERT_OPINION: 0.7,
+    EvidenceType.JOURNALISM: 0.6,
+    EvidenceType.SURVEY: 0.5,
+    EvidenceType.HISTORICAL: 0.4,
+    EvidenceType.ANECDOTE: 0.3,
+    EvidenceType.THOUGHT_EXPERIMENT: 0.2,
+    EvidenceType.HEARSAY: 0.1,
+    EvidenceType.UNFALSIFIABLE: 0.05,
+    EvidenceType.FABRICATION: 0.0,
+}
 
 
 class LabelType(str, enum.Enum):
     FALLACY = "FALLACY"
     DOUBLE_STANDARD = "DOUBLE_STANDARD"
     CIRCULAR = "CIRCULAR"
+    MISSING_EVIDENCE = "MISSING_EVIDENCE"
+    OFF_TOPIC = "OFF_TOPIC"
+    SPAM = "SPAM"
+    ANECDOTE = "ANECDOTE"
+    DUPLICATE = "DUPLICATE"
+    CONTENTLESS = "CONTENTLESS"
+    SCOPE_VIOLATION = "SCOPE_VIOLATION"
+    MANIPULATION = "MANIPULATION"
+    INVALID = "INVALID"
 
 
 class PatternType(str, enum.Enum):
@@ -121,6 +176,15 @@ class ArgumentNode(Base):
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
     position = Column(Enum(Position), nullable=False)
+    position_score = Column(Float, nullable=True)  # 0.0 (CONTRA) … 0.5 (NEUTRAL) … 1.0 (PRO)
+    statement_type = Column(Enum(StatementType), nullable=False, default=StatementType.UNCLASSIFIED)
+    visibility = Column(Enum(Visibility), nullable=False, default=Visibility.VISIBLE)
+    hidden_reason = Column(Text, nullable=True)
+    # Argument anatomy (taxonomy §3)
+    claim = Column(Text, nullable=True)
+    reason = Column(Text, nullable=True)
+    example = Column(Text, nullable=True)
+    implication = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=_utcnow)
 
@@ -218,6 +282,8 @@ class NodeLabel(Base):
     argument_node_id = Column(Integer, ForeignKey("argument_nodes.id"), nullable=False)
     label_type = Column(Enum(LabelType), nullable=False)
     justification = Column(Text, nullable=False)  # Begründungspflicht
+    confirmed = Column(Integer, nullable=False, default=0)  # 0 = pending, 1 = confirmed
+    confirmed_at = Column(DateTime, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=_utcnow)
 

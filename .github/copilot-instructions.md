@@ -37,3 +37,4 @@ When a change introduces new conventions, pitfalls, or architectural decisions, 
 - Update architectural changes in  `docs/architecture.md`.
 - Track deferred work in `docs/implementation-plan.md`.
 - **`docs/taxonomy.md`** is the canonical reference for all argument types, fallacies, evidence tiers, tag categories, and categorisation dimensions. When adding a new enum, label type, or tag category, it **must** have an entry in taxonomy.md first.
+- **`docs/meme-catalog.md`** maps meme templates to argumentative concepts. When adding a new meme mapping, it must reference the corresponding taxonomy section.

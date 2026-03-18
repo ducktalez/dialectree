@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Evidence, EvidenceType
+from ..models import Evidence, EvidenceType, EVIDENCE_DEFAULT_QUALITY
 from ..schemas import EvidenceCreate, EvidenceOut
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
@@ -15,8 +15,12 @@ def create_evidence(payload: EvidenceCreate, user_id: int, db: Session = Depends
     except ValueError:
         raise HTTPException(400, f"Invalid evidence type: {payload.evidence_type}")
 
-    if payload.quality_score is not None and not (0.0 <= payload.quality_score <= 1.0):
+    quality = payload.quality_score
+    if quality is not None and not (0.0 <= quality <= 1.0):
         raise HTTPException(400, "quality_score must be between 0.0 and 1.0")
+    # Apply default quality from taxonomy §7 if not explicitly set
+    if quality is None:
+        quality = EVIDENCE_DEFAULT_QUALITY.get(ev_type)
 
     evidence = Evidence(
         argument_node_id=payload.argument_node_id,
@@ -24,7 +28,7 @@ def create_evidence(payload: EvidenceCreate, user_id: int, db: Session = Depends
         url=payload.url,
         title=payload.title,
         description=payload.description,
-        quality_score=payload.quality_score,
+        quality_score=quality,
         created_by=user_id,
     )
     db.add(evidence)

@@ -8,6 +8,7 @@ from .database import engine, SessionLocal, Base
 from .models import (
     User, Topic, ArgumentNode, ArgumentGroup, Vote, Tag, Comment,
     Evidence, NodeLabel, Position, EvidenceType, LabelType, MoralFoundation,
+    StatementType, Visibility,
 )
 
 
@@ -46,6 +47,11 @@ def seed():
         topic_id=topic.id, title="Rauchen verursacht nachweislich Krebs und Herzkrankheiten",
         description="Tausende Studien belegen den kausalen Zusammenhang.",
         position=Position.PRO, created_by=alice.id, argument_group_id=health_group.id,
+        statement_type=StatementType.POSITIVE,
+        claim="Rauchen verursacht Krebs und Herzkrankheiten.",
+        reason="Tausende Studien belegen einen kausalen Zusammenhang zwischen Tabakkonsum und Krebserkrankungen.",
+        example="Lungenkrebs tritt bei Rauchern 15–30x häufiger auf als bei Nichtrauchern.",
+        implication="Ein Verbot würde diese vermeidbaren Todesfälle reduzieren.",
     )
     pro2 = ArgumentNode(
         topic_id=topic.id, title="Passivrauchen schädigt unbeteiligte Dritte",
@@ -61,6 +67,10 @@ def seed():
         topic_id=topic.id, title="Persönliche Freiheit: Jeder darf über seinen Körper entscheiden",
         description="Ein Verbot wäre ein unverhältnismäßiger Eingriff in die Selbstbestimmung.",
         position=Position.CONTRA, created_by=bob.id,
+        statement_type=StatementType.NORMATIVE,
+        claim="Jeder Mensch hat das Recht, über seinen eigenen Körper zu entscheiden.",
+        reason="Selbstbestimmung ist ein Grundrecht und darf nur eingeschränkt werden, wenn Dritte geschädigt werden.",
+        implication="Ein Rauchverbot wäre ein unverhältnismäßiger Eingriff in die persönliche Freiheit.",
     )
     con2 = ArgumentNode(
         topic_id=topic.id, title="Prohibition funktioniert nicht – Schwarzmarkt entsteht",
@@ -76,6 +86,11 @@ def seed():
         topic_id=topic.id, title="Stufenweise Regulierung statt Totalverbot",
         description="Altersgrenzen, Werbeverbote und rauchfreie Zonen als Mittelweg.",
         position=Position.NEUTRAL, created_by=charlie.id,
+        statement_type=StatementType.MIXED,
+        claim="Eine stufenweise Regulierung ist dem Totalverbot vorzuziehen.",
+        reason="Maßnahmen wie Altersgrenzen und Werbeverbote reduzieren den Konsum, ohne Freiheitsrechte komplett einzuschränken.",
+        example="Rauchfreie Zonen in Restaurants haben den Passivrauch-Kontakt drastisch gesenkt.",
+        implication="Ein differenzierter Ansatz erreicht gesundheitliche Ziele bei geringerem Freiheitseingriff.",
     )
     db.add_all([pro1, pro2, pro3, con1, con2, con3, neutral1])
     db.flush()
@@ -176,7 +191,7 @@ def seed():
     ))
     db.add(Evidence(
         argument_node_id=con2_1.id,
-        evidence_type=EvidenceType.HISTORICAL_EVENT,
+        evidence_type=EvidenceType.HISTORICAL,
         title="US Prohibition (Volstead Act, 1920–1933)",
         description="18th Amendment: Alkoholverbot führte zu organisierter Kriminalität.",
         quality_score=0.8,

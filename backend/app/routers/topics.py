@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from ..database import get_db
-from ..models import Topic, ArgumentNode, Vote
+from ..models import Topic, ArgumentNode, Vote, Visibility
 from ..schemas import TopicCreate, TopicOut, ArgumentTreeNode
 
 router = APIRouter(prefix="/topics", tags=["topics"])
@@ -55,13 +55,13 @@ def update_topic(topic_id: int, payload: TopicUpdate, db: Session = Depends(get_
 
 
 @router.get("/{topic_id}/tree", response_model=list[ArgumentTreeNode])
-def get_argument_tree(topic_id: int, db: Session = Depends(get_db)):
+def get_argument_tree(topic_id: int, show_hidden: bool = False, db: Session = Depends(get_db)):
     """Returns the full argument tree for a topic."""
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(404, "Topic not found")
 
-    nodes = (
+    query = (
         db.query(ArgumentNode)
         .filter(ArgumentNode.topic_id == topic_id)
         .options(
@@ -70,8 +70,11 @@ def get_argument_tree(topic_id: int, db: Session = Depends(get_db)):
             selectinload(ArgumentNode.evidence),
             selectinload(ArgumentNode.comments),
         )
-        .all()
     )
+    if not show_hidden:
+        query = query.filter(ArgumentNode.visibility == Visibility.VISIBLE)
+
+    nodes = query.all()
 
     # Calculate vote scores
     vote_scores = {}
@@ -89,7 +92,16 @@ def get_argument_tree(topic_id: int, db: Session = Depends(get_db)):
             title=node.title,
             description=node.description,
             position=node.position.value,
+            position_score=node.position_score,
+            statement_type=node.statement_type.value if node.statement_type else "UNCLASSIFIED",
+            visibility=node.visibility.value if node.visibility else "VISIBLE",
+            hidden_reason=node.hidden_reason,
             parent_id=node.parent_id,
+            argument_group_id=node.argument_group_id,
+            claim=node.claim,
+            reason=node.reason,
+            example=node.example,
+            implication=node.implication,
             created_by=node.created_by,
             vote_score=vote_scores.get(node.id, 0),
             tags=[t.name for t in node.tags],

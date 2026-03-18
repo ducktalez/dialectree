@@ -5,19 +5,39 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ArgumentNode, Position
+from ..models import ArgumentNode, Position, StatementType, Visibility
 from ..schemas import ArgumentNodeCreate, ArgumentNodeOut, ArgumentNodeUpdate
 
 router = APIRouter(prefix="/arguments", tags=["arguments"])
 
 
+def _derive_position(score: float) -> Position:
+    """Derive discrete position from continuous score."""
+    if score < 0.33:
+        return Position.CONTRA
+    elif score > 0.66:
+        return Position.PRO
+    return Position.NEUTRAL
+
+
 @router.post("/", response_model=ArgumentNodeOut, status_code=201)
 def create_argument(payload: ArgumentNodeCreate, user_id: int, db: Session = Depends(get_db)):
-    # Validate position
-    try:
-        position = Position(payload.position)
-    except ValueError:
-        raise HTTPException(400, f"Invalid position: {payload.position}. Must be PRO, CONTRA or NEUTRAL")
+    # Derive position from score if score is provided
+    if payload.position_score is not None:
+        position = _derive_position(payload.position_score)
+    else:
+        try:
+            position = Position(payload.position)
+        except ValueError:
+            raise HTTPException(400, f"Invalid position: {payload.position}. Must be PRO, CONTRA or NEUTRAL")
+
+    # Validate statement_type
+    stmt_type = StatementType.UNCLASSIFIED
+    if payload.statement_type:
+        try:
+            stmt_type = StatementType(payload.statement_type)
+        except ValueError:
+            raise HTTPException(400, f"Invalid statement_type: {payload.statement_type}")
 
     # Validate parent belongs to same topic
     if payload.parent_id:
@@ -34,6 +54,12 @@ def create_argument(payload: ArgumentNodeCreate, user_id: int, db: Session = Dep
         title=payload.title,
         description=payload.description,
         position=position,
+        position_score=payload.position_score,
+        statement_type=stmt_type,
+        claim=payload.claim,
+        reason=payload.reason,
+        example=payload.example,
+        implication=payload.implication,
         created_by=user_id,
     )
     db.add(node)
@@ -72,6 +98,29 @@ def update_argument(node_id: int, payload: ArgumentNodeUpdate, db: Session = Dep
             node.position = Position(payload.position)
         except ValueError:
             raise HTTPException(400, f"Invalid position: {payload.position}. Must be PRO, CONTRA or NEUTRAL")
+    if payload.position_score is not None:
+        node.position_score = payload.position_score
+        node.position = _derive_position(payload.position_score)
+    if payload.statement_type is not None:
+        try:
+            node.statement_type = StatementType(payload.statement_type)
+        except ValueError:
+            raise HTTPException(400, f"Invalid statement_type: {payload.statement_type}")
+    if payload.visibility is not None:
+        try:
+            node.visibility = Visibility(payload.visibility)
+        except ValueError:
+            raise HTTPException(400, f"Invalid visibility: {payload.visibility}")
+    if payload.hidden_reason is not None:
+        node.hidden_reason = payload.hidden_reason
+    if payload.claim is not None:
+        node.claim = payload.claim
+    if payload.reason is not None:
+        node.reason = payload.reason
+    if payload.example is not None:
+        node.example = payload.example
+    if payload.implication is not None:
+        node.implication = payload.implication
     db.commit()
     db.refresh(node)
     return node
