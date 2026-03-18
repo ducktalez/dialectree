@@ -1,11 +1,17 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .database import engine, Base
-from .routers import users, topics, arguments, votes, tags, comments, evidence, labels
+from .routers import (
+    users, topics, arguments, votes, tags, comments, evidence, labels,
+    argument_groups, definition_forks, multi_node_patterns,
+)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -51,8 +57,14 @@ app.include_router(tags.router, prefix="/api")
 app.include_router(comments.router, prefix="/api")
 app.include_router(evidence.router, prefix="/api")
 app.include_router(labels.router, prefix="/api")
+app.include_router(argument_groups.router, prefix="/api")
+app.include_router(definition_forks.router, prefix="/api")
+app.include_router(multi_node_patterns.router, prefix="/api")
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
-@app.get("/")
+@app.get("/", response_class=FileResponse)
 def root():
-    return {"name": "Dialectree", "version": "0.1.0"}
+    """Serves the minimal browser UI for exploring argument trees."""
+    return FileResponse(_STATIC_DIR / "index.html")

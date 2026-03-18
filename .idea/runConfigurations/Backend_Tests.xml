@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Backend Tests" type="tests" factoryName="py.test">
+    <module name="dialectree" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <option name="SDK_HOME" value="$PROJECT_DIR$/.venv/Scripts/python.exe" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend" />
+    <option name="IS_MODULE_SDK" value="false" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <option name="_new_additionalArguments" value="-v" />
+    <option name="_new_target" value="$PROJECT_DIR$/backend/tests" />
+    <option name="_new_targetType" value="PATH" />
+    <envs>
+      <env name="TESTING" value="1" />
+    </envs>
+    <method v="2" />
+  </configuration>
+</component>
+

@@ -54,15 +54,15 @@ def _utcnow():
 argument_node_tags = Table(
     "argument_node_tags",
     Base.metadata,
-    Column("argument_node_id", Integer, ForeignKey("argument_nodes.id"), primary_key=True),
-    Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
+    Column("argument_node_id", Integer, ForeignKey("argument_nodes.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
 multi_node_pattern_members = Table(
     "multi_node_pattern_members",
     Base.metadata,
-    Column("pattern_id", Integer, ForeignKey("multi_node_patterns.id"), primary_key=True),
-    Column("argument_node_id", Integer, ForeignKey("argument_nodes.id"), primary_key=True),
+    Column("pattern_id", Integer, ForeignKey("multi_node_patterns.id", ondelete="CASCADE"), primary_key=True),
+    Column("argument_node_id", Integer, ForeignKey("argument_nodes.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -93,9 +93,9 @@ class Topic(Base):
     created_at = Column(DateTime, default=_utcnow)
 
     author = relationship("User", back_populates="topics")
-    argument_nodes = relationship("ArgumentNode", back_populates="topic")
-    argument_groups = relationship("ArgumentGroup", back_populates="topic")
-    multi_node_patterns = relationship("MultiNodePattern", back_populates="topic")
+    argument_nodes = relationship("ArgumentNode", back_populates="topic", cascade="all, delete-orphan")
+    argument_groups = relationship("ArgumentGroup", back_populates="topic", cascade="all, delete-orphan")
+    multi_node_patterns = relationship("MultiNodePattern", back_populates="topic", cascade="all, delete-orphan")
 
 
 class ArgumentGroup(Base):
@@ -117,7 +117,7 @@ class ArgumentNode(Base):
     id = Column(Integer, primary_key=True, index=True)
     topic_id = Column(Integer, ForeignKey("topics.id"), nullable=False)
     parent_id = Column(Integer, ForeignKey("argument_nodes.id"), nullable=True)
-    argument_group_id = Column(Integer, ForeignKey("argument_groups.id"), nullable=True)
+    argument_group_id = Column(Integer, ForeignKey("argument_groups.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
     position = Column(Enum(Position), nullable=False)
@@ -127,13 +127,14 @@ class ArgumentNode(Base):
     topic = relationship("Topic", back_populates="argument_nodes")
     author = relationship("User", back_populates="argument_nodes")
     argument_group = relationship("ArgumentGroup", back_populates="argument_nodes")
-    parent = relationship("ArgumentNode", remote_side="ArgumentNode.id", backref="children")
+    parent = relationship("ArgumentNode", remote_side="ArgumentNode.id", back_populates="children")
+    children = relationship("ArgumentNode", back_populates="parent", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary=argument_node_tags, back_populates="argument_nodes")
-    votes = relationship("Vote", back_populates="argument_node")
-    comments = relationship("Comment", back_populates="argument_node")
-    evidence = relationship("Evidence", back_populates="argument_node")
-    labels = relationship("NodeLabel", back_populates="argument_node")
-    definition_forks = relationship("DefinitionFork", back_populates="argument_node")
+    votes = relationship("Vote", back_populates="argument_node", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="argument_node", cascade="all, delete-orphan")
+    evidence = relationship("Evidence", back_populates="argument_node", cascade="all, delete-orphan")
+    labels = relationship("NodeLabel", back_populates="argument_node", cascade="all, delete-orphan")
+    definition_forks = relationship("DefinitionFork", back_populates="argument_node", cascade="all, delete-orphan")
     patterns = relationship("MultiNodePattern", secondary=multi_node_pattern_members, back_populates="members")
 
 

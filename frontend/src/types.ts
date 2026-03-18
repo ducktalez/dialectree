@@ -12,7 +12,12 @@ export interface ArgumentTreeNode {
   description: string | null;
   position: "PRO" | "CONTRA" | "NEUTRAL";
   parent_id: number | null;
+  created_by: number;
   vote_score: number;
+  tags: string[];
+  labels: string[];
+  evidence_count: number;
+  comment_count: number;
   children: ArgumentTreeNode[];
 }
 

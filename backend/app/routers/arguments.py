@@ -1,9 +1,12 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import ArgumentNode, Position
-from ..schemas import ArgumentNodeCreate, ArgumentNodeOut
+from ..schemas import ArgumentNodeCreate, ArgumentNodeOut, ArgumentNodeUpdate
 
 router = APIRouter(prefix="/arguments", tags=["arguments"])
 
@@ -52,6 +55,25 @@ def get_argument(node_id: int, db: Session = Depends(get_db)):
     node = db.query(ArgumentNode).filter(ArgumentNode.id == node_id).first()
     if not node:
         raise HTTPException(404, "Argument not found")
+    return node
+
+
+@router.patch("/{node_id}", response_model=ArgumentNodeOut)
+def update_argument(node_id: int, payload: ArgumentNodeUpdate, db: Session = Depends(get_db)):
+    node = db.query(ArgumentNode).filter(ArgumentNode.id == node_id).first()
+    if not node:
+        raise HTTPException(404, "Argument not found")
+    if payload.title is not None:
+        node.title = payload.title
+    if payload.description is not None:
+        node.description = payload.description
+    if payload.position is not None:
+        try:
+            node.position = Position(payload.position)
+        except ValueError:
+            raise HTTPException(400, f"Invalid position: {payload.position}. Must be PRO, CONTRA or NEUTRAL")
+    db.commit()
+    db.refresh(node)
     return node
 
 

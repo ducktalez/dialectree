@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchTopics, fetchTree } from "./api";
+import { fetchTopics, fetchTree, createTopic } from "./api";
 import ArgumentTree from "./components/ArgumentTree";
 import type { Topic, ArgumentTreeNode } from "./types";
 
@@ -8,23 +8,58 @@ export default function App() {
   const [selectedTopic, setSelectedTopic] = useState<number | null>(null);
   const [tree, setTree] = useState<ArgumentTreeNode[]>([]);
   const [loading, setLoading] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+
+  const loadTopics = () => fetchTopics().then(setTopics);
 
   useEffect(() => {
-    fetchTopics().then(setTopics);
+    loadTopics();
   }, []);
 
-  useEffect(() => {
+  const reloadTree = () => {
     if (selectedTopic === null) return;
     setLoading(true);
     fetchTree(selectedTopic)
       .then(setTree)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    reloadTree();
   }, [selectedTopic]);
+
+  const handleCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    const topic = await createTopic(newTitle.trim(), newDesc.trim());
+    setNewTitle("");
+    setNewDesc("");
+    await loadTopics();
+    setSelectedTopic(topic.id);
+  };
 
   return (
     <div style={{ fontFamily: "sans-serif", padding: 20 }}>
       <h1>🌳 Dialectree</h1>
       <p>Structured argument trees for better discussions.</p>
+
+      <h2>New Topic</h2>
+      <form onSubmit={handleCreateTopic} style={{ marginBottom: 20 }}>
+        <input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          placeholder="Topic question…"
+          style={{ width: 300, marginRight: 8 }}
+        />
+        <input
+          value={newDesc}
+          onChange={(e) => setNewDesc(e.target.value)}
+          placeholder="Description (optional)"
+          style={{ width: 300, marginRight: 8 }}
+        />
+        <button type="submit">Create</button>
+      </form>
 
       <h2>Topics</h2>
       {topics.length === 0 && (
@@ -56,10 +91,16 @@ export default function App() {
 
       {loading && <p>Loading argument tree…</p>}
 
-      {!loading && tree.length > 0 && <ArgumentTree tree={tree} />}
+      {!loading && selectedTopic && (
+        <ArgumentTree
+          tree={tree}
+          topicId={selectedTopic}
+          onTreeChange={reloadTree}
+        />
+      )}
 
       {!loading && selectedTopic && tree.length === 0 && (
-        <p>No arguments found for this topic.</p>
+        <p>No arguments found for this topic. Add one above!</p>
       )}
     </div>
   );

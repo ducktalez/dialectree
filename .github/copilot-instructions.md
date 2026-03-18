@@ -33,6 +33,7 @@ The project is in early development. Only implement what is **technically necess
 ## Maintaining These Instructions
 When a change introduces new conventions, pitfalls, or architectural decisions, **update the relevant instruction file** (this file, or `.github/instructions/*.instructions.md`). Keep them accurate and lean.
 
-An architectural overview is described and updated in `docs/architecture.md`. 
-
-Deferred work is tracked in `docs/implementation-plan.md`.
+## Working process: Maintaining These Docs 
+- Update architectural changes in  `docs/architecture.md`.
+- Track deferred work in `docs/implementation-plan.md`.
+- **`docs/taxonomy.md`** is the canonical reference for all argument types, fallacies, evidence tiers, tag categories, and categorisation dimensions. When adding a new enum, label type, or tag category, it **must** have an entry in taxonomy.md first.

@@ -60,6 +60,12 @@ class ArgumentNodeOut(BaseModel):
     created_at: datetime
 
 
+class ArgumentNodeUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    position: Optional[str] = None
+
+
 # ── ArgumentGroup ─────────────────────────────────────────────────────
 
 class ArgumentGroupCreate(BaseModel):
@@ -75,6 +81,11 @@ class ArgumentGroupOut(BaseModel):
     canonical_title: str
     description: Optional[str]
     created_at: datetime
+
+
+class ArgumentGroupUpdate(BaseModel):
+    canonical_title: Optional[str] = None
+    description: Optional[str] = None
 
 
 # ── Vote ───────────────────────────────────────────────────────────────
@@ -191,6 +202,49 @@ class NodeLabelOut(BaseModel):
 
 # ── Tree response ──────────────────────────────────────────────────────
 
+# ── DefinitionFork ─────────────────────────────────────────────────────
+
+class DefinitionForkCreate(BaseModel):
+    argument_node_id: int
+    term: str
+    definition_variant: str
+    description: Optional[str] = None
+
+
+class DefinitionForkOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    argument_node_id: int
+    term: str
+    definition_variant: str
+    description: Optional[str]
+    created_at: datetime
+
+
+# ── MultiNodePattern ──────────────────────────────────────────────────
+
+class MultiNodePatternCreate(BaseModel):
+    topic_id: int
+    name: str
+    pattern_type: str  # GISH_GALLOP / CREEPING_RELATIVIZATION / OTHER
+    description: Optional[str] = None
+    member_ids: list[int] = []
+
+
+class MultiNodePatternOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    topic_id: int
+    name: str
+    pattern_type: str
+    description: Optional[str]
+    created_by: int
+    created_at: datetime
+    member_ids: list[int] = []
+
+
+# ── Tree response (nested) ────────────────────────────────────────────
+
 class ArgumentTreeNode(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -198,6 +252,11 @@ class ArgumentTreeNode(BaseModel):
     description: Optional[str]
     position: str
     parent_id: Optional[int]
+    created_by: int = 0
     vote_score: int = 0
+    tags: list[str] = []
+    labels: list[str] = []
+    evidence_count: int = 0
+    comment_count: int = 0
     children: list["ArgumentTreeNode"] = []
 

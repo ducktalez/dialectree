@@ -4,10 +4,18 @@ Structured argument trees for better discussions.
 
 ## What is Dialectree?
 
-Online discussions repeat endlessly. The same arguments get made, refuted, and forgotten — over and over. Dialectree breaks this cycle by mapping every debatable question into a **logical argument tree**: one root question, branching into PRO/CONTRA/NEUTRAL arguments, each of which can have sub-arguments, down to the underlying moral premises.
+Discussions repeat endlessly (especially online). The same arguments get made, refuted, and forgotten — over and over. Dialectree breaks this cycle by mapping every debatable question into a **logical argument tree**: one root question, branching into PRO/CONTRA/NEUTRAL arguments, each of which can have sub-arguments, down to the underlying moral premises.
 
 Similar arguments (same point, different wording) are grouped into a single bubble. Fallacies can be flagged. Circular reasoning becomes visible. The goal: every argument gets made **once**, clearly, in the right place.
 
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/taxonomy.md`](docs/taxonomy.md) | Canonical reference for all argument types, fallacies, evidence tiers, tag categories, and categorisation dimensions |
+| [`docs/discussion-flow.md`](docs/discussion-flow.md) | Guiding example ("Deutschland sollte mehr Migranten aufnehmen") — defines the implementation red thread |
+| [`docs/implementation-plan.md`](docs/implementation-plan.md) | Roadmap, deferred features, design principles, extended test coverage |
+| [`docs/architecture.md`](docs/architecture.md) | Technical architecture overview |
 
 ## Concept Clusters
 
@@ -43,6 +51,18 @@ The following concepts are planned or partially implemented. This is not a final
 
 ## Quick Start
 
+### PyCharm (recommended)
+The project ships with ready-to-use Run Configurations (in `.idea/runConfigurations/`). After opening the project, use the **Run** dropdown:
+
+| Configuration      | What it does                            |
+|---------------------|-----------------------------------------|
+| **Backend Server**  | `uvicorn app.main:app --reload`         |
+| **Backend Tests**   | `pytest tests/ -v`                      |
+| **Seed Data**       | `python -m app.seed`                    |
+| **Frontend Dev**    | `npm run dev` (Vite dev server)         |
+
+### Manual (terminal)
+
 ### Backend
 ```bash
 cd backend
@@ -57,17 +77,22 @@ cd backend
 python -m app.seed
 ```
 
-### Frontend (optional during dev)
+### Frontend
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev   # dev server on http://localhost:5173 (proxies /api → backend)
 ```
+> **Note:** Node.js is only required during development (for Vite).
+> In production, `npm run build` compiles the app to static files that FastAPI serves directly — no Node.js on the server.
+> Install Node.js LTS once from [nodejs.org](https://nodejs.org), then `npm install && npm run dev` is all you need.
 
 ## Project Structure
 ```
 dialectree/
 ├── .github/copilot-instructions.md   # agent instructions (auto-loaded)
+├── docs/taxonomy.md                  # canonical reference: all argument types, fallacies, evidence tiers, tags
+├── docs/discussion-flow.md           # guiding example & implementation red thread
 ├── docs/implementation-plan.md       # deferred features & roadmap
 ├── backend/
 │   ├── app/                          # FastAPI app, models, schemas, routers
