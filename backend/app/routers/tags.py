@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Tag, ArgumentNode, argument_node_tags, TagVote, MoralFoundation
+from ..models import Tag, ArgumentNode, ArgumentNodeTag, TagVote, MoralFoundation, TagCategory, TagOrigin
 from ..schemas import TagCreate, TagOut, TagAssign, TagVoteCreate, TagVoteOut
 
 router = APIRouter(prefix="/tags", tags=["tags"])
@@ -21,7 +21,14 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db)):
         except ValueError:
             raise HTTPException(400, f"Invalid moral foundation: {payload.moral_foundation}")
 
-    tag = Tag(name=payload.name, moral_foundation=moral)
+    category = TagCategory.OTHER
+    if payload.category:
+        try:
+            category = TagCategory(payload.category)
+        except ValueError:
+            raise HTTPException(400, f"Invalid tag category: {payload.category}")
+
+    tag = Tag(name=payload.name, moral_foundation=moral, category=category)
     db.add(tag)
     db.commit()
     db.refresh(tag)
@@ -41,9 +48,28 @@ def assign_tag(payload: TagAssign, db: Session = Depends(get_db)):
     node = db.query(ArgumentNode).filter(ArgumentNode.id == payload.argument_node_id).first()
     if not node:
         raise HTTPException(404, "Argument not found")
-    if tag in node.tags:
+
+    existing = db.query(ArgumentNodeTag).filter(
+        ArgumentNodeTag.argument_node_id == payload.argument_node_id,
+        ArgumentNodeTag.tag_id == payload.tag_id,
+    ).first()
+    if existing:
         raise HTTPException(400, "Tag already assigned")
-    node.tags.append(tag)
+
+    # Validate origin
+    origin = TagOrigin.USER
+    if payload.origin:
+        try:
+            origin = TagOrigin(payload.origin)
+        except ValueError:
+            raise HTTPException(400, f"Invalid tag origin: {payload.origin}")
+
+    link = ArgumentNodeTag(
+        argument_node_id=payload.argument_node_id,
+        tag_id=payload.tag_id,
+        origin=origin,
+    )
+    db.add(link)
     db.commit()
     return {"status": "assigned"}
 

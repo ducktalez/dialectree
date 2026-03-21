@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔍 Dialectree – Konfliktanalyse</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #fafafa; color: #222; }
+
+    header {
+      background: #1a237e; color: #fff; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 1.15rem; }
+    header p  { font-size: 0.72rem; opacity: 0.8; }
+    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    header a {
+      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    }
+    header a:hover { background: rgba(255,255,255,.12); }
+
+    #app { max-width: 960px; margin: 0 auto; padding: 20px; }
+
+    .intro {
+      background: #fff; border-radius: 10px; padding: 16px 20px;
+      margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .intro h2 { font-size: 1rem; margin-bottom: 8px; }
+    .intro p  { font-size: 0.82rem; color: #555; line-height: 1.5; margin-bottom: 6px; }
+    .intro strong { color: #1a237e; }
+
+    /* ── Topic tabs ─────────────────────────── */
+    .topic-tabs {
+      display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .topic-tab {
+      padding: 6px 14px; border-radius: 16px; border: 2px solid #1a237e;
+      background: #fff; cursor: pointer; font-size: 0.82rem; transition: all .15s;
+    }
+    .topic-tab.active { background: #1a237e; color: #fff; }
+
+    /* ── Three zones ────────────────────────── */
+    .zones { display: flex; flex-direction: column; gap: 16px; }
+
+    .zone {
+      background: #fff; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .zone-header {
+      padding: 10px 16px; color: #fff; font-weight: 600; font-size: 0.88rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .zone-header .zone-level { font-size: 0.68rem; font-weight: 400; opacity: 0.85; }
+
+    .zone.facts .zone-header    { background: linear-gradient(90deg, #1565c0, #1976d2); }
+    .zone.causal .zone-header   { background: linear-gradient(90deg, #e65100, #f57c00); }
+    .zone.values .zone-header   { background: linear-gradient(90deg, #6a1b9a, #8e24aa); }
+
+    .zone-body { padding: 12px 16px; }
+
+    /* ── Agreement spectrum bar ─────────────── */
+    .spectrum {
+      margin-bottom: 10px;
+    }
+    .spectrum-label {
+      font-size: 0.72rem; color: #888; margin-bottom: 3px;
+      display: flex; justify-content: space-between;
+    }
+    .spectrum-bar {
+      height: 10px; border-radius: 5px; display: flex; overflow: hidden;
+    }
+    .spectrum-agree {
+      background: linear-gradient(90deg, #66bb6a, #81c784);
+      transition: flex .4s;
+    }
+    .spectrum-dispute {
+      background: linear-gradient(90deg, #ef5350, #e53935);
+      transition: flex .4s;
+    }
+    .spectrum-unknown {
+      background: #e0e0e0;
+      transition: flex .4s;
+    }
+    .spectrum-verdict {
+      font-size: 0.7rem; color: #666; margin-top: 3px; text-align: center;
+      font-style: italic;
+    }
+
+    /* ── Items in each zone ──────────────────── */
+    .zone-items {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+    }
+    .zone-item {
+      border-radius: 6px; padding: 5px 9px; font-size: 0.74rem;
+      line-height: 1.25; max-width: 420px; flex: 1 1 280px;
+      border: 1px solid #e0e0e0;
+    }
+    .zone-item.agreed {
+      background: #e8f5e9; border-left: 4px solid #43a047;
+    }
+    .zone-item.disputed {
+      background: #fce4ec; border-left: 4px solid #e53935;
+    }
+    .zone-item.uncertain {
+      background: #f5f5f5; border-left: 4px solid #bdbdbd;
+      font-style: italic; color: #666;
+    }
+    .zone-item .item-title { font-weight: 600; font-size: 0.76rem; }
+    .zone-item .item-note  { font-size: 0.66rem; color: #777; margin-top: 2px; }
+    .item-icon { margin-right: 4px; }
+
+    /* ── Summary ─────────────────────────────── */
+    .conflict-summary {
+      background: #fff; border-radius: 10px; padding: 14px 18px;
+      margin-top: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      text-align: center;
+    }
+    .conflict-summary h3 { font-size: 0.9rem; margin-bottom: 8px; }
+    .conflict-summary p { font-size: 0.78rem; color: #555; line-height: 1.5; }
+    .conflict-summary .highlight { font-weight: 700; }
+    .highlight.facts  { color: #1565c0; }
+    .highlight.causal { color: #e65100; }
+    .highlight.values { color: #6a1b9a; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🔍 Konfliktanalyse</h1>
+    <p>Wo genau liegt der Streit? Fakten, Kausalität oder Werte?</p>
+  </div>
+  <nav>
+    <a href="/">🌳 Baum</a>
+    <a href="/entscheidung">⚖️ Waage</a>
+    <a href="/dialog">💬 Dialog</a>
+    <a href="/zickzack">⚡ Zickzack</a>
+    <a href="/praesentation">🧠 Mindmap</a>
+  </nav>
+</header>
+
+<div id="app">
+  <div class="intro">
+    <h2>Warum streiten sich Menschen?</h2>
+    <p>Jeder Konflikt lässt sich auf <strong>drei Ebenen</strong> zerlegen:</p>
+    <p>
+      <strong>1. Fakten</strong> — Stimmen die Grundannahmen? Haben beide Seiten dasselbe Wissen?<br>
+      <strong>2. Kausalität</strong> — Sind sie sich einig, welche Zusammenhänge und Konsequenzen gelten?<br>
+      <strong>3. Werte</strong> — Wollen beide dasselbe Ergebnis, oder haben sie fundamental andere Ziele?
+    </p>
+    <p style="font-size:0.76rem;color:#888;margin-top:8px">
+      Basierend auf: Aristoteles (forensisch/deliberativ/epideiktisch), Toulmins Argumentationsmodell (Data/Warrant/Backing),
+      Habermas' Wahrheits-/Richtigkeits-/Aufrichtigkeitsansprüche, Humes Guillotine (Is-Ought).
+    </p>
+  </div>
+
+  <div class="topic-tabs" id="tabs"></div>
+  <div id="content"></div>
+</div>
+
+<script>
+  // ── Topic conflict data ─────────────────────────
+  // Each topic has three zones with items classified as agreed/disputed/uncertain
+
+  const TOPICS = [
+    {
+      id: 'klima',
+      title: 'Klimapolitik',
+      question: 'Sollte Deutschland bis 2035 klimaneutral werden?',
+      mainConflict: 'causal',
+      mainConflictText: 'Der Hauptkonflikt liegt auf der <span class="highlight causal">Kausalitäts-Ebene</span>: Beide Seiten wollen eine lebenswerte Welt. Der Streit dreht sich darum, ob die vorgeschlagenen Maßnahmen realistisch funktionieren können.',
+      zones: {
+        facts: {
+          agree: 70, dispute: 15, unknown: 15,
+          items: [
+            { status: 'agreed', title: 'CO₂ erhöht die globale Temperatur', note: 'IPCC AR6: "Unequivocal" — beide Seiten akzeptieren die Grundphysik' },
+            { status: 'agreed', title: 'Fossile Verbrennung ist die Hauptquelle menschlicher CO₂-Emissionen', note: '' },
+            { status: 'agreed', title: 'Wirtschaftliche Transformation verursacht kurzfristige Kosten', note: '' },
+            { status: 'disputed', title: 'Erneuerbare decken "nur einen Bruchteil"', note: 'Tatsächlich ~50% des Stroms, aber nur ~20% des Gesamtenergieverbrauchs' },
+            { status: 'uncertain', title: 'Genaue Klimasensitivität (±1.5°C Unsicherheit)', note: 'Wissenschaftlich anerkannte Unsicherheit, kein Faktenstreit' },
+          ]
+        },
+        causal: {
+          agree: 20, dispute: 65, unknown: 15,
+          items: [
+            { status: 'disputed', title: 'Kann Deutschland einen globalen Effekt erzielen?', note: '2% globaler Emissionen — Vorbildfunktion vs. Irrelevanz' },
+            { status: 'disputed', title: 'Können Erneuerbare die Grundlast decken?', note: 'Speicherproblem: Pumpspeicher begrenzt, Power-to-Gas verlustreich' },
+            { status: 'disputed', title: 'Wird alles Öl sowieso verbrannt?', note: 'Marktlogik: Was einer nicht kauft, kauft der nächste' },
+            { status: 'disputed', title: 'Führt schnelle Transformation zu sozialem Schaden?', note: 'Arbeitsplatzverluste vs. neue Industrien — Timing-Frage' },
+            { status: 'uncertain', title: 'Windenergie: Nebenwirkungen auf Windzirkulation?', note: 'Erste Studien existieren, Skalierungseffekte unklar' },
+            { status: 'agreed', title: 'Kipppunkte sind irreversibel', note: 'Breiter Konsens, dass Permafrost-Schmelze etc. nicht rückgängig zu machen sind' },
+          ]
+        },
+        values: {
+          agree: 80, dispute: 15, unknown: 5,
+          items: [
+            { status: 'agreed', title: 'Lebenswerte Welt für kommende Generationen', note: 'Universeller Konsens — niemand will eine zerstörte Erde' },
+            { status: 'agreed', title: 'Wohlstand und Arbeitsplätze sind wichtig', note: 'Beide Seiten wollen wirtschaftliche Stabilität' },
+            { status: 'disputed', title: 'Wie viel Wohlstandsverlust ist akzeptabel?', note: 'Wie viel darf der Klimaschutz kosten? Risk-tolerance unterscheidet sich' },
+            { status: 'agreed', title: 'Technologischer Fortschritt ist wünschenswert', note: '' },
+          ]
+        }
+      }
+    },
+    {
+      id: 'migration',
+      title: 'Migration',
+      question: 'Sollte Deutschland mehr Migranten aufnehmen?',
+      mainConflict: 'values',
+      mainConflictText: 'Der Hauptkonflikt liegt auf der <span class="highlight values">Werte-Ebene</span>: Die Seiten haben fundamental unterschiedliche Vorstellungen davon, wie eine gute Gesellschaft aussieht (kulturelle Homogenität vs. kosmopolitische Offenheit).',
+      zones: {
+        facts: {
+          agree: 40, dispute: 45, unknown: 15,
+          items: [
+            { status: 'disputed', title: 'Kriminalitätsstatistiken nach Herkunft', note: 'Interpretation der Zahlen ist hochgradig umstritten' },
+            { status: 'disputed', title: 'Wirtschaftlicher Nettobeitrag von Migration', note: 'Studien kommen je nach Methodik zu entgegengesetzten Ergebnissen' },
+            { status: 'agreed', title: 'Deutschland hat demographischen Wandel', note: 'Beide Seiten akzeptieren Fachkräftemangel als Problem' },
+            { status: 'uncertain', title: 'Integrationserfolg nach Generationen', note: 'Langzeitdaten begrenzt, stark kontextabhängig' },
+          ]
+        },
+        causal: {
+          agree: 25, dispute: 55, unknown: 20,
+          items: [
+            { status: 'disputed', title: 'Führt mehr Migration zu mehr oder weniger Sicherheit?', note: '' },
+            { status: 'disputed', title: 'Kann Integration bei hohen Zahlen gelingen?', note: 'Kapazitätsgrenzen vs. historische Erfolgsbeispiele' },
+            { status: 'disputed', title: 'Löst Migration den Fachkräftemangel?', note: 'Qualifikationsprofil-Mismatch als Kernfrage' },
+            { status: 'uncertain', title: 'Auswirkung auf Sozialsysteme langfristig', note: '' },
+          ]
+        },
+        values: {
+          agree: 25, dispute: 65, unknown: 10,
+          items: [
+            { status: 'disputed', title: 'Ist kulturelle Homogenität ein Wert an sich?', note: 'Fundamentale Wertedivergenz zwischen den Positionen' },
+            { status: 'disputed', title: 'Pflicht zur Aufnahme vs. Recht auf Abgrenzung', note: 'Humanitäre Verantwortung vs. nationale Souveränität' },
+            { status: 'disputed', title: 'Universalismus vs. Partikularismus', note: 'Gelten Menschenrechte grenzenlos oder hat die eigene Gemeinschaft Vorrang?' },
+            { status: 'agreed', title: 'Gesetze müssen eingehalten werden', note: 'Konsens über Rechtsstaatlichkeit, Streit über welche Gesetze' },
+          ]
+        }
+      }
+    },
+    {
+      id: 'rauchen',
+      title: 'Rauchverbot',
+      question: 'Sollte Rauchen verboten werden?',
+      mainConflict: 'values',
+      mainConflictText: 'Der Hauptkonflikt liegt auf der <span class="highlight values">Werte-Ebene</span>: Sicherheit & Gesundheit vs. Freiheit & Selbstbestimmung. Die Fakten (Rauchen schadet) und Kausalität (Verbot reduziert Konsum) sind weitgehend unstrittig.',
+      zones: {
+        facts: {
+          agree: 90, dispute: 5, unknown: 5,
+          items: [
+            { status: 'agreed', title: 'Rauchen verursacht Krebs und Herzkrankheiten', note: 'Wissenschaftlicher Konsens seit Jahrzehnten' },
+            { status: 'agreed', title: 'Passivrauchen schadet Dritten', note: '' },
+            { status: 'agreed', title: 'Nikotin erzeugt Abhängigkeit', note: '' },
+            { status: 'disputed', title: 'Korrelation vs. Kausalität bei Lebensstilfaktoren', note: 'Randargument — Confounders' },
+          ]
+        },
+        causal: {
+          agree: 50, dispute: 40, unknown: 10,
+          items: [
+            { status: 'agreed', title: 'Verbote reduzieren Konsum messbar', note: '' },
+            { status: 'disputed', title: 'Prohibition erzeugt Schwarzmarkt', note: 'Historisches Argument (Alkoholprohibition)' },
+            { status: 'disputed', title: 'Stufenweise Regulierung effektiver als Totalverbot?', note: '' },
+            { status: 'uncertain', title: 'Auswirkung auf Staatseinnahmen (Tabaksteuer)', note: '' },
+          ]
+        },
+        values: {
+          agree: 30, dispute: 60, unknown: 10,
+          items: [
+            { status: 'disputed', title: 'Darf der Staat Selbstschädigung verbieten?', note: 'Kernfrage: Paternalismus vs. Autonomie' },
+            { status: 'disputed', title: 'Gesundheit der Gesellschaft vs. individuelle Freiheit', note: '' },
+            { status: 'agreed', title: 'Kinder sollten geschützt werden', note: 'Universeller Konsens' },
+            { status: 'agreed', title: 'Information ist besser als Zwang', note: 'Breite Zustimmung, aber Streit über Ausmaß' },
+          ]
+        }
+      }
+    }
+  ];
+
+  // ── Render ─────────────────────────────────────
+
+  const ZONE_META = {
+    facts:  { emoji: '📊', label: 'Ebene 1: Fakten & Wissen',      sub: 'Haben beide Seiten dieselben Informationen?' },
+    causal: { emoji: '🔗', label: 'Ebene 2: Kausalität & Machbarkeit', sub: 'Sind sie sich einig, was woraus folgt?' },
+    values: { emoji: '🎯', label: 'Ebene 3: Werte & Ziele',        sub: 'Wollen beide dasselbe Ergebnis?' },
+  };
+
+  function renderTopic(topic) {
+    const el = document.getElementById('content');
+    el.innerHTML = '';
+
+    // Zones
+    const zones = document.createElement('div');
+    zones.className = 'zones';
+
+    for (const [key, meta] of Object.entries(ZONE_META)) {
+      const z = topic.zones[key];
+      const isMain = key === topic.mainConflict;
+
+      const zone = document.createElement('div');
+      zone.className = `zone ${key}`;
+      zone.innerHTML =
+        `<div class="zone-header">
+          <span>${meta.emoji} ${meta.label}</span>
+          <span class="zone-level">${meta.sub}</span>
+        </div>
+        <div class="zone-body">
+          <div class="spectrum">
+            <div class="spectrum-label">
+              <span>✅ Konsens ${z.agree}%</span>
+              <span>❓ Unklar ${z.unknown}%</span>
+              <span>🔥 Streit ${z.dispute}%</span>
+            </div>
+            <div class="spectrum-bar">
+              <div class="spectrum-agree" style="flex:${z.agree}"></div>
+              <div class="spectrum-unknown" style="flex:${z.unknown}"></div>
+              <div class="spectrum-dispute" style="flex:${z.dispute}"></div>
+            </div>
+            ${isMain ? '<div class="spectrum-verdict">◀ Hier liegt der Hauptkonflikt ▶</div>' : ''}
+          </div>
+          <div class="zone-items">
+            ${z.items.map(it =>
+              `<div class="zone-item ${it.status}">
+                <div class="item-title"><span class="item-icon">${it.status==='agreed'?'✅':it.status==='disputed'?'🔥':'❓'}</span>${esc(it.title)}</div>
+                ${it.note ? `<div class="item-note">${esc(it.note)}</div>` : ''}
+              </div>`
+            ).join('')}
+          </div>
+        </div>`;
+      zones.appendChild(zone);
+    }
+    el.appendChild(zones);
+
+    // Summary
+    const summary = document.createElement('div');
+    summary.className = 'conflict-summary';
+    summary.innerHTML =
+      `<h3>📍 Diagnose: ${esc(topic.question)}</h3>
+       <p>${topic.mainConflictText}</p>`;
+    el.appendChild(summary);
+  }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Init ──────────────────────────────────────
+
+  const tabs = document.getElementById('tabs');
+  TOPICS.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'topic-tab';
+    btn.textContent = t.title;
+    btn.onclick = () => {
+      tabs.querySelectorAll('.topic-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTopic(t);
+    };
+    tabs.appendChild(btn);
+    if (i === 0) { btn.classList.add('active'); renderTopic(t); }
+  });
+</script>
+</body>
+</html>
+
+
+

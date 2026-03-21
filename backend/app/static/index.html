@@ -1,4 +1,4 @@
-res<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
@@ -9,69 +9,140 @@ res<!DOCTYPE html>
     body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
 
     header {
-      background: #1a237e; color: #fff; padding: 16px 24px;
+      background: #1a237e; color: #fff; padding: 14px 24px;
       display: flex; align-items: center; gap: 12px;
     }
-    header h1 { font-size: 1.5rem; }
-    header p { font-size: 0.85rem; opacity: 0.8; }
+    header h1 { font-size: 1.15rem; }
+    header p  { font-size: 0.82rem; opacity: 0.8; }
 
-    #app { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    #app { padding: 12px 20px; }
 
-    #topic-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+    #topic-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .topic-btn {
-      padding: 8px 18px; border-radius: 20px; border: 2px solid #1a237e;
-      background: #fff; cursor: pointer; font-size: 0.95rem; transition: all .15s;
+      padding: 6px 16px; border-radius: 18px; border: 2px solid #1a237e;
+      background: #fff; cursor: pointer; font-size: 0.9rem; transition: all .15s;
     }
     .topic-btn.active { background: #1a237e; color: #fff; }
     .topic-btn:hover:not(.active) { background: #e8eaf6; }
 
-    #tree-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 4px; }
-    #tree-desc { color: #555; font-size: 0.9rem; margin-bottom: 20px; }
+    .legend { display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; font-size: 0.78rem; }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; }
 
-    .tree-container { overflow-x: auto; padding-bottom: 16px; }
+    #loading { color: #888; font-style: italic; padding: 16px 0; }
+    #error   { color: #d32f2f; padding: 16px 0; }
+    #empty   { color: #888; padding: 16px 0; }
 
-    /* Node cards */
+    /* ── Layered tree ────────────────────────────── */
+    .tree-container { padding-bottom: 12px; }
+
+    .tree-section {
+      position: relative; overflow-x: auto; padding: 8px 4px 16px;
+    }
+    .tree-section svg.tree-svg {
+      position: absolute; top: 0; left: 0;
+      pointer-events: none; z-index: 0;
+    }
+
+    .layer-stack {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0; position: relative; z-index: 1;
+    }
+    .layer { width: 100%; text-align: center; padding: 4px 0; }
+    .layer-label {
+      font-size: 0.7rem; font-weight: 600; color: #888;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .layer-row {
+      display: flex; justify-content: center; align-items: flex-start;
+      gap: 8px; flex-wrap: wrap; padding: 0 8px;
+    }
+
+    /* ── Node cards ──────────────────────────────── */
     .node {
-      display: inline-block; vertical-align: top;
-      background: #fff; border-radius: 10px;
-      border-left: 5px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,.12);
-      padding: 12px 16px; margin: 6px; min-width: 220px; max-width: 280px;
-      font-size: 0.85rem;
+      width: fit-content; max-width: 210px; min-width: 80px;
+      background: #fff; border-radius: 6px;
+      border: 1px solid #e0e0e0; border-left: 4px solid #ccc;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+      padding: 3px 7px; font-size: 0.76rem; line-height: 1.25;
+      text-align: left;
     }
-    .node.PRO    { border-color: #388e3c; }
-    .node.CONTRA { border-color: #d32f2f; }
-    .node.NEUTRAL{ border-color: #f57c00; }
+    .node.PRO     { border-color: #e0e0e0; border-left-color: #388e3c; }
+    .node.CONTRA  { border-color: #e0e0e0; border-left-color: #d32f2f; }
+    .node.NEUTRAL { border-color: #e0e0e0; border-left-color: #f57c00; }
 
-    .node-badge {
-      display: inline-block; border-radius: 4px; padding: 1px 7px;
-      font-size: 0.72rem; font-weight: 700; color: #fff; margin-bottom: 6px;
+    .node.topic-node {
+      border-left: 4px solid #1a237e; text-align: center;
+      padding: 5px 12px; max-width: 300px; font-size: 0.84rem;
     }
-    .PRO .node-badge    { background: #388e3c; }
-    .CONTRA .node-badge { background: #d32f2f; }
-    .NEUTRAL .node-badge{ background: #f57c00; }
-
-    .node-title { font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
-    .node-desc  { color: #555; font-size: 0.8rem; margin-bottom: 6px; }
-    .node-meta  { font-size: 0.75rem; color: #777; }
-    .node-score { font-weight: 700; }
-    .node-score.pos { color: #388e3c; }
-    .node-score.neg { color: #d32f2f; }
-
-    .children {
-      border-left: 3px solid #ddd; margin-left: 20px;
-      padding-left: 12px; margin-top: 4px;
+    .node.goal-node {
+      border: none; border-left: 4px solid #ff8f00; text-align: center;
+      padding: 6px 16px; max-width: 360px; font-size: 0.86rem;
+      background: linear-gradient(135deg, #fff8e1 0%, #fff 100%);
+      box-shadow: 0 2px 8px rgba(255,143,0,.12);
     }
-
-    #loading { color: #888; font-style: italic; padding: 20px 0; }
-    #error   { color: #d32f2f; padding: 20px 0; }
-    #empty   { color: #888; padding: 20px 0; }
-
-    .legend {
-      display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
-      font-size: 0.82rem;
+    .node.value-node {
+      border-left: 4px solid #7b1fa2; text-align: center;
+      padding: 4px 10px; font-size: 0.76rem; background: #f3e5f5;
     }
-    .legend-item { display: flex; align-items: center; gap: 5px; }
-    .legend-dot  { width: 12px; height: 12px; border-radius: 50%; }
+    .node.domain-node {
+      border-left: 4px solid #00796b; text-align: center;
+      padding: 4px 10px; font-size: 0.76rem; background: #e0f2f1;
+    }
+    /* Premises / examples / anecdotes — subtle background annotations */
+    .node.premise-node {
+      border: none; border-left: 3px dashed #ccc;
+      background: #fafafa; box-shadow: none;
+      font-size: 0.66rem; line-height: 1.18;
+      padding: 2px 6px; max-width: 180px;
+      opacity: 0.7;
+    }
+    .node.premise-node .node-title { font-weight: 500; font-style: italic; font-size: 0.66rem; }
+    .node.premise-node .node-meta  { font-size: 0.58rem; }
+    .node.premise-node.PRO     { border-left-color: #a5d6a7; }
+    .node.premise-node.CONTRA  { border-left-color: #ef9a9a; }
+    .node.premise-node.NEUTRAL { border-left-color: #ffcc80; }
+
+    .node-title { font-weight: 600; line-height: 1.2; font-size: 0.76rem; }
+    .node-desc  { color: #555; font-size: 0.7rem; line-height: 1.15; }
+    .node-meta  {
+      font-size: 0.66rem; color: #777;
+      display: flex; align-items: center; gap: 3px; flex-wrap: wrap; line-height: 1.3;
+    }
+    .node-score      { font-weight: 700; font-size: 0.72rem; }
+    .node-score.pos  { color: #388e3c; }
+    .node-score.neg  { color: #d32f2f; }
+    .node-score.zero { color: #999; }
+
+    .tag-pill {
+      display: inline-block; background: #e8eaf6; color: #3949ab;
+      border-radius: 9px; padding: 0 5px; font-size: 0.58rem;
+      font-weight: 500; white-space: nowrap; line-height: 1.5;
+    }
+    .label-pill {
+      display: inline-block; background: #fff3e0; color: #e65100;
+      border-radius: 9px; padding: 0 5px; font-size: 0.58rem;
+      font-weight: 500; white-space: nowrap; line-height: 1.5;
+    }
+    .meta-icon { font-size: 0.64rem; color: #999; }
+
+    /* ── Edge emoji label ────────────────────────── */
+    .edge-emoji {
+      position: absolute; font-size: 10px;
+      transform: translate(-50%, -50%);
+      pointer-events: none; z-index: 2;
+      background: #f5f5f5; border-radius: 50%;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 2px #f5f5f5;
+    }
+    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    header a {
+      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    }
+    header a:hover { background: rgba(255,255,255,.12); }
   </style>
 </head>
 <body>
@@ -80,17 +151,23 @@ res<!DOCTYPE html>
     <h1>🌳 Dialectree</h1>
     <p>Strukturierte Argumentationsbäume für bessere Diskussionen</p>
   </div>
+  <nav>
+    <a href="/entscheidung">⚖️ Waage</a>
+    <a href="/dialog">💬 Dialog</a>
+    <a href="/zickzack">⚡ Zickzack</a>
+    <a href="/konflikt">🔍 Konflikt</a>
+    <a href="/praesentation">🧠 Mindmap</a>
+  </nav>
 </header>
 
 <div id="app">
   <div id="topic-list"><em>Lade Topics…</em></div>
-  <div id="tree-title"></div>
-  <div id="tree-desc"></div>
   <div class="legend" id="legend" style="display:none">
     <div class="legend-item"><div class="legend-dot" style="background:#388e3c"></div> PRO</div>
     <div class="legend-item"><div class="legend-dot" style="background:#d32f2f"></div> CONTRA</div>
     <div class="legend-item"><div class="legend-dot" style="background:#f57c00"></div> NEUTRAL</div>
-    <span style="color:#888">| 👍/👎 = Vote-Score &nbsp; 🏷 = Tags &nbsp; 📄 = Belege &nbsp; 💬 = Kommentare</span>
+    <div class="legend-item"><div class="legend-dot" style="background:#ff8f00"></div> Ziel</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7b1fa2"></div> Grundziel</div>
   </div>
   <div id="loading" style="display:none">Lade Argumentationsbaum…</div>
   <div id="error"   style="display:none"></div>
@@ -99,7 +176,7 @@ res<!DOCTYPE html>
 </div>
 
 <script>
-  const BASE = '';   // same origin, proxied through FastAPI
+  const BASE = '';
 
   async function loadTopics() {
     const res = await fetch(`${BASE}/api/topics/`);
@@ -113,55 +190,285 @@ res<!DOCTYPE html>
     return res.json();
   }
 
-  function scoreClass(score) {
-    if (score > 0) return 'pos';
-    if (score < 0) return 'neg';
-    return '';
+  /* ── Helpers ─────────────────────────────────────── */
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function renderNode(node) {
-    const tags    = node.tags?.length   ? `🏷 ${node.tags.join(', ')} ` : '';
-    const labels  = node.labels?.length ? `⚠️ ${node.labels.join(', ')} ` : '';
-    const evidence= node.evidence_count ? `📄 ${node.evidence_count} ` : '';
-    const comments= node.comment_count  ? `💬 ${node.comment_count}` : '';
-    const meta    = [tags, labels, evidence, comments].join('').trim();
-    const scoreSign = node.vote_score > 0 ? '+' : '';
+  function edgeColor(pos) {
+    if (pos === 'PRO')     return '#43a047';
+    if (pos === 'CONTRA')  return '#e53935';
+    if (pos === 'NEUTRAL') return '#fb8c00';
+    return '#9e9e9e';
+  }
 
-    const el = document.createElement('div');
-    el.className = `node ${node.position}`;
-    el.innerHTML = `
-      <span class="node-badge">${node.position}</span>
-      <div class="node-title">${escHtml(node.title)}</div>
-      ${node.description ? `<div class="node-desc">${escHtml(node.description)}</div>` : ''}
-      <div class="node-meta">
-        <span class="node-score ${scoreClass(node.vote_score)}">👍 ${scoreSign}${node.vote_score}</span>
-        ${meta ? ` &nbsp;|&nbsp; ${meta}` : ''}
-      </div>
-    `;
+  function edgeEmoji(node) {
+    if (node.labels && node.labels.includes('FALLACY')) return '⚠️';
+    if (node.position === 'PRO')    return '✅';
+    if (node.position === 'CONTRA') return '❌';
+    return '💡';
+  }
 
-    if (node.children?.length) {
-      const childWrap = document.createElement('div');
-      childWrap.className = 'children';
-      node.children.forEach(c => childWrap.appendChild(renderNode(c)));
-      el.appendChild(childWrap);
+  function sortByPosition(arr) {
+    const order = { PRO: 0, NEUTRAL: 1, CONTRA: 2 };
+    return arr.sort((a, b) => {
+      const p = (order[a.position] ?? 1) - (order[b.position] ?? 1);
+      return p !== 0 ? p : b.vote_score - a.vote_score;
+    });
+  }
+
+  /* ── Flatten tree ────────────────────────────────── */
+
+  function flattenTree(nodes, depth, parentId) {
+    const flat = [];
+    for (const n of nodes) {
+      flat.push({
+        id: n.id, title: n.title, description: n.description,
+        position: n.position, vote_score: n.vote_score,
+        tags: n.tags || [], labels: n.labels || [],
+        evidence_count: n.evidence_count || 0,
+        comment_count: n.comment_count || 0,
+        depth, parentId,
+      });
+      if (n.children && n.children.length)
+        flat.push(...flattenTree(n.children, depth + 1, n.id));
     }
-    return el;
+    return flat;
   }
 
-  function escHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  /* ── Build layered view ──────────────────────────── */
+
+  function buildLayeredView(topic, treeNodes, container) {
+    const flat = flattenTree(treeNodes, 0, null);
+
+    // Extract unique tags by category
+    const tagMap = new Map();
+    flat.forEach(n => {
+      n.tags.forEach(t => {
+        const name = typeof t === 'string' ? t : t.tag_name || String(t);
+        const cat  = typeof t === 'object' ? t.category : null;
+        if (!tagMap.has(name)) tagMap.set(name, { name, category: cat, nodeIds: new Set() });
+        tagMap.get(name).nodeIds.add(n.id);
+      });
+    });
+
+    const goals   = [...tagMap.values()].filter(t => t.category === 'SOCIETAL_GOAL');
+    const domains = [...tagMap.values()].filter(t => t.category === 'DOMAIN' || t.category === 'META_ARGUMENTATION');
+
+    // Group nodes by depth
+    const rootArgs = sortByPosition(flat.filter(n => n.depth === 0));
+    const subArgs  = sortByPosition(flat.filter(n => n.depth === 1));
+    const premises = sortByPosition(flat.filter(n => n.depth >= 2));
+
+    // Build connections
+    const connections = [];
+
+    // Goal → Societal goals
+    goals.forEach(g => {
+      connections.push({ ft: 'goal', fi: 'goal', tt: 'tag', ti: g.name, pos: 'META' });
+    });
+
+    // Societal goals → Topic
+    goals.forEach(g => {
+      connections.push({ ft: 'tag', fi: g.name, tt: 'topic', ti: 'topic', pos: 'META' });
+    });
+    // Fallback: if no goals, connect goal directly to topic
+    if (goals.length === 0) {
+      connections.push({ ft: 'goal', fi: 'goal', tt: 'topic', ti: 'topic', pos: 'META' });
+    }
+
+    // Topic → Root arguments
+    rootArgs.forEach(n => {
+      connections.push({ ft: 'topic', fi: 'topic', tt: 'node', ti: n.id, pos: n.position, emoji: true });
+    });
+
+    // Parent → Child (all depths)
+    [...subArgs, ...premises].forEach(n => {
+      connections.push({ ft: 'node', fi: n.parentId, tt: 'node', ti: n.id, pos: n.position, emoji: true });
+    });
+
+    // ── DOM ──
+
+    const section = document.createElement('div');
+    section.className = 'tree-section';
+    section._connections = connections;
+    section._flat = flat;
+
+    function makeArgCard(n) {
+      const ss = n.vote_score > 0 ? '+' : '';
+      const sc = n.vote_score > 0 ? 'pos' : n.vote_score < 0 ? 'neg' : 'zero';
+      const tagH = n.tags.map(t => `<span class="tag-pill">${escHtml(typeof t==='string'?t:t.tag_name||String(t))}</span>`).join('');
+      const labH = n.labels.map(l => `<span class="label-pill">${escHtml(l)}</span>`).join('');
+      const evH  = n.evidence_count ? `<span class="meta-icon">📄${n.evidence_count}</span>` : '';
+      const cmH  = n.comment_count  ? `<span class="meta-icon">💬${n.comment_count}</span>`  : '';
+      const card = document.createElement('div');
+      card.className = `node ${n.position}`;
+      card.dataset.nodeId = n.id;
+      card.innerHTML =
+        `<div class="node-title">${escHtml(n.title)}</div>` +
+        (n.description ? `<div class="node-desc">${escHtml(n.description)}</div>` : '') +
+        `<div class="node-meta"><span class="node-score ${sc}">${ss}${n.vote_score}</span>${tagH}${labH}${evH}${cmH}</div>`;
+      return card;
+    }
+
+    function makeTagCard(t, cls) {
+      const c = document.createElement('div');
+      c.className = `node ${cls}`;
+      c.dataset.tagId = t.name;
+      c.innerHTML = `<div class="node-title">${escHtml(t.name)}</div>`;
+      return c;
+    }
+
+    function addLayer(label, cards) {
+      if (!cards.length) return;
+      const layer = document.createElement('div');
+      layer.className = 'layer';
+      layer.innerHTML = `<div class="layer-label">${label}</div>`;
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      cards.forEach(c => row.appendChild(c));
+      layer.appendChild(row);
+      stack.appendChild(layer);
+    }
+
+    const stack = document.createElement('div');
+    stack.className = 'layer-stack';
+
+    // Goal layer — highest-level aspiration
+    const goalLayer = document.createElement('div');
+    goalLayer.className = 'layer';
+    goalLayer.innerHTML = `<div class="layer-label">🌍 Oberstes Ziel</div>`;
+    const goalRow = document.createElement('div');
+    goalRow.className = 'layer-row';
+    const goalCard = document.createElement('div');
+    goalCard.className = 'node goal-node';
+    goalCard.dataset.goalId = 'goal';
+    goalCard.innerHTML = `<div class="node-title">Erschaffen einer lebenswerten Welt</div>`;
+    goalRow.appendChild(goalCard);
+    goalLayer.appendChild(goalRow);
+    stack.appendChild(goalLayer);
+
+    addLayer('🎯 Gesellschaftliche Grundziele', goals.map(g => makeTagCard(g, 'value-node')));
+
+    // Topic layer (always present)
+    const tLayer = document.createElement('div');
+    tLayer.className = 'layer';
+    tLayer.innerHTML = `<div class="layer-label">❓ Streitfrage</div>`;
+    const tRow = document.createElement('div');
+    tRow.className = 'layer-row';
+    const tCard = document.createElement('div');
+    tCard.className = 'node topic-node';
+    tCard.dataset.topicId = 'topic';
+    tCard.innerHTML = `<div class="node-title">${escHtml(topic.title)}</div>`;
+    tRow.appendChild(tCard);
+    tLayer.appendChild(tRow);
+    stack.appendChild(tLayer);
+
+    addLayer('💬 Hauptargumente', rootArgs.map(makeArgCard));
+    addLayer('🔗 Vertiefungen & Gegenargumente', subArgs.map(makeArgCard));
+    addLayer('📌 Grundannahmen & Belege', premises.map(n => {
+      const card = makeArgCard(n);
+      card.classList.add('premise-node');
+      return card;
+    }));
+
+    section.appendChild(stack);
+    container.appendChild(section);
+    return section;
   }
+
+  /* ── SVG connectors between layers ──────────────── */
+
+  function drawLayerConnectors(section) {
+    section.querySelectorAll('.tree-svg, .edge-emoji').forEach(e => e.remove());
+    const connections = section._connections || [];
+    if (!connections.length) return;
+
+    const sR = section.getBoundingClientRect();
+    const sl = section.scrollLeft, st = section.scrollTop;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('tree-svg');
+    svg.setAttribute('width', section.scrollWidth);
+    svg.setAttribute('height', section.scrollHeight);
+    section.insertBefore(svg, section.firstChild);
+
+    function findEl(type, id) {
+      if (type === 'node')  return section.querySelector(`[data-node-id="${id}"]`);
+      if (type === 'tag')   return section.querySelector(`[data-tag-id="${id}"]`);
+      if (type === 'topic') return section.querySelector(`[data-topic-id="${id}"]`);
+      if (type === 'goal')  return section.querySelector(`[data-goal-id="${id}"]`);
+      return null;
+    }
+
+    // Count connections per card edge for spreading
+    const outCount = {}, inCount = {};
+    connections.forEach(c => {
+      const fk = `${c.ft}:${c.fi}`, tk = `${c.tt}:${c.ti}`;
+      outCount[fk] = (outCount[fk] || 0) + 1;
+      inCount[tk]  = (inCount[tk]  || 0) + 1;
+    });
+    const outIdx = {}, inIdx = {};
+
+    connections.forEach(c => {
+      const fromEl = findEl(c.ft, c.fi);
+      const toEl   = findEl(c.tt, c.ti);
+      if (!fromEl || !toEl) return;
+
+      const fk = `${c.ft}:${c.fi}`, tk = `${c.tt}:${c.ti}`;
+      const fi = outIdx[fk] = (outIdx[fk] || 0); outIdx[fk]++;
+      const ti = inIdx[tk]  = (inIdx[tk]  || 0); inIdx[tk]++;
+      const fn = outCount[fk], tn = inCount[tk];
+
+      const fR = fromEl.getBoundingClientRect();
+      const tR = toEl.getBoundingClientRect();
+
+      const m = 0.15;
+      const ftPos = fn === 1 ? 0.5 : m + (1 - 2*m) * fi / (fn - 1);
+      const ttPos = tn === 1 ? 0.5 : m + (1 - 2*m) * ti / (tn - 1);
+
+      const fx = fR.left - sR.left + sl + fR.width * ftPos;
+      const fy = fR.bottom - sR.top + st;
+      const tx = tR.left - sR.left + sl + tR.width * ttPos;
+      const ty = tR.top  - sR.top + st;
+
+      const isMeta = c.pos === 'META';
+      const color = isMeta ? '#9e9e9e' : edgeColor(c.pos);
+      const dy = (ty - fy) * 0.4;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M${fx},${fy} C${fx},${fy+dy} ${tx},${ty-dy} ${tx},${ty}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', color);
+      path.setAttribute('stroke-width', isMeta ? '1' : '1.5');
+      path.setAttribute('stroke-opacity', isMeta ? '0.3' : '0.5');
+      svg.appendChild(path);
+
+      // Emoji only on argument connections
+      if (c.emoji) {
+        const mx = (fx + tx) / 2, my = (fy + ty) / 2;
+        const em = document.createElement('div');
+        em.className = 'edge-emoji';
+        em.style.left = mx + 'px';
+        em.style.top  = my + 'px';
+        const node = (section._flat || []).find(n => n.id === c.ti);
+        em.textContent = edgeEmoji(node || { position: c.pos });
+        section.appendChild(em);
+      }
+    });
+  }
+
+  /* ── Topic selection ─────────────────────────────── */
 
   async function selectTopic(topic, btn) {
     document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    document.getElementById('tree-title').textContent = topic.title;
-    document.getElementById('tree-desc').textContent  = topic.description || '';
-    document.getElementById('legend').style.display = 'flex';
+    document.getElementById('legend').style.display  = 'flex';
     document.getElementById('tree').innerHTML  = '';
-    document.getElementById('error').style.display  = 'none';
-    document.getElementById('empty').style.display  = 'none';
+    document.getElementById('error').style.display   = 'none';
+    document.getElementById('empty').style.display   = 'none';
     document.getElementById('loading').style.display = 'block';
 
     try {
@@ -171,8 +478,11 @@ res<!DOCTYPE html>
         document.getElementById('empty').style.display = 'block';
         return;
       }
+
       const container = document.getElementById('tree');
-      nodes.forEach(n => container.appendChild(renderNode(n)));
+      const section = buildLayeredView(topic, nodes, container);
+
+      requestAnimationFrame(() => drawLayerConnectors(section));
     } catch(e) {
       document.getElementById('loading').style.display = 'none';
       const errEl = document.getElementById('error');
@@ -186,10 +496,7 @@ res<!DOCTYPE html>
     try {
       const topics = await loadTopics();
       listEl.innerHTML = '';
-      if (!topics.length) {
-        listEl.innerHTML = '<em>Keine Topics gefunden.</em>';
-        return;
-      }
+      if (!topics.length) { listEl.innerHTML = '<em>Keine Topics gefunden.</em>'; return; }
       topics.forEach(topic => {
         const btn = document.createElement('button');
         btn.className = 'topic-btn';
@@ -197,7 +504,6 @@ res<!DOCTYPE html>
         btn.onclick = () => selectTopic(topic, btn);
         listEl.appendChild(btn);
       });
-      // Auto-select first topic
       listEl.querySelector('.topic-btn').click();
     } catch(e) {
       listEl.innerHTML = `<span style="color:#d32f2f">${e.message}</span>`;
@@ -205,6 +511,10 @@ res<!DOCTYPE html>
   }
 
   init();
+
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.tree-section').forEach(drawLayerConnectors);
+  });
 </script>
 </body>
 </html>

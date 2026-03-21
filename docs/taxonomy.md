@@ -35,6 +35,8 @@ in this document.
 20. [Political Compass Mapping](#20-political-compass-mapping)
 21. [Meme Representation](#21-meme-representation)
 22. [Strategic Frameworks (Reference)](#22-strategic-frameworks-reference)
+23. [Conflict Zone Analysis](#23-conflict-zone-analysis)
+24. [Three-Step Dialectical Analysis](#24-three-step-dialectical-analysis)
 
 ---
 
@@ -438,8 +440,9 @@ Tags are user-generated labels on argument nodes. They fall into several meta-ca
 
 | Category | Examples | Purpose |
 |----------|----------|---------|
+| **Societal Goal** | `Sicherheit & Gesundheit`, `Freiheit & Selbstbestimmung`, `Gerechtigkeit & Teilhabe`, `Wohlstand & Prosperität`, `Nachhaltigkeit`, `Wissen & Bildung` | Normative goals of a good society — derived from capability approach (Nussbaum), SDGs, OECD Better Life Index. Shown as a dedicated layer in the tree visualization. |
 | **Domain / Topic Area** | `Wirtschaftlich`, `Juristisch`, `Moralisch`, `Ökologisch`, `Sozial` | Group arguments by subject |
-| **Moral Foundation** | `Care`, `Fairness`, `Loyalty`, `Authority`, `Sanctity`, `Liberty` | Moral dimension (see §10) |
+| **Moral Foundation** | `Care`, `Fairness`, `Loyalty`, `Authority`, `Sanctity`, `Liberty` | Moral dimension — explains WHY people prioritize certain goals (see §10). Shown as tag pills on argument cards, NOT as a separate layer. |
 | **Normative vs. Positive** | `Feststellung`, `Wertvorstellung` | Statement type (see §15) |
 | **Evidence Quality** | `fehlender Beleg`, `Studie vorhanden`, `Anekdote` | Quick evidence assessment |
 
@@ -863,10 +866,96 @@ can reference them as context when a user's behaviour matches a known pattern.
 | §20 Political Compass Mapping | — | ❌ |
 | §21 Meme Representation | — | ❌ (catalog in `docs/meme-catalog.md`) |
 | §22 Strategic Frameworks | — | ❌ (reference only, no model needed) |
+| §23 Conflict Zone Analysis | `/konflikt` page | ✅ (visualisation only, no DB model) |
+| §24 Three-Step Dialectical Analysis | `/dialog` page | ⚠️ (Step 1 implemented, Steps 2–3 planned) |
 
+---
 
+## 23. Conflict Zone Analysis
 
+Every disagreement can be decomposed into three orthogonal conflict zones. This framework answers: **"Why are people ACTUALLY disagreeing?"**
 
+### 23.1 The Three Zones
 
+| Zone | Question | Academic Basis | Example |
+|------|----------|---------------|---------|
+| **1. Facts (Wissen)** | Do both sides have the same information? | Toulmin: Data · Habermas: Truth claims · Aristotle: Forensic | "Does CO₂ cause warming?" |
+| **2. Causality (Zusammenhänge)** | Do they agree on what leads to what? | Toulmin: Warrant · Habermas: Rightness claims · Aristotle: Deliberative | "Can renewables power Germany?" |
+| **3. Values (Ziele)** | Do they want the same outcome? | Toulmin: Backing · Habermas: Sincerity claims · Aristotle: Epideictic · Hume: Ought | "Is cultural homogeneity a goal?" |
 
+Optional 4th zone: **Definitions** — "What do we even mean by X?" (already modelled as `DefinitionFork`).
+
+### 23.2 Diagnostic Patterns
+
+| Topic Type | Facts | Causality | Values | Example |
+|-----------|-------|-----------|--------|---------|
+| **Scientific** | ✅ Consensus | 🔥 Main conflict | ✅ Consensus | Climate policy |
+| **Cultural** | 🔥 Disputed | 🔥 Disputed | 🔥 Main conflict | Migration, gender |
+| **Public health** | ✅ Consensus | ⚠️ Some dispute | 🔥 Main conflict | Smoking ban, drug policy |
+| **Economic** | ⚠️ Some dispute | 🔥 Main conflict | ⚠️ Some dispute | Minimum wage, taxation |
+
+### 23.3 Why This Matters
+
+- **Productive discussion** requires identifying the correct zone first. Arguing facts when the real conflict is about values wastes everyone's time.
+- **Dan Kahan (Cultural Cognition)**: Values often **filter** fact perception — people in a value conflict will reject inconvenient facts.
+- **Hume's Guillotine**: No amount of factual evidence can resolve a value disagreement. You cannot derive "ought" from "is".
+
+### 23.4 References
+
+- Toulmin, S. (1958). *The Uses of Argument*
+- Habermas, J. (1981). *Theorie des kommunikativen Handelns*
+- Kahan, D. et al. (2012). "The polarizing impact of science literacy and numeracy on perceived climate change risks"
+- Hume, D. (1739). *A Treatise of Human Nature*, Book III
+
+---
+
+## 24. Three-Step Dialectical Analysis
+
+A structured method for extracting actionable knowledge from discussions.
+
+### 24.1 Step 1: Map the Dialogue (`/dialog`)
+
+Trace a **concrete discussion** as a zig-zag exchange between two parties. At each turn:
+- One side presents their **strongest available argument**
+- The other side responds with their **best counter**
+- Other available arguments are noted but not pursued (yet)
+
+The exchange continues until hitting a **dead end**:
+
+| Dead End Type | Description | Conflict Zone |
+|---------------|-------------|---------------|
+| **Consensus** | Both sides agree on a resolution | Resolved ✅ |
+| **Partial Consensus** | Agreement on sub-points, residual disagreement | Typically values |
+| **Structural Dissent** | Fundamental disagreement on an empirical question | Typically causality |
+| **Loop** | Arguments circle back to an already-addressed point | Any zone |
+| **Fact Gap** | Both sides cite different data, neither can verify | Facts |
+| **Value Conflict** | Both accept facts and causality but want different outcomes | Values |
+
+Each argument in the exchange is annotated with:
+- **Zone** (Fact / Causality / Value) — where is this argument operating?
+- **Move type** — what dialectical move is being made? (open, challenge, concede, pivot, narrow)
+
+### 24.2 Step 2: Generalise (planned)
+
+Overlay multiple Step-1 dialogues on the same topic. Key observations:
+- Different dialogues tend to **converge** on the same dead-end points
+- The **recurring dead ends** reveal the true structural conflicts in a topic
+- Arguments that appear across many dialogues are the **load-bearing** ones
+- Arguments that only appear once may be weak or niche
+
+### 24.3 Step 3: Meta-Analyse (planned)
+
+Use the generalised patterns from Step 2 for:
+- **Mathematical modelling**: argument strength as a function of evidence quality, vote weight, and structural position
+- **Gamification**: reward users who advance a dialogue past a known dead end
+- **Strategic preparation**: predict likely counter-arguments and prepare responses
+- **Dead-end classification**: automatically categorise where a new discussion will likely stall
+
+### 24.4 Status
+
+| Step | Visualisation | Status |
+|------|---------------|--------|
+| Step 1: Map dialogue | `/dialog` | ✅ (hardcoded examples) |
+| Step 2: Generalise | — | ❌ (requires multiple dialogues per topic) |
+| Step 3: Meta-analyse | — | ❌ (requires Step 2 data) |
 

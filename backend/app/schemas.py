@@ -132,6 +132,7 @@ class VoteOut(BaseModel):
 class TagCreate(BaseModel):
     name: str
     moral_foundation: Optional[str] = None
+    category: Optional[str] = None  # TagCategory; defaults to OTHER
 
 
 class TagOut(BaseModel):
@@ -139,12 +140,24 @@ class TagOut(BaseModel):
     id: int
     name: str
     moral_foundation: Optional[str]
+    category: Optional[str]
     created_at: datetime
 
 
 class TagAssign(BaseModel):
     tag_id: int
     argument_node_id: int
+    origin: Optional[str] = "USER"  # TagOrigin: USER / MODERATOR / AI
+
+
+class TagOnNode(BaseModel):
+    """Lightweight tag info included in tree responses."""
+    model_config = ConfigDict(from_attributes=True)
+    tag_id: int
+    tag_name: str
+    category: Optional[str] = None
+    moral_foundation: Optional[str] = None
+    origin: str = "USER"
 
 
 # ── TagVote ────────────────────────────────────────────────────────────
@@ -289,7 +302,7 @@ class ArgumentTreeNode(BaseModel):
     implication: Optional[str] = None
     created_by: int = 0
     vote_score: int = 0
-    tags: list[str] = []
+    tags: list[TagOnNode] = []
     labels: list[str] = []
     evidence_count: int = 0
     comment_count: int = 0

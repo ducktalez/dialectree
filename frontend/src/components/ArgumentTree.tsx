@@ -48,17 +48,18 @@ function treeToFlow(
     const myX = currentX + (myWidth * H_SPACING) / 2 - H_SPACING / 2;
 
     const metaParts: string[] = [];
-    if (tn.tags.length > 0) metaParts.push(`🏷 ${tn.tags.join(", ")}`);
+    if (tn.tags.length > 0) metaParts.push(tn.tags.map(t => t.tag_name).join(", "));
     if (tn.labels.length > 0) metaParts.push(`⚠ ${tn.labels.join(", ")}`);
-    if (tn.evidence_count > 0) metaParts.push(`📄 ${tn.evidence_count}`);
-    if (tn.comment_count > 0) metaParts.push(`💬 ${tn.comment_count}`);
-    const meta = metaParts.length > 0 ? `\n${metaParts.join(" | ")}` : "";
+    if (tn.evidence_count > 0) metaParts.push(`📄${tn.evidence_count}`);
+    if (tn.comment_count > 0) metaParts.push(`💬${tn.comment_count}`);
+    const meta = metaParts.length > 0 ? `\n${metaParts.join(" · ")}` : "";
+    const scoreSign = tn.vote_score > 0 ? "+" : "";
 
     allNodes.push({
       id: nodeId,
       position: { x: myX, y: depth * V_SPACING },
       data: {
-        label: `${tn.title}\n(${tn.position}, Score: ${tn.vote_score})${meta}`,
+        label: `${tn.title}\n${scoreSign}${tn.vote_score}${meta}`,
         argId: tn.id,
       },
       style: {

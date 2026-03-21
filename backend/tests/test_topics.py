@@ -77,7 +77,8 @@ class TestTopics:
         assert resp.status_code == 200
         tree = resp.json()
         node = next(n for n in tree if n["title"] == "Enriched arg")
-        assert "Health" in node["tags"]
+        assert any(t["tag_name"] == "Health" for t in node["tags"])
+        assert node["tags"][0]["origin"] == "USER"
         assert "FALLACY" in node["labels"]
         assert node["evidence_count"] == 1
         assert node["comment_count"] == 1

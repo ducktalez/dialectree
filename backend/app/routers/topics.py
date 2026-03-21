@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from ..database import get_db
-from ..models import Topic, ArgumentNode, Vote, Visibility
-from ..schemas import TopicCreate, TopicOut, ArgumentTreeNode
+from ..models import Topic, ArgumentNode, ArgumentNodeTag, Vote, Visibility
+from ..schemas import TopicCreate, TopicOut, ArgumentTreeNode, TagOnNode
 
 router = APIRouter(prefix="/topics", tags=["topics"])
 
@@ -65,7 +65,7 @@ def get_argument_tree(topic_id: int, show_hidden: bool = False, db: Session = De
         db.query(ArgumentNode)
         .filter(ArgumentNode.topic_id == topic_id)
         .options(
-            selectinload(ArgumentNode.tags),
+            selectinload(ArgumentNode.tag_links).selectinload(ArgumentNodeTag.tag),
             selectinload(ArgumentNode.labels),
             selectinload(ArgumentNode.evidence),
             selectinload(ArgumentNode.comments),
@@ -104,7 +104,16 @@ def get_argument_tree(topic_id: int, show_hidden: bool = False, db: Session = De
             implication=node.implication,
             created_by=node.created_by,
             vote_score=vote_scores.get(node.id, 0),
-            tags=[t.name for t in node.tags],
+            tags=[
+                TagOnNode(
+                    tag_id=link.tag.id,
+                    tag_name=link.tag.name,
+                    category=link.tag.category.value if link.tag.category else None,
+                    moral_foundation=link.tag.moral_foundation.value if link.tag.moral_foundation else None,
+                    origin=link.origin.value if link.origin else "USER",
+                )
+                for link in node.tag_links
+            ],
             labels=[lb.label_type.value for lb in node.labels],
             evidence_count=len(node.evidence),
             comment_count=len(node.comments),

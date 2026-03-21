@@ -5,6 +5,9 @@
 >
 > **Taxonomy:** see [`docs/taxonomy.md`](taxonomy.md) for the canonical list of all argument types,
 > fallacies, evidence tiers, tag categories, and categorisation dimensions.
+>
+> **Visualization:** see [`docs/visualization-strategy.md`](visualization-strategy.md) for the
+> three-function model (Raw Data → Retrospective Evaluation → Overview) and edge annotations.
 
 ---
 
@@ -29,6 +32,21 @@ not yet locked in. Each is listed with the current default and the trade-off.
 ---
 
 ## Phase 0 – Core Feature Completion
+
+### Completion Status
+
+| Step | Feature | Status |
+|------|---------|--------|
+| 0.1 | Argument Anatomy | ✅ Done |
+| 0.2 | Visibility & Soft-Delete | ✅ Done |
+| 0.3 | Extended Evidence Types | ✅ Done |
+| 0.4 | Extended Label Types | ✅ Done |
+| 0.5 | Tag Origin & Meta-Categories | ✅ Done |
+| 0.6 | Statement Type | ✅ Done |
+| 0.7 | Continuous Position Score | ✅ Done |
+| 0.8 | Migration Seed Topic | ⬜ Next |
+| 0.9 | Frontend Rich Tree View | ⬜ Pending |
+| 0.10 | ArgumentGroup Workflow | ⬜ Pending |
 
 The features below are ordered so each step **builds on the previous one**. Each step
 follows a two-stage approach:
@@ -389,6 +407,91 @@ Each origin has different authority and disputability rules (see `taxonomy.md` �
 
 ---
 
+## Deferred: Edge Semantics & Edge Attacks (Zickzack View)
+
+> **Status:** Prototyped in `zickzack.html` (static demo). Not yet backed by API models.
+> 
+> **Context:** The Zickzack view visualizes dialogues as alternating argument chains.
+> Edges (connections between argument cards) carry semantic meaning beyond just
+> "this responds to that".
+
+### Edge Types (implemented in static demo)
+
+Edges are annotated with a semantic label that describes *how* the argument responds:
+
+| `edgeType`       | Emoji | Label     | Meaning |
+|------------------|-------|-----------|---------|
+| `community_note` | 📢    | Unwahr!   | Fact-check / Community-Notes style correction |
+| `consequences`   | ⚠️    | Folgen    | Highlights unintended consequences or side-effects |
+| `weakening`      | 🤷    | Schwach   | Argues the point is weaker than claimed |
+| `reframe`        | 💡    | Reframing | Introduces a new perspective / redefines the debate |
+| `concession`     | 🤝    | Konsens   | Partial agreement, finding common ground |
+
+**Future candidates:**
+- `steelmanning` (🛡️) — strengthening the opponent's argument before countering
+- `question` (❓) — probing / Socratic questioning
+- `analogy` (🔗) — arguing by analogy
+- `scope_shift` (🎯) — redirecting to a different scope
+
+### Edge Attacks (prototyped)
+
+An **edge attack** targets the *connection* between two arguments, not the content
+of either argument. It challenges whether the response is a legitimate continuation
+of the discussion at all.
+
+**Example:** In the Rassismus dialogue, R2 ("DOCH! Was ist überhaupt Rassismus?")
+doesn't counter L1's *content* — it attacks the *inference* from R1 to L1. L1 claims
+"Rassismus gegen Weiße gibt es nicht" as a response to "Quotenregelungen sind
+rassistisch." R2 says: the connection itself is flawed because the definition of
+Rassismus is disputed.
+
+**Visualized as:** A card with dashed red border (`.edge-attack`) positioned at the
+midpoint of the sibling's connection line, connected by a dashed red line with ❌.
+
+**Argumentation-theoretic parallel:** This is an *undercutting defeater* — it doesn't
+deny the conclusion but undermines the inferential link between premise and conclusion.
+
+**Open questions for backend modeling:**
+1. Should edge attacks be a separate model (`EdgeAttack`) or a special `ArgumentNode`
+   with `target_type = 'EDGE'`?
+2. How to represent the "target edge" in the DB? Options:
+   - `parent_id` + `target_parent_id` (the two nodes forming the edge)
+   - A dedicated `edge_id` referencing a first-class `Edge` model
+3. Edge attacks often open a **new conflict space** (e.g., "What IS racism?").
+   Should this auto-create a new `Topic` or a sub-discussion?
+
+### Edge Challenge System (prototyped, interactive)
+
+Users can click an edge marker to open a **challenge popup** that lets them mark the
+transition as problematic:
+
+| Challenge | Emoji | Meaning |
+|-----------|-------|---------|
+| Invalides Argument / Fehlschluss | ❌ | Logical fallacy |
+| Fehlender Beleg | ⚠️ | Missing evidence |
+| Themaverfehlung / falscher Scope | 🎯 | Off-topic for this thread |
+| Zirkelschluss / bereits diskutiert | 🔄 | Circular reasoning |
+| Totschlagargument | 💣 | Conversation-stopper |
+| Nur ein Label, kein Argument | 🏷️ | Name-calling, not reasoning |
+| Schwaches Argument | 🤷 | Weak / unsubstantiated |
+
+**Distinction from edge types:** Edge *types* describe the nature of the argument
+transition (set by the author). Edge *challenges* are reactions by other participants
+who dispute the legitimacy of that transition.
+
+**Future:** Challenges could feed into a voting/moderation system that collapses or
+highlights disputed edges. This connects to the existing `Label` system (e.g.,
+`FALLACY`, `SCOPE_VIOLATION`).
+
+### Drag-and-Drop (deferred)
+
+Card dragging is implemented but disabled (`DRAG_ENABLED = false`). The infrastructure
+(updateLines, drag handlers) is preserved for future use. Re-enable when:
+- The UX for "what does dragging mean semantically" is clarified
+- Positions can be persisted (requires backend support)
+
+---
+
 ## Phase 3 – Extended Test Coverage
 
 Tests that are **not needed during early development** but must be added before go-live:
@@ -419,5 +522,4 @@ Tests that are **not needed during early development** but must be added before 
 - [ ] Tree rendering with deeply nested nodes
 - [ ] Continuous position slider → discrete enum mapping
 - [ ] Tag input, voting, and disputability flow
-
 

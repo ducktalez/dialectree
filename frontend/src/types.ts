@@ -6,6 +6,14 @@ export interface Topic {
   created_at: string;
 }
 
+export interface TagOnNode {
+  tag_id: number;
+  tag_name: string;
+  category: string | null;
+  moral_foundation: string | null;
+  origin: string;
+}
+
 export interface ArgumentTreeNode {
   id: number;
   title: string;
@@ -14,7 +22,7 @@ export interface ArgumentTreeNode {
   parent_id: number | null;
   created_by: number;
   vote_score: number;
-  tags: string[];
+  tags: TagOnNode[];
   labels: string[];
   evidence_count: number;
   comment_count: number;

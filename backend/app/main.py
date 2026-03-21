@@ -68,3 +68,53 @@ _STATIC_DIR = Path(__file__).parent / "static"
 def root():
     """Serves the minimal browser UI for exploring argument trees."""
     return FileResponse(_STATIC_DIR / "index.html")
+
+
+@app.get("/rauchen", response_class=FileResponse)
+def rauchen_archive():
+    """Archived Rauchen visualization snapshot."""
+    return FileResponse(_STATIC_DIR / "rauchen.html")
+
+
+@app.get("/entscheidung", response_class=FileResponse)
+def decision_view():
+    """Weighted balance visualisation for neutral decision-making."""
+    return FileResponse(_STATIC_DIR / "entscheidung.html")
+
+
+@app.get("/praesentation", response_class=FileResponse)
+def presentation_view():
+    """Mind-map style argument visualisation for presentations."""
+    return FileResponse(_STATIC_DIR / "praesentation.html")
+
+
+@app.get("/konflikt", response_class=FileResponse)
+def conflict_analysis_view():
+    """Conflict zone analysis: facts vs causality vs values."""
+    return FileResponse(_STATIC_DIR / "konflikt.html")
+
+
+@app.get("/dialog", response_class=FileResponse)
+def dialog_view():
+    """Zig-zag dialectical dialogue visualisation."""
+    return FileResponse(_STATIC_DIR / "dialog.html")
+
+
+@app.get("/zickzack", response_class=FileResponse)
+def zickzack_view():
+    """SVG-based zig-zag argument strength visualisation."""
+    return FileResponse(_STATIC_DIR / "zickzack.html")
+
+
+@app.get("/sw.js", response_class=FileResponse)
+def service_worker():
+    """Dummy service worker to prevent 404."""
+    return FileResponse(_STATIC_DIR / "sw.js", media_type="application/javascript")
+
+
+@app.get("/favicon.ico", response_class=FileResponse)
+def favicon():
+    """Favicon to prevent 404."""
+    return FileResponse(_STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
+

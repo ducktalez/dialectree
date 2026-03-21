@@ -12,6 +12,14 @@ Similar arguments (same point, different wording) are grouped into a single bubb
 
 Unprocessed ideas parked here until they have a clear home in the docs.
 
+- Kommt man am Ende zu einem Teilkonsens, kann man an einem oberen Punkt, zum Beispiel, eine Neuordnung vornehmen oder eine Erkenntnis gewinnen durch einen gewissen Argumentationsstrang.
+  - Hier sollte eine Differenz gekennzeichnet werden falls es denn wirklich zu einer Anpassung von Meinungen kommt. 
+  - Dieser ist natürlich eher angreifend, da selten jemand markieren würde, dass er Seine Meinung hat er geändert hat.
+- Ich hätte gerne eine retrospektive Meta-Analyse von Diskussionen. 
+  - Also welche Argumente waren zu welchem Zeitpunkt populär? 
+  - Was ist passiert so dass Argumente nicht mehr gebracht wurden? 
+  - Welche Meta-Strategie hat welche Seite über die Zeit hinweg genutzt?
+  - Welche Argumente haben sich durchgesetzt?
 - Erweitere das Repository um eine Recherche-Grundfunktion / Knowledge-Hub. Diese ist semantisch mit diesem Repository verbunden aber stellt eine andere Funktion dar. 
   - Im Optimalfall hat deine Diskussionspersönlichkeit keine Eigeninteressen sondern baut die Argumente nur aus den Fakten zusammen, die du bereits kennst. 
   - Die Quellen und Recherchen zu einem Thema sollen hier zentral gesammelt werden. 
@@ -48,13 +56,7 @@ Unprocessed ideas parked here until they have a clear home in the docs.
   - Unvoreingenommene Analyse. 
   - Du kannst hier Informationen taggen und sammeln.
   - Halte einen Ordner mit Quellen vor. 
-  - Ein Argument hat einen komplexen Vektor mit Dingen, die parallel ablaufen. 
-    - Logos (Argumentationsstruktur, Logik, Beweise)
-    - Ethos (Vertrauen, Glaubwürdigkeit)
-    - Pathos (Emotion, Humor, Guerilla-Element)
-  - Ein Teilprojekt der Informationsbeschaffung muss dabei eine authentische Dokumentation der Geschichte Und vom bekannten Beispiel der Neuzeit sein.
-    - 
-
+  - Ein Teilprojekt der Informationsbeschaffung muss dabei eine authentische Dokumentation der Geschichte Und vom bekannten Beispiel der Neuzeit sein. Geschichtliche Parallelen und Anekdoten herauszusuchen ist immer ein schönes Beispiel für Belesenheit. 
 - Erweiterung der Taxonomie um eine Meta-Analyse
   - Neben der Wissenschaftlichkeit eines Arguments soll auch die Lustigkeit analysiert werden
   - Hintergrund: Witze sind automatisch ablaufende Logik, die einen unglaublich starken Spreading-Faktor hat. Sie ist quasi das intellektuelle, individualistische Gegenstück zur Propaganda. 
@@ -66,11 +68,16 @@ Unprocessed ideas parked here until they have a clear home in the docs.
     - Meme: Wissenschaftlichkeit (2/10), Vertrauen (3~8/10), Spaß (10/10), guerilla (10/10)
     - Musik: Wissenschaftlichkeit (0/10), Vertrauen (2~8/10), Spaß (5~10/10), guerilla (4~10/10)
     - Propaganda: Wissenschaftlichkeit (0/10), Vertrauen (8~10/10), Spaß (0/10), guerilla (0/10)
+    - Geschichtliche Parallele: Wissenschaftlichkeit (6/10), Vertrauen (9/10), Spaß (5~10/10), guerilla (6~10/10)
     - Cancel Culture: Wissenschaftlichkeit (0/10), Vertrauen (0/10), Spaß (0/10), guerilla (8~10/10)
     - Kontaktschuld: Wissenschaftlichkeit (0/10), Vertrauen (0/10), Spaß (0/10), guerilla (8~10/10)
-  - An irgendeiner Stelle sollten die Konzepte des Stoizismus erklärt werden. 
-  - Memes zum Erweitern:
-    - "the silent protector"
+- An irgendeiner Stelle sollten die Konzepte des Stoizismus erklärt werden. 
+- Memes zum Erweitern:
+  - "the silent protector"
+- Ein Argument hat einen komplexen Vektor mit Dingen, die parallel ablaufen. 
+  - Logos (Argumentationsstruktur, Logik, Beweise)
+  - Ethos (Vertrauen, Glaubwürdigkeit)
+  - Pathos (Emotion, Humor, Guerilla-Element)
 
 ### n8n / KI Pipeline
 - n8n workflow: convert a human-written argument into a causal chain (Claim → Reason → Example → Implication)
@@ -110,6 +117,7 @@ The following are entire bodies of strategic thought. They are referenced in
 | [`docs/taxonomy.md`](docs/taxonomy.md) | Canonical reference for all argument types, fallacies, evidence tiers, tag categories, and categorisation dimensions |
 | [`docs/meme-catalog.md`](docs/meme-catalog.md) | Meme-to-concept mapping: which meme template encodes which argumentative pattern |
 | [`docs/discussion-flow.md`](docs/discussion-flow.md) | Guiding example ("Deutschland sollte mehr Migranten aufnehmen") — defines the implementation red thread |
+| [`docs/visualization-strategy.md`](docs/visualization-strategy.md) | Three-function model (Raw Data → Retrospective Evaluation → Overview), edge annotations, view hierarchy |
 | [`docs/implementation-plan.md`](docs/implementation-plan.md) | Roadmap, deferred features, design principles, extended test coverage |
 | [`docs/architecture.md`](docs/architecture.md) | Technical architecture overview |
 

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚖️ Dialectree – Entscheidungswaage</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
+
+    header {
+      background: #1a237e; color: #fff; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 1.15rem; }
+    header p  { font-size: 0.72rem; opacity: 0.8; }
+    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    header a {
+      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    }
+    header a:hover { background: rgba(255,255,255,.12); }
+
+    #app { padding: 12px 20px; max-width: 1400px; margin: 0 auto; }
+
+    #topic-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .topic-btn {
+      padding: 6px 14px; border-radius: 18px; border: 2px solid #1a237e;
+      background: #fff; cursor: pointer; font-size: 0.85rem; transition: all .15s;
+    }
+    .topic-btn.active { background: #1a237e; color: #fff; }
+    .topic-btn:hover:not(.active) { background: #e8eaf6; }
+
+    #loading { color: #888; font-style: italic; padding: 16px 0; }
+    #error   { color: #d32f2f; padding: 16px 0; }
+
+    /* ── Summary bar ───────────────────────────── */
+    .summary {
+      background: #fff; border-radius: 8px; padding: 12px 16px;
+      margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .summary-title { font-size: 1rem; font-weight: 700; margin-bottom: 8px; text-align: center; }
+    .split-bar {
+      display: flex; height: 28px; border-radius: 14px; overflow: hidden;
+      font-size: 0.75rem; font-weight: 600; color: #fff;
+    }
+    .split-pro {
+      background: linear-gradient(90deg, #43a047, #66bb6a);
+      display: flex; align-items: center; justify-content: center; min-width: 30px;
+    }
+    .split-contra {
+      background: linear-gradient(90deg, #ef5350, #e53935);
+      display: flex; align-items: center; justify-content: center; min-width: 30px;
+    }
+    .split-neutral {
+      background: #fb8c00;
+      display: flex; align-items: center; justify-content: center; min-width: 20px;
+      font-size: 0.65rem;
+    }
+    .summary-stats {
+      display: flex; justify-content: space-between; margin-top: 8px;
+      font-size: 0.74rem; color: #666;
+    }
+    .summary-verdict {
+      text-align: center; margin-top: 8px; font-size: 0.8rem;
+      font-weight: 600; color: #444;
+    }
+
+    /* ── Scale / balance ───────────────────────── */
+    .scale-container {
+      display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px;
+    }
+    .scale-side {
+      flex: 1; display: flex; flex-direction: column; gap: 6px;
+    }
+    .scale-side.pro  { align-items: flex-end; }
+    .scale-side.contra { align-items: flex-start; }
+    .scale-center {
+      flex: 0 0 80px; display: flex; flex-direction: column;
+      align-items: center; padding-top: 8px; min-height: 200px;
+    }
+
+    /* ── Balance beam SVG ──────────────────────── */
+    .beam-svg { width: 80px; height: 120px; }
+
+    /* ── Argument cards ─────────────────────────── */
+    .arg-card {
+      background: #fff; border-radius: 6px;
+      border: 1px solid #e0e0e0; border-left: 4px solid #ccc;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+      padding: 5px 8px; font-size: 0.76rem; line-height: 1.25;
+      max-width: 420px; width: 100%; position: relative;
+      cursor: pointer; transition: box-shadow .15s;
+    }
+    .arg-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+    .arg-card.PRO    { border-left-color: #388e3c; }
+    .arg-card.CONTRA { border-left-color: #d32f2f; }
+    .arg-card.NEUTRAL{ border-left-color: #f57c00; }
+    .arg-card.fallacy { opacity: 0.55; border-left-style: dashed; }
+
+    .arg-title { font-weight: 600; font-size: 0.78rem; line-height: 1.2; }
+    .arg-desc  { color: #555; font-size: 0.7rem; line-height: 1.15; margin-top: 1px; }
+
+    .arg-bar-row {
+      display: flex; align-items: center; gap: 6px; margin-top: 3px;
+    }
+    .strength-bar {
+      flex: 1; height: 5px; background: #eee; border-radius: 3px; overflow: hidden;
+    }
+    .strength-fill { height: 100%; border-radius: 3px; }
+    .strength-fill.PRO    { background: #66bb6a; }
+    .strength-fill.CONTRA { background: #ef5350; }
+    .strength-fill.NEUTRAL{ background: #ffa726; }
+    .arg-weight {
+      font-size: 0.66rem; font-weight: 700; color: #888; white-space: nowrap;
+    }
+
+    .arg-meta {
+      font-size: 0.64rem; color: #999;
+      display: flex; gap: 4px; flex-wrap: wrap; margin-top: 1px;
+    }
+    .arg-meta .tag-pill {
+      display: inline-block; background: #e8eaf6; color: #3949ab;
+      border-radius: 8px; padding: 0 4px; font-size: 0.56rem; font-weight: 500;
+    }
+    .arg-meta .label-pill {
+      display: inline-block; background: #fff3e0; color: #e65100;
+      border-radius: 8px; padding: 0 4px; font-size: 0.56rem; font-weight: 500;
+    }
+
+    /* ── Children (expandable) ─────────────────── */
+    .arg-children {
+      margin-top: 4px; padding-left: 10px;
+      border-left: 2px solid #e0e0e0;
+      display: none;
+    }
+    .arg-children.open { display: flex; flex-direction: column; gap: 4px; }
+    .arg-children .arg-card { max-width: 380px; font-size: 0.72rem; }
+    .expand-hint {
+      font-size: 0.6rem; color: #aaa; position: absolute;
+      right: 6px; top: 4px;
+    }
+
+    /* ── Neutral bridge ────────────────────────── */
+    .neutral-section {
+      margin-top: 8px;
+    }
+    .neutral-label {
+      font-size: 0.72rem; font-weight: 600; color: #888;
+      text-transform: uppercase; margin-bottom: 4px; text-align: center;
+    }
+    .neutral-cards {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+    }
+    .neutral-cards .arg-card { max-width: 340px; }
+
+    /* ── Gaps panel ─────────────────────────────── */
+    .gaps-panel {
+      background: #fff; border-radius: 8px; padding: 10px 14px;
+      margin-top: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      font-size: 0.76rem;
+    }
+    .gaps-title { font-weight: 600; font-size: 0.82rem; margin-bottom: 6px; }
+    .gap-item { color: #555; margin-bottom: 3px; }
+    .gap-item::before { content: '⚠️ '; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⚖️ Dialectree – Entscheidungswaage</h1>
+    <p>Gewichtete Gegenüberstellung aller Argumente</p>
+  </div>
+  <nav>
+    <a href="/">🌳 Baum</a>
+    <a href="/dialog">💬 Dialog</a>
+    <a href="/zickzack">⚡ Zickzack</a>
+    <a href="/konflikt">🔍 Konflikt</a>
+    <a href="/praesentation">🧠 Mindmap</a>
+  </nav>
+</header>
+
+<div id="app">
+  <div id="topic-list"><em>Lade Topics…</em></div>
+  <div id="loading" style="display:none">Lade Argumente…</div>
+  <div id="error"   style="display:none"></div>
+  <div id="content" style="display:none"></div>
+</div>
+
+<script>
+  const BASE = '';
+
+  async function loadTopics() {
+    const r = await fetch(`${BASE}/api/topics/`);
+    if (!r.ok) throw new Error('Backend nicht erreichbar');
+    return r.json();
+  }
+  async function loadTree(id) {
+    const r = await fetch(`${BASE}/api/topics/${id}/tree`);
+    if (!r.ok) throw new Error('Baum konnte nicht geladen werden');
+    return r.json();
+  }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ── Flatten + weight ──────────────────────── */
+
+  function flattenTree(nodes, depth, parentId) {
+    const flat = [];
+    for (const n of nodes) {
+      flat.push({
+        ...n, depth, parentId,
+        tags: n.tags || [], labels: n.labels || [],
+        evidence_count: n.evidence_count || 0,
+        comment_count: n.comment_count || 0,
+        childNodes: n.children || [],
+      });
+      if (n.children?.length)
+        flat.push(...flattenTree(n.children, depth + 1, n.id));
+    }
+    return flat;
+  }
+
+  function calcWeight(node) {
+    // Weight formula: base from votes + evidence bonus + child support
+    let w = Math.abs(node.vote_score || 0) + 1; // at least 1
+    w += (node.evidence_count || 0) * 2;
+    // Bonus for supporting children (same position as parent)
+    if (node.childNodes) {
+      node.childNodes.forEach(c => {
+        if (c.position === node.position) w += 0.5;
+      });
+    }
+    // Penalty for fallacy labels
+    if (node.labels?.includes('FALLACY')) w *= 0.3;
+    return Math.round(w * 10) / 10;
+  }
+
+  /* ── Render card ───────────────────────────── */
+
+  function renderCard(node, maxWeight) {
+    const w = calcWeight(node);
+    const pct = maxWeight > 0 ? Math.min(100, (w / maxWeight) * 100) : 0;
+    const hasFallacy = node.labels?.includes('FALLACY');
+    const hasChildren = node.childNodes && node.childNodes.length > 0;
+
+    const tagH = node.tags.map(t => {
+      const name = typeof t === 'string' ? t : t.tag_name || String(t);
+      return `<span class="tag-pill">${esc(name)}</span>`;
+    }).join('');
+    const labH = node.labels?.filter(l => l !== 'FALLACY').map(l =>
+      `<span class="label-pill">${esc(l)}</span>`
+    ).join('') || '';
+    const fallacyH = hasFallacy ? `<span class="label-pill">⚠️ FALLACY</span>` : '';
+    const evH = node.evidence_count ? `<span>📄${node.evidence_count}</span>` : '';
+    const cmH = node.comment_count ? `<span>💬${node.comment_count}</span>` : '';
+
+    const card = document.createElement('div');
+    card.className = `arg-card ${node.position}${hasFallacy ? ' fallacy' : ''}`;
+    card.innerHTML =
+      `<div class="arg-title">${esc(node.title)}</div>` +
+      (node.description ? `<div class="arg-desc">${esc(node.description)}</div>` : '') +
+      `<div class="arg-bar-row">` +
+        `<div class="strength-bar"><div class="strength-fill ${node.position}" style="width:${pct}%"></div></div>` +
+        `<span class="arg-weight">${w}</span>` +
+      `</div>` +
+      `<div class="arg-meta">${tagH}${labH}${fallacyH}${evH}${cmH}</div>` +
+      (hasChildren ? `<span class="expand-hint">▼ ${node.childNodes.length}</span>` : '');
+
+    if (hasChildren) {
+      const childDiv = document.createElement('div');
+      childDiv.className = 'arg-children';
+      node.childNodes.forEach(c => childDiv.appendChild(renderCard(c, maxWeight)));
+      card.appendChild(childDiv);
+      card.addEventListener('click', e => {
+        e.stopPropagation();
+        childDiv.classList.toggle('open');
+        card.querySelector('.expand-hint').textContent =
+          childDiv.classList.contains('open')
+            ? `▲ ${node.childNodes.length}`
+            : `▼ ${node.childNodes.length}`;
+      });
+    }
+
+    return card;
+  }
+
+  /* ── Build balance view ────────────────────── */
+
+  function buildBalanceView(topic, treeNodes) {
+    const flat = flattenTree(treeNodes, 0, null);
+    const roots = flat.filter(n => n.depth === 0);
+
+    const proArgs = roots.filter(n => n.position === 'PRO').sort((a,b) => calcWeight(b) - calcWeight(a));
+    const conArgs = roots.filter(n => n.position === 'CONTRA').sort((a,b) => calcWeight(b) - calcWeight(a));
+    const neutralArgs = roots.filter(n => n.position === 'NEUTRAL');
+
+    const proTotal = proArgs.reduce((s, n) => s + calcWeight(n), 0);
+    const conTotal = conArgs.reduce((s, n) => s + calcWeight(n), 0);
+    const total = proTotal + conTotal || 1;
+    const proPct = Math.round((proTotal / total) * 100);
+    const conPct = 100 - proPct;
+
+    const allWeights = roots.map(calcWeight);
+    const maxWeight = Math.max(...allWeights, 1);
+
+    // Tilt angle: max ±15 degrees
+    const ratio = (proTotal - conTotal) / Math.max(proTotal, conTotal, 1);
+    const tilt = Math.round(ratio * -15);
+
+    // Evidence comparison
+    const proEvidence = proArgs.reduce((s, n) => s + n.evidence_count, 0);
+    const conEvidence = conArgs.reduce((s, n) => s + n.evidence_count, 0);
+    const proFallacies = proArgs.filter(n => n.labels?.includes('FALLACY')).length;
+    const conFallacies = conArgs.filter(n => n.labels?.includes('FALLACY')).length;
+
+    // Gaps analysis
+    const gaps = [];
+    if (proEvidence === 0 && conEvidence > 0) gaps.push('PRO-Seite hat keine Belege/Studien.');
+    if (conEvidence === 0 && proEvidence > 0) gaps.push('CONTRA-Seite hat keine Belege/Studien.');
+    if (proArgs.length === 0) gaps.push('Keine PRO-Argumente vorhanden.');
+    if (conArgs.length === 0) gaps.push('Keine CONTRA-Argumente vorhanden.');
+    if (proFallacies > 0) gaps.push(`${proFallacies} PRO-Argument(e) als Fehlschluss markiert.`);
+    if (conFallacies > 0) gaps.push(`${conFallacies} CONTRA-Argument(e) als Fehlschluss markiert.`);
+    if (Math.abs(proArgs.length - conArgs.length) >= 3)
+      gaps.push(`Ungleichgewicht: ${proArgs.length} PRO vs. ${conArgs.length} CONTRA Argumente.`);
+
+    // Verdict
+    let verdict = '';
+    if (Math.abs(proPct - conPct) < 10) {
+      verdict = '⚖️ Ausgeglichene Argumentation — beide Seiten haben ähnliches Gewicht.';
+    } else if (proPct > conPct) {
+      verdict = `✅ PRO-Argumente haben mit ${proPct}% deutlich mehr Gewicht.`;
+    } else {
+      verdict = `❌ CONTRA-Argumente haben mit ${conPct}% deutlich mehr Gewicht.`;
+    }
+
+    // ── Build DOM ──
+    const container = document.getElementById('content');
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    // Summary
+    const summary = document.createElement('div');
+    summary.className = 'summary';
+    summary.innerHTML =
+      `<div class="summary-title">${esc(topic.title)}</div>` +
+      `<div class="split-bar">` +
+        `<div class="split-pro" style="flex:${proPct}">${proPct}% PRO</div>` +
+        (neutralArgs.length ? `<div class="split-neutral" style="flex:${Math.max(3, 100-proPct-conPct)}">⬤</div>` : '') +
+        `<div class="split-contra" style="flex:${conPct}">${conPct}% CONTRA</div>` +
+      `</div>` +
+      `<div class="summary-stats">` +
+        `<span>✅ ${proArgs.length} Argumente · Gewicht ${proTotal.toFixed(1)} · 📄${proEvidence}</span>` +
+        `<span>❌ ${conArgs.length} Argumente · Gewicht ${conTotal.toFixed(1)} · 📄${conEvidence}</span>` +
+      `</div>` +
+      `<div class="summary-verdict">${verdict}</div>`;
+    container.appendChild(summary);
+
+    // Scale
+    const scale = document.createElement('div');
+    scale.className = 'scale-container';
+
+    // PRO side
+    const proSide = document.createElement('div');
+    proSide.className = 'scale-side pro';
+    proArgs.forEach(n => proSide.appendChild(renderCard(n, maxWeight)));
+    if (proArgs.length === 0) proSide.innerHTML = '<div style="color:#aaa;font-size:0.8rem;text-align:right">Keine PRO-Argumente</div>';
+
+    // Center beam
+    const center = document.createElement('div');
+    center.className = 'scale-center';
+    center.innerHTML =
+      `<svg class="beam-svg" viewBox="0 0 80 120">
+        <g transform="rotate(${tilt}, 40, 20)">
+          <line x1="4" y1="20" x2="76" y2="20" stroke="#1a237e" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="40" cy="20" r="5" fill="#1a237e"/>
+          <line x1="4" y1="20" x2="4" y2="40" stroke="#43a047" stroke-width="2"/>
+          <line x1="76" y1="20" x2="76" y2="40" stroke="#e53935" stroke-width="2"/>
+        </g>
+        <line x1="40" y1="20" x2="40" y2="110" stroke="#1a237e" stroke-width="2"/>
+        <polygon points="30,110 50,110 40,118" fill="#1a237e"/>
+      </svg>
+      <div style="font-size:0.65rem;color:#888;text-align:center;margin-top:4px">
+        Neigung: ${Math.abs(tilt)}° ${tilt < 0 ? '← PRO' : tilt > 0 ? 'CONTRA →' : '= Gleichgewicht'}
+      </div>`;
+
+    // CONTRA side
+    const conSide = document.createElement('div');
+    conSide.className = 'scale-side contra';
+    conArgs.forEach(n => conSide.appendChild(renderCard(n, maxWeight)));
+    if (conArgs.length === 0) conSide.innerHTML = '<div style="color:#aaa;font-size:0.8rem">Keine CONTRA-Argumente</div>';
+
+    scale.appendChild(proSide);
+    scale.appendChild(center);
+    scale.appendChild(conSide);
+    container.appendChild(scale);
+
+    // Neutral section
+    if (neutralArgs.length) {
+      const ns = document.createElement('div');
+      ns.className = 'neutral-section';
+      ns.innerHTML = '<div class="neutral-label">💡 Neutrale Argumente & Kontext</div>';
+      const row = document.createElement('div');
+      row.className = 'neutral-cards';
+      neutralArgs.forEach(n => row.appendChild(renderCard(n, maxWeight)));
+      ns.appendChild(row);
+      container.appendChild(ns);
+    }
+
+    // Gaps
+    if (gaps.length) {
+      const gp = document.createElement('div');
+      gp.className = 'gaps-panel';
+      gp.innerHTML = `<div class="gaps-title">Lücken & Hinweise</div>` +
+        gaps.map(g => `<div class="gap-item">${esc(g)}</div>`).join('');
+      container.appendChild(gp);
+    }
+  }
+
+  /* ── Topic selection ───────────────────────── */
+
+  async function selectTopic(topic, btn) {
+    document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('content').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+
+    try {
+      const nodes = await loadTree(topic.id);
+      document.getElementById('loading').style.display = 'none';
+      if (!nodes.length) {
+        document.getElementById('content').innerHTML = '<p style="color:#888">Keine Argumente.</p>';
+        document.getElementById('content').style.display = 'block';
+        return;
+      }
+      buildBalanceView(topic, nodes);
+    } catch(e) {
+      document.getElementById('loading').style.display = 'none';
+      const el = document.getElementById('error');
+      el.textContent = e.message;
+      el.style.display = 'block';
+    }
+  }
+
+  async function init() {
+    const listEl = document.getElementById('topic-list');
+    try {
+      const topics = await loadTopics();
+      listEl.innerHTML = '';
+      if (!topics.length) { listEl.innerHTML = '<em>Keine Topics.</em>'; return; }
+      topics.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'topic-btn';
+        btn.textContent = t.title;
+        btn.onclick = () => selectTopic(t, btn);
+        listEl.appendChild(btn);
+      });
+      listEl.querySelector('.topic-btn').click();
+    } catch(e) {
+      listEl.innerHTML = `<span style="color:#d32f2f">${e.message}</span>`;
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚡ Dialectree – Zickzack</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; }
+
+    header {
+      background: #161b22; color: #e6edf3; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #30363d;
+    }
+    header h1 { font-size: 1.15rem; }
+    header p  { font-size: 0.72rem; opacity: 0.7; }
+    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    header a {
+      color: #58a6ff; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15);
+    }
+    header a:hover { background: rgba(255,255,255,.08); }
+
+    .page { margin: 0 auto; padding: 12px 16px; }
+
+    .topic-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .topic-tab {
+      padding: 5px 14px; border-radius: 16px; border: 2px solid #30363d;
+      background: #1c2128; color: #c9d1d9; cursor: pointer; font-size: 0.82rem; transition: all .15s;
+    }
+    .topic-tab:hover { border-color: #58a6ff; }
+    .topic-tab.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+
+    /* ── Canvas ── */
+    .zz-canvas {
+      position: relative;
+      width: 100%; background: #0d1117;
+      border-radius: 10px; border: 1px solid #30363d;
+      overflow: visible;
+    }
+    .zz-canvas svg {
+      display: block; width: 100%;
+      pointer-events: none;
+    }
+
+    /* ── Edge marker: emoji + semantic label on connection ── */
+    .edge-marker {
+      position: absolute; transform: translate(-50%, -50%);
+      z-index: 3;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 1px; cursor: pointer; user-select: none;
+      transition: transform .15s;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+    }
+    .edge-marker:hover { transform: translate(-50%, -50%) scale(1.2); }
+    .edge-marker-emoji { font-size: 14px; line-height: 1; }
+    .edge-marker-label {
+      font-size: 0.52rem; font-weight: 600; color: #8b949e;
+      background: rgba(22,27,34,0.92); border-radius: 3px; padding: 0 3px;
+      white-space: nowrap; line-height: 1.4;
+      cursor: pointer; border: 1px solid #30363d;
+    }
+    .edge-marker-label:hover { color: #58a6ff; }
+    .edge-marker-plus {
+      font-size: 0.5rem; color: #484f58; line-height: 1;
+    }
+    .edge-marker.collapsed .edge-marker-label { display: none; }
+    .edge-marker:not(.collapsed) .edge-marker-plus { display: none; }
+
+    /* ── Edge challenge popup ── */
+    .edge-popup {
+      position: absolute; transform: translate(-50%, 8px);
+      z-index: 10;
+      background: #1c2128; border: 1.5px solid #30363d;
+      border-radius: 8px; padding: 8px 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.4);
+      min-width: 180px; max-width: 240px;
+      font-size: 0.72rem;
+      display: none;
+    }
+    .edge-popup.show { display: block; }
+    .edge-popup h4 { font-size: 0.76rem; margin-bottom: 5px; color: #e6edf3; }
+    .edge-popup .challenge-btn {
+      display: block; width: 100%; margin-top: 3px;
+      padding: 4px 8px; border: 1px solid #30363d;
+      border-radius: 5px; background: #161b22; color: #c9d1d9;
+      font-size: 0.68rem; cursor: pointer; text-align: left;
+      transition: background .1s;
+    }
+    .edge-popup .challenge-btn:hover { background: #2d1e00; border-color: #d29922; }
+    .edge-popup .challenge-btn.active { background: #2d1e00; border-color: #d29922; font-weight: 600; }
+
+    /* ── Argument cards (HTML overlays) ────────── */
+    .zz-card {
+      position: absolute;
+      z-index: 2;
+      background: #1c2128;
+      border: 1.5px solid #30363d;
+      border-radius: 7px;
+      padding: 7px 10px;
+      width: 220px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      line-height: 1.3;
+      user-select: none;
+      cursor: grab;
+    }
+    .zz-card.dragging {
+      cursor: grabbing; z-index: 10;
+      box-shadow: 0 4px 16px rgba(0,0,0,.4); opacity: 0.9;
+    }
+    .zz-card.L { border-right: 4px solid #3fb950; }
+    .zz-card.R { border-left: 4px solid #f85149; }
+    .zz-card .card-header {
+      display: flex; align-items: flex-start; gap: 4px;
+    }
+    .zz-card .card-title { font-size: 0.78rem; font-weight: 600; color: #e6edf3; flex: 1; }
+    .zz-card .card-body  { font-size: 0.64rem; color: #8b949e; margin-top: 2px; }
+    .zz-card .card-zone  {
+      display: inline-block; margin-top: 3px;
+      padding: 0 5px; border-radius: 6px;
+      font-size: 0.58rem; font-weight: 600;
+    }
+    .zz-card .card-alts {
+      margin-top: 3px; font-size: 0.56rem; color: #484f58; font-style: italic;
+    }
+
+    /* ── Collapse toggle (all cards) ── */
+    .collapse-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; min-width: 18px;
+      font-size: 0.65rem; color: #484f58;
+      cursor: pointer; user-select: none;
+      transition: transform .15s, color .15s, background .1s;
+      flex-shrink: 0; border-radius: 4px; margin-top: 0px;
+    }
+    .collapse-toggle:hover { color: #e6edf3; background: rgba(255,255,255,.08); }
+    .zz-card:not(.collapsed) .collapse-toggle { transform: rotate(90deg); }
+
+    /* ── Collapsed state ── */
+    .zz-card.collapsed {
+      padding: 4px 8px;
+    }
+    .zz-card.collapsed .card-content { display: none; }
+    .zz-card.collapsed .card-title { font-size: 0.7rem; }
+
+    /* ── Sibling / dead-end branch ── */
+    .inactive-label {
+      display: block; font-size: 0.56rem; color: #484f58;
+      font-style: italic; margin-top: 3px;
+    }
+
+    /* ── Edge attack card (targets a connection, not content) ── */
+    .zz-card.edge-attack {
+      width: 180px; padding: 4px 8px;
+      border: 1.5px dashed #f85149;
+      background: #1a0d0d;
+    }
+    .zz-card.edge-attack .card-title { font-size: 0.7rem; }
+    .zz-card.edge-attack .card-body  { font-size: 0.58rem; }
+
+    /* ── New conflict space badge ── */
+    .new-conflict {
+      display: inline-block; margin-top: 2px;
+      padding: 0 5px; border-radius: 8px;
+      font-size: 0.52rem; font-weight: 600;
+      background: #0d2240; color: #58a6ff;
+      white-space: nowrap;
+    }
+
+    /* ── Topic pill ── */
+    .zz-topic {
+      position: absolute; transform: translate(-50%, -50%);
+      z-index: 2;
+      background: #1f6feb; color: #fff;
+      border-radius: 14px; padding: 7px 18px;
+      font-size: 0.88rem; font-weight: 600;
+      text-align: center;
+      box-shadow: 0 3px 12px rgba(31,111,235,.3);
+    }
+
+    /* ── Dead end pill ── */
+    .zz-deadend {
+      position: absolute; transform: translate(-50%, -50%);
+      z-index: 2;
+      background: #1c2128; border-radius: 12px;
+      padding: 8px 16px; text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+      font-size: 0.78rem; color: #c9d1d9;
+      border: 1px solid #30363d;
+    }
+    .zz-deadend .de-icon { font-size: 1.2rem; }
+    .zz-deadend .de-label { font-weight: 600; font-size: 0.8rem; }
+    .zz-deadend .de-desc { font-size: 0.64rem; color: #8b949e; margin-top: 2px; }
+
+    /* ── Side labels ── */
+    .zz-side-label {
+      position: absolute; z-index: 1;
+      font-size: 0.7rem; font-weight: 600; opacity: 0.35;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⚡ Zickzack-Dialog</h1>
+    <p>Jedes Argument antwortet auf das vorherige — klick auf die Kante, um den Zusammenhang anzuzweifeln</p>
+  </div>
+  <nav>
+    <a href="/">🌳 Baum</a>
+    <a href="/entscheidung">⚖️ Waage</a>
+    <a href="/dialog">💬 Dialog</a>
+    <a href="/konflikt">🔍 Konflikt</a>
+    <a href="/praesentation">🧠 Mindmap</a>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="topic-tabs" id="tabs"></div>
+  <div class="zz-canvas" id="canvas">
+    <svg id="zz-svg"></svg>
+  </div>
+</div>
+
+<script>
+  // ── Data ─────────────────────────────────────────
+  // edgeType: semantic label on the connection (see EDGE_TYPES)
+  // siblings[]: inactive branches (collapsed, foldable)
+  // edgeAttack: a card that targets the CONNECTION itself, not the content
+
+  const DRAG_ENABLED = true; // temporarily enabled for layout adjustment
+
+  const EDGE_TYPES = {
+    community_note: { emoji:'📢', label:'Unwahr!' },
+    consequences:   { emoji:'⚠️', label:'Folgen' },
+    weakening:      { emoji:'🤷', label:'Schwach' },
+    reframe:        { emoji:'💡', label:'Reframing' },
+    concession:     { emoji:'🤝', label:'Konsens' },
+  };
+
+  const DIALOGUES = [
+    {
+      id: 'rauchen', title: 'Sollte Rauchen verboten werden?',
+      left: 'PRO Verbot', right: 'CONTRA Verbot',
+      steps: [
+        { side:'L', zone:'fact', weight:0.6,
+          title:'Rauchen verursacht Krebs und Herzkrankheiten',
+          body:'Tausende Studien, WHO Gruppe-1-Karzinogen.',
+          alts:['Gesundheitskosten','Passivrauchen'] },
+        { side:'R', zone:'value', weight:0.7,
+          title:'Jeder darf über seinen Körper entscheiden',
+          body:'Eingriff in die Selbstbestimmung.',
+          alts:['Prohibition = Schwarzmarkt'] },
+        { side:'L', zone:'value', weight:0.5,
+          title:'Passivrauchen schädigt unbeteiligte Dritte',
+          body:'Deine Freiheit endet, wo meine Gesundheit beginnt.',
+          alts:['Kinder-Asthma'] },
+        { side:'R', zone:'fact', weight:0.3,
+          title:'Im Freien ist Passivrauch vernachlässigbar',
+          body:'Gaststätten-Verbote existieren bereits.',
+          alts:['Raucherbereiche'] },
+        { side:'L', zone:'fact', weight:0.6,
+          title:'Kinder können nicht wählen — Asthmarisiko',
+          body:'Wohnungen, Autos, Spielplätze.',
+          alts:[] },
+        { side:'R', zone:'causal', weight:0.2, edgeType:'concession',
+          title:'Kinderschutz ja — Totalverbot nein',
+          body:'Konsens bei Kindern, aber kein generelles Verbot.',
+          alts:['Elternrechte'] },
+        { side:'L', zone:'causal', weight:0.2, edgeType:'concession',
+          title:'Stufenweise Regulierung statt Totalverbot',
+          body:'Werbeverbote, rauchfreie Zonen, Altersgrenzen.',
+          alts:[] },
+      ],
+      deadEnd: { type:'consensus', icon:'🤝', label:'Teilkonsens',
+        desc:'Kinderschutz + Regulierung = Konsens. Rest: Paternalismus vs. Autonomie.' }
+    },
+    {
+      id: 'klima', title: 'Kann der Klimawandel verhindert werden?',
+      left: 'PRO Maßnahmen', right: 'Skeptisch',
+      steps: [
+        { side:'R', zone:'causal', weight:0.7,
+          title:'Wir können nicht verhindern, dass alles Öl verbrannt wird',
+          body:'Globaler Markt: Was einer nicht kauft, kauft der nächste.',
+          alts:['Speicherproblem','Windzirkulation'] },
+        { side:'L', zone:'value', weight:0.5,
+          title:'Wir müssen es trotzdem versuchen — Vorbildfunktion',
+          body:'Wenn wir nicht anfangen, zieht niemand mit.',
+          alts:['Investition in die Zukunft'],
+          siblings: [{
+            title:'Wir müssen eh umstellen, je früher desto besser',
+            body:'Fossile Energien werden knapper — der Wandel kommt so oder so.',
+            zone:'causal', weight:0.3
+          }]
+        },
+        { side:'R', zone:'causal', weight:0.7,
+          title:'Das ist nur noch Planwirtschaft',
+          body:'Unternehmen entscheiden, wo investiert wird. Nicht der Staat.',
+          alts:['2% irrelevant','Grundlast unmöglich'] },
+        { side:'L', zone:'fact', weight:0.5, edgeType:'reframe',
+          title:'Marktversagen: CO₂-Schäden werden nicht bepreist',
+          body:'CO₂-Preis ist keine Planwirtschaft, sondern Marktkorrektur.',
+          alts:['Subventionen international üblich'] },
+        { side:'R', zone:'causal', weight:0.6,
+          title:'CO₂-Preis vertreibt Industrie ins Ausland',
+          body:'Carbon Leakage — wir verlieren Jobs, CO₂ bleibt gleich.',
+          alts:[] },
+        { side:'L', zone:'causal', weight:0.4, edgeType:'reframe',
+          title:'Grenzausgleich (CBAM) verhindert Carbon Leakage',
+          body:'EU führt CO₂-Zoll auf Importe ein.',
+          alts:[] },
+      ],
+      deadEnd: { type:'dissent', icon:'🔀', label:'Struktureller Dissens',
+        desc:'Gleiche Fakten + Ziele, aber: Ist globale Reduktion machbar?' }
+    },
+    {
+      id: 'rassismus', title: 'Sind Quotenregelungen gerecht?',
+      left: 'PRO Quote', right: 'CONTRA Quote',
+      steps: [
+        { side:'R', zone:'value', weight:0.7,
+          title:'Quotenregelungen sind rassistisch und diskriminierend',
+          body:'Gleichbehandlung statt Bevorzugung — Quote diskriminiert nach Hautfarbe.',
+          alts:['Leistungsprinzip wird untergraben'] },
+        { side:'L', zone:'causal', weight:0.5, edgeType:'consequences',
+          title:'Strukturelle Ungerechtigkeit muss aktiv korrigiert werden',
+          body:'Ohne Quote bleibt historische Benachteiligung über Generationen bestehen.',
+          alts:['Chancengleichheit ≠ Ergebnisgleichheit'],
+          siblings: [{
+            title:'Rassismus gegen Weiße gibt es nicht',
+            body:'Rassismus = Macht + Vorurteil. Ohne systemische Machtstruktur kein Rassismus.',
+            zone:'value', weight:0.6,
+            edgeAttack: {
+              side:'R',
+              title:'DOCH! Was ist überhaupt Rassismus?',
+              body:'Neuer Konfliktraum: Definition von Rassismus',
+              zone:'value',
+            }
+          }]
+        },
+        { side:'R', zone:'fact', weight:0.8,
+          title:'Die Unterschiede sind genetisch und IQ-bedingt',
+          body:'Naturgegebene Verteilung erklärt Ungleichheit — Quote kann das nicht ändern.',
+        },
+        { side:'L', zone:'value', weight:0.7, edgeType:'community_note',
+          title:'Das ist Rassismus',
+          body:'Biologischer Determinismus als Rechtfertigung = Definition von wissenschaftlichem Rassismus.',
+          siblings: [
+            { title:'IQ hat keine Aussagekraft für Erfolg',
+              body:'Erfolg hängt von Sozialkapital, Netzwerken, Bildungszugang ab — nicht vom IQ.',
+              zone:'fact', weight:0.4, newConflict:'IQ vs. Erfolgsfaktoren' },
+            { title:'IQ ist nicht angeboren',
+              body:'IQ-Unterschiede sind sozioökonomisch bedingt, nicht genetisch.',
+              zone:'fact', weight:0.4, newConflict:'IQ-Heritabilität' },
+            { title:'Korrelation ≠ Kausalität',
+              body:'IQ korreliert mit sozioökonomischem Status — Armut senkt IQ, nicht Ethnie.',
+              zone:'fact', weight:0.3, newConflict:'Statistik-Fehlschlüsse' },
+          ]
+        },
+      ],
+      deadEnd: { type:'dissent', icon:'🚫', label:'Fundamentaler Wertekonflikt',
+        desc:'Gleichheit vs. „natürliche Hierarchie" — unvereinbare Prämissen.' }
+    },
+  ];
+
+  const ZONE_COLORS = { fact:'#58a6ff', causal:'#d29922', value:'#a371f7' };
+  const ZONE_BG     = { fact:'#0d2240', causal:'#2d1e00', value:'#1e0d3e' };
+  const ZONE_LABEL  = { fact:'Fakten', causal:'Kausalität', value:'Werte' };
+  const PRO_C = '#3fb950', CON_C = '#f85149';
+
+  // ── Challenge options (what you can accuse an edge of) ──
+  const CHALLENGES = [
+    { emoji:'❌', label:'Invalides Argument / Fehlschluss' },
+    { emoji:'⚠️', label:'Fehlender Beleg' },
+    { emoji:'🎯', label:'Themaverfehlung / falscher Scope' },
+    { emoji:'🔄', label:'Zirkelschluss / bereits diskutiert' },
+    { emoji:'💣', label:'Totschlagargument' },
+    { emoji:'🏷️', label:'Nur ein Label, kein Argument' },
+    { emoji:'🤷', label:'Schwaches Argument' },
+  ];
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Render ──────────────────────────────────────
+
+  let activePopup = null;
+  let renderState = null;
+
+  function createCardEl(s, isSibling) {
+    const card = document.createElement('div');
+    card.className = `zz-card ${s.side}`;
+    if (isSibling) card.classList.add('sibling-card');
+    const zoneCol = ZONE_COLORS[s.zone];
+    const zoneBg  = ZONE_BG[s.zone];
+    let html = '';
+    html += `<div class="card-header">`;
+    html += `<span class="collapse-toggle">▸</span>`;
+    html += `<div class="card-title">${esc(s.title)}</div>`;
+    html += `</div>`;
+    html += `<div class="card-content">`;
+    if (s.body) html += `<div class="card-body">${esc(s.body)}</div>`;
+    html += `<span class="card-zone" style="background:${zoneBg};color:${zoneCol}">${ZONE_LABEL[s.zone]}</span>`;
+    if (s.alts && s.alts.length > 0) {
+      html += `<div class="card-alts">↳ ${s.alts.map(a => esc(a)).join(' · ')}</div>`;
+    }
+    if (isSibling) {
+      html += `<div class="inactive-label">↳ nicht weiter aufgegriffen</div>`;
+      if (s.newConflict) {
+        html += `<div class="new-conflict">→ ${esc(s.newConflict)}</div>`;
+      }
+    }
+    html += `</div>`;
+    card.innerHTML = html;
+    if (isSibling) card.classList.add('collapsed');
+    // Collapse toggle handler (works for all cards)
+    card.querySelector('.collapse-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      card.classList.toggle('collapsed');
+      card.querySelector('.collapse-toggle').textContent =
+        card.classList.contains('collapsed') ? '▸' : '▾';
+    });
+    return card;
+  }
+
+  function renderZickzack(d) {
+    const canvas = document.getElementById('canvas');
+    canvas.querySelectorAll('.zz-card,.zz-topic,.zz-deadend,.edge-marker,.edge-popup,.zz-side-label').forEach(e => e.remove());
+
+    const W = Math.max(canvas.clientWidth, 700);
+    const CX = W / 2;
+    const CARD_W = 220;
+    const ATTACK_W = 180;
+    const GAP = 20;
+    const MAX_OFFSET = 50;
+    const V_PAD = 12;
+    const TOPIC_Y = 35;
+
+    // ── Topic pill ────────────────────────────
+    const topicEl = document.createElement('div');
+    topicEl.className = 'zz-topic';
+    topicEl.style.left = CX + 'px';
+    topicEl.style.top = TOPIC_Y + 'px';
+    topicEl.textContent = d.title;
+    canvas.appendChild(topicEl);
+
+    const topicH = topicEl.getBoundingClientRect().height;
+    const topicBottom = TOPIC_Y + topicH / 2 + 4;
+
+    // Side labels
+    const sideL = document.createElement('div');
+    sideL.className = 'zz-side-label';
+    sideL.style.left = '16px'; sideL.style.top = '10px';
+    sideL.style.color = PRO_C;
+    sideL.textContent = '◀ ' + d.left;
+    canvas.appendChild(sideL);
+
+    const sideR = document.createElement('div');
+    sideR.className = 'zz-side-label';
+    sideR.style.right = '16px'; sideR.style.top = '10px';
+    sideR.style.color = CON_C;
+    sideR.style.textAlign = 'right';
+    sideR.textContent = d.right + ' ▶';
+    canvas.appendChild(sideR);
+
+    // ── Phase 1: Create and measure all cards ──
+    const items = [];
+
+    d.steps.forEach((s, i) => {
+      const card = createCardEl(s, false /* isSibling */);
+      card.style.width = CARD_W + 'px';
+      card.style.position = 'absolute';
+      card.style.visibility = 'hidden';
+      canvas.appendChild(card);
+      const h = card.getBoundingClientRect().height;
+
+      const item = { el: card, step: s, index: i, height: h, siblings: [] };
+
+      // Normalize: support both sibling (single) and siblings (array)
+      const sibData = s.siblings ? s.siblings : s.sibling ? [s.sibling] : [];
+
+      sibData.forEach((sib) => {
+        const sibCard = createCardEl({ ...sib, side: s.side }, true /* isSibling */);
+        sibCard.style.width = CARD_W + 'px';
+        sibCard.style.position = 'absolute';
+        sibCard.style.visibility = 'hidden';
+        canvas.appendChild(sibCard);
+        const sibH = sibCard.getBoundingClientRect().height;
+
+        const sibItem = { el: sibCard, sib, height: sibH };
+
+        // Edge attack card (targets the connection, not content)
+        if (sib.edgeAttack) {
+          const aSide = sib.edgeAttack.side || (s.side === 'L' ? 'R' : 'L');
+          const aCard = createCardEl({ ...sib.edgeAttack, side: aSide }, false);
+          aCard.classList.add('edge-attack');
+          aCard.style.width = ATTACK_W + 'px';
+          aCard.style.position = 'absolute';
+          aCard.style.visibility = 'hidden';
+          canvas.appendChild(aCard);
+          const aH = aCard.getBoundingClientRect().height;
+          sibItem.attackEl = aCard;
+          sibItem.attackHeight = aH;
+          sibItem.attackSide = aSide;
+        }
+
+        item.siblings.push(sibItem);
+      });
+
+      items.push(item);
+    });
+
+    // ── Phase 2: Calculate positions (dynamic Y, compact) ──
+    let currentY = topicBottom + V_PAD;
+
+    items.forEach((item) => {
+      const weight = item.step.weight ?? 0.5;
+      const offset = weight * MAX_OFFSET;
+
+      let cardX = item.step.side === 'L'
+        ? CX - GAP - CARD_W - offset
+        : CX + GAP + offset;
+
+      item.el.style.left = cardX + 'px';
+      item.el.style.top = currentY + 'px';
+      item.el.style.visibility = 'visible';
+
+      item.x = cardX;
+      item.y = currentY;
+      item.edgeX = item.step.side === 'L' ? cardX + CARD_W : cardX;
+      item.topY = currentY;
+      item.botY = currentY + item.height;
+
+      if (DRAG_ENABLED) {
+        item.el._dragItem = item;
+        item.el._isSibling = false;
+      }
+
+      let blockHeight = item.height;
+
+      // Position siblings — offset further from center for edge-branch look
+      let sibCurY = currentY + item.height + 24;
+      item.siblings.forEach((sibItem) => {
+        const sibWeight = sibItem.sib.weight ?? 0.3;
+        const sibOffset = sibWeight * MAX_OFFSET;
+        let sibX = item.step.side === 'L'
+          ? CX - GAP - CARD_W - sibOffset - 40
+          : CX + GAP + sibOffset + 40;
+
+        sibItem.el.style.left = sibX + 'px';
+        sibItem.el.style.top = sibCurY + 'px';
+        sibItem.el.style.visibility = 'visible';
+
+        sibItem.x = sibX;
+        sibItem.y = sibCurY;
+        sibItem.edgeX = item.step.side === 'L' ? sibX + CARD_W : sibX;
+
+        if (DRAG_ENABLED) {
+          sibItem.el._dragItem = sibItem;
+          sibItem.el._isSibling = true;
+          sibItem.el._isAttack = false;
+          sibItem.el._parentSide = item.step.side;
+          // Attack cards get separate drag tracking
+          if (sibItem.attackEl) {
+            sibItem.attackEl._dragItem = sibItem;
+            sibItem.attackEl._isSibling = true;
+            sibItem.attackEl._isAttack = true;
+            sibItem.attackEl._parentSide = item.step.side;
+          }
+        }
+
+        sibCurY += sibItem.height + 4;
+        // Edge attack position is set in Phase 3 (needs line midpoint)
+      });
+
+      if (item.siblings.length > 0) {
+        blockHeight = sibCurY - 4 - currentY;
+      }
+
+      currentY += blockHeight + V_PAD;
+    });
+
+    // ── Phase 3: Draw SVG (straight lines) ──
+    const totalHeight = currentY + 80;
+    const svg = document.getElementById('zz-svg');
+    svg.innerHTML = '';
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', totalHeight);
+    svg.setAttribute('viewBox', `0 0 ${W} ${totalHeight}`);
+
+    svg.innerHTML =
+      `<rect x="0" y="0" width="${CX}" height="${totalHeight}" fill="${PRO_C}" opacity="0.04"/>` +
+      `<rect x="${CX}" y="0" width="${CX}" height="${totalHeight}" fill="${CON_C}" opacity="0.04"/>` +
+      `<line x1="${CX}" y1="${topicBottom}" x2="${CX}" y2="${totalHeight - 30}" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>`;
+
+    let prevX = CX;
+    let prevY = topicBottom;
+
+    items.forEach((item, idx) => {
+      const color = item.step.side === 'L' ? PRO_C : CON_C;
+      const toX = item.edgeX;
+      const toY = item.topY + 8;
+
+      // Main line
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', prevX);
+      line.setAttribute('y1', prevY);
+      line.setAttribute('x2', toX);
+      line.setAttribute('y2', toY);
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-opacity', '0.4');
+      svg.appendChild(line);
+      item.mainLine = line;
+      item.mainLineColor = color;
+
+      // Edge type marker (semantic label + emoji) — starts collapsed
+      const et = item.step.edgeType && EDGE_TYPES[item.step.edgeType];
+      if (et) {
+        const eMidX = (prevX + toX) / 2;
+        const eMidY = (prevY + toY) / 2;
+
+        const marker = document.createElement('div');
+        marker.className = 'edge-marker collapsed';
+        marker.style.left = eMidX + 'px';
+        marker.style.top = eMidY + 'px';
+        marker.innerHTML =
+          `<span class="edge-marker-emoji">${et.emoji}</span>` +
+          `<span class="edge-marker-plus">⊕</span>` +
+          `<span class="edge-marker-label">${esc(et.label)}</span>`;
+        canvas.appendChild(marker);
+        item.markerEl = marker;
+
+        // Challenge popup
+        const popup = document.createElement('div');
+        popup.className = 'edge-popup';
+        popup.style.left = eMidX + 'px';
+        popup.style.top = (eMidY + 18) + 'px';
+        popup.innerHTML = `<h4>🔍 Kante anzweifeln</h4>` +
+          CHALLENGES.map((ch, ci) =>
+            `<button class="challenge-btn" data-ch="${ci}">${ch.emoji} ${esc(ch.label)}</button>`
+          ).join('');
+        canvas.appendChild(popup);
+        item.popupEl = popup;
+
+        // Click emoji / ⊕ → toggle collapsed (show/hide label)
+        marker.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          marker.classList.toggle('collapsed');
+        });
+
+        // Click label text → open challenge popup (overrides toggle)
+        marker.querySelector('.edge-marker-label').addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (activePopup && activePopup !== popup) activePopup.classList.remove('show');
+          popup.classList.toggle('show');
+          activePopup = popup.classList.contains('show') ? popup : null;
+        });
+
+        popup.querySelectorAll('.challenge-btn').forEach(btn => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const wasActive = btn.classList.contains('active');
+            popup.querySelectorAll('.challenge-btn').forEach(b => b.classList.remove('active'));
+            if (!wasActive) {
+              btn.classList.add('active');
+              const ch = CHALLENGES[btn.dataset.ch];
+              marker.querySelector('.edge-marker-emoji').textContent = ch.emoji;
+              marker.querySelector('.edge-marker-label').textContent = ch.label;
+              line.setAttribute('stroke', '#d29922');
+              line.setAttribute('stroke-width', '3');
+              line.setAttribute('stroke-opacity', '0.7');
+              line.setAttribute('stroke-dasharray', '6,3');
+            } else {
+              marker.querySelector('.edge-marker-emoji').textContent = et.emoji;
+              marker.querySelector('.edge-marker-label').textContent = et.label;
+              line.setAttribute('stroke', color);
+              line.setAttribute('stroke-width', '2');
+              line.setAttribute('stroke-opacity', '0.4');
+              line.removeAttribute('stroke-dasharray');
+            }
+            popup.classList.remove('show');
+            activePopup = null;
+          });
+        });
+      }
+
+      // Sibling lines: straight line from midpoint of INCOMING edge to sibling
+      if (item.siblings.length > 0) {
+        const sibColor = item.step.side === 'L' ? PRO_C : CON_C;
+
+        // Docking point = midpoint of the incoming edge (prev → this card)
+        const dockX = (prevX + toX) / 2;
+        const dockY = (prevY + toY) / 2;
+
+        item.siblings.forEach((sibItem) => {
+          const sibToX = sibItem.edgeX;
+          const sibToY = sibItem.y + 8;
+
+          // Dot at the docking point on the incoming edge
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('cx', dockX);
+          dot.setAttribute('cy', dockY);
+          dot.setAttribute('r', '3');
+          dot.setAttribute('fill', sibColor);
+          dot.setAttribute('opacity', '0.6');
+          svg.appendChild(dot);
+
+          // Direct straight line from docking point to sibling
+          const sibLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          sibLine.setAttribute('x1', dockX);
+          sibLine.setAttribute('y1', dockY);
+          sibLine.setAttribute('x2', sibToX);
+          sibLine.setAttribute('y2', sibToY);
+          sibLine.setAttribute('stroke', sibColor);
+          sibLine.setAttribute('stroke-width', '2');
+          sibLine.setAttribute('stroke-opacity', '0.4');
+          svg.appendChild(sibLine);
+          sibItem.line = sibLine;
+
+          // Edge attack: card that critiques the CONNECTION to this sibling
+          if (sibItem.attackEl) {
+            // ❌ at midpoint of the sibling branch line
+            const midX = (dockX + sibToX) / 2;
+            const midY = (dockY + sibToY) / 2;
+            const aSide = sibItem.attackSide;
+
+            // Position attack card next to the ❌
+            let aX = aSide === 'R' ? midX + 25 : midX - 25 - ATTACK_W;
+            const aY = midY - sibItem.attackHeight / 2;
+
+            sibItem.attackEl.style.left = aX + 'px';
+            sibItem.attackEl.style.top = aY + 'px';
+            sibItem.attackEl.style.visibility = 'visible';
+            sibItem.attackX = aX;
+            sibItem.attackY = aY;
+
+            // Connection line from ❌ to the attack card's nearest edge
+            const aEdgeX = aSide === 'R' ? aX : aX + ATTACK_W;
+            const aLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            aLine.setAttribute('x1', midX);
+            aLine.setAttribute('y1', midY);
+            aLine.setAttribute('x2', aEdgeX);
+            aLine.setAttribute('y2', aY + sibItem.attackHeight / 2);
+            aLine.setAttribute('stroke', '#f85149');
+            aLine.setAttribute('stroke-width', '1.5');
+            aLine.setAttribute('stroke-opacity', '0.5');
+            aLine.setAttribute('stroke-dasharray', '3,2');
+            svg.appendChild(aLine);
+            sibItem.attackLine = aLine;
+
+            // ❌ marker
+            const aMarker = document.createElement('div');
+            aMarker.className = 'edge-marker';
+            aMarker.style.left = midX + 'px';
+            aMarker.style.top = midY + 'px';
+            aMarker.innerHTML =
+              `<span class="edge-marker-emoji">❌</span>` +
+              `<span class="edge-marker-label">Kante!</span>`;
+            canvas.appendChild(aMarker);
+            sibItem.attackMarker = aMarker;
+          }
+        });
+      }
+
+      prevX = item.edgeX;
+      prevY = item.botY - 4;
+    });
+
+    // ── Dead end line + pill ──────────────────
+    const deY = currentY + 6;
+    const deLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    deLine.setAttribute('x1', prevX);
+    deLine.setAttribute('y1', prevY);
+    deLine.setAttribute('x2', CX);
+    deLine.setAttribute('y2', deY);
+    deLine.setAttribute('stroke', '#30363d');
+    deLine.setAttribute('stroke-width', '1.5');
+    deLine.setAttribute('stroke-opacity', '0.5');
+    deLine.setAttribute('stroke-dasharray', '5,4');
+    svg.appendChild(deLine);
+
+    const deColor = d.deadEnd.type === 'consensus' ? PRO_C : d.deadEnd.type === 'dissent' ? CON_C : '#d29922';
+    const de = document.createElement('div');
+    de.className = 'zz-deadend';
+    de.style.left = CX + 'px';
+    de.style.top = deY + 'px';
+    de.style.borderLeft = `3px solid ${deColor}`;
+    de.innerHTML = `<div class="de-icon">${d.deadEnd.icon}</div>
+      <div class="de-label">${esc(d.deadEnd.label)}</div>
+      <div class="de-desc">${esc(d.deadEnd.desc)}</div>`;
+    canvas.appendChild(de);
+
+    const finalH = deY + 70;
+    canvas.style.minHeight = finalH + 'px';
+    svg.setAttribute('height', finalH);
+    svg.setAttribute('viewBox', `0 0 ${W} ${finalH}`);
+
+    // Store state for line updates
+    renderState = { items, CX, topicBottom, CARD_W, ATTACK_W, deadEndLine: deLine };
+  }
+
+  // ── Update SVG lines (called during drag) ─────
+
+  function updateLines() {
+    if (!renderState) return;
+    const { items, CX, topicBottom, CARD_W, deadEndLine } = renderState;
+    let prevX = CX, prevY = topicBottom;
+
+    items.forEach((item, idx) => {
+      const toX = item.edgeX;
+      const toY = item.topY + 8;
+
+      if (item.mainLine) {
+        item.mainLine.setAttribute('x1', prevX);
+        item.mainLine.setAttribute('y1', prevY);
+        item.mainLine.setAttribute('x2', toX);
+        item.mainLine.setAttribute('y2', toY);
+      }
+      if (item.markerEl) {
+        item.markerEl.style.left = (prevX + toX) / 2 + 'px';
+        item.markerEl.style.top = (prevY + toY) / 2 + 'px';
+      }
+      if (item.popupEl) {
+        item.popupEl.style.left = (prevX + toX) / 2 + 'px';
+        item.popupEl.style.top = ((prevY + toY) / 2 + 18) + 'px';
+      }
+
+      // Sibling + attack lines: straight from incoming edge midpoint
+      if (item.siblings.length > 0) {
+        const dockX = (prevX + toX) / 2;
+        const dockY = (prevY + toY) / 2;
+
+        item.siblings.forEach(sibItem => {
+          const sibToX = sibItem.edgeX;
+          const sibToY = sibItem.y + 8;
+
+          // Update sibling branch line
+          if (sibItem.line) {
+            sibItem.line.setAttribute('x1', dockX);
+            sibItem.line.setAttribute('y1', dockY);
+            sibItem.line.setAttribute('x2', sibToX);
+            sibItem.line.setAttribute('y2', sibToY);
+          }
+
+          // Update attack connection line + marker
+          if (sibItem.attackLine || sibItem.attackMarker) {
+            const midX = (dockX + sibToX) / 2;
+            const midY = (dockY + sibToY) / 2;
+            if (sibItem.attackMarker) {
+              sibItem.attackMarker.style.left = midX + 'px';
+              sibItem.attackMarker.style.top = midY + 'px';
+            }
+            if (sibItem.attackLine) {
+              const aSide = sibItem.attackSide;
+              const aX = sibItem.attackX;
+              const aY = sibItem.attackY;
+              const aH = sibItem.attackHeight;
+              const aEdgeX = aSide === 'R' ? aX : aX + renderState.ATTACK_W;
+              sibItem.attackLine.setAttribute('x1', midX);
+              sibItem.attackLine.setAttribute('y1', midY);
+              sibItem.attackLine.setAttribute('x2', aEdgeX);
+              sibItem.attackLine.setAttribute('y2', aY + aH / 2);
+            }
+          }
+        });
+      }
+
+      prevX = item.edgeX;
+      prevY = item.botY - 4;
+    });
+
+    if (deadEndLine) {
+      deadEndLine.setAttribute('x1', prevX);
+      deadEndLine.setAttribute('y1', prevY);
+    }
+  }
+
+  // ── Drag system (disabled, kept for future use) ──
+
+  let dragInfo = null;
+
+  if (DRAG_ENABLED) {
+    document.getElementById('canvas').addEventListener('mousedown', (e) => {
+      const card = e.target.closest('.zz-card');
+      if (!card || !card._dragItem || e.target.closest('.collapse-toggle')) return;
+      dragInfo = {
+        card,
+        item: card._dragItem,
+        isSibling: card._isSibling,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: parseFloat(card.style.left),
+        origY: parseFloat(card.style.top),
+        moved: false,
+      };
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragInfo) return;
+      const dx = e.clientX - dragInfo.startX;
+      const dy = e.clientY - dragInfo.startY;
+      if (!dragInfo.moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      if (!dragInfo.moved) {
+        dragInfo.moved = true;
+        dragInfo.card.classList.add('dragging');
+      }
+
+      const newX = dragInfo.origX + dx;
+      const newY = dragInfo.origY + dy;
+      dragInfo.card.style.left = newX + 'px';
+      dragInfo.card.style.top = newY + 'px';
+
+      const item = dragInfo.item;
+      const CW = renderState ? renderState.CARD_W : 220;
+
+      if (dragInfo.card._isAttack) {
+        // Attack card: update its own position, don't touch sibling
+        item.attackX = newX;
+        item.attackY = newY;
+      } else if (dragInfo.isSibling) {
+        const side = dragInfo.card._parentSide;
+        item.x = newX;
+        item.y = newY;
+        item.edgeX = side === 'L' ? newX + CW : newX;
+      } else {
+        item.x = newX;
+        item.y = newY;
+        item.edgeX = item.step.side === 'L' ? newX + CW : newX;
+        item.topY = newY;
+        item.botY = newY + item.height;
+      }
+
+      updateLines();
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (dragInfo) {
+        dragInfo.card.classList.remove('dragging');
+        dragInfo = null;
+      }
+    });
+  }
+
+  // Close popup on outside click
+  document.addEventListener('click', () => {
+    if (activePopup) { activePopup.classList.remove('show'); activePopup = null; }
+  });
+
+  // ── Init ──────────────────────────────────────
+  const tabs = document.getElementById('tabs');
+  DIALOGUES.forEach((d, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'topic-tab';
+    btn.textContent = d.title;
+    btn.onclick = () => {
+      tabs.querySelectorAll('.topic-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderZickzack(d);
+    };
+    tabs.appendChild(btn);
+    if (i === 0) { btn.classList.add('active'); renderZickzack(d); }
+  });
+  window.addEventListener('resize', () => {
+    const active = tabs.querySelector('.active');
+    if (active) active.click();
+  });
+</script>
+</body>
+</html>
+
+

@@ -92,6 +92,26 @@ class PatternType(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class TagCategory(str, enum.Enum):
+    DOMAIN = "DOMAIN"
+    MORAL_FOUNDATION = "MORAL_FOUNDATION"
+    SOCIETAL_GOAL = "SOCIETAL_GOAL"
+    EVIDENCE_QUALITY = "EVIDENCE_QUALITY"
+    FALLACY = "FALLACY"
+    RELEVANCE = "RELEVANCE"
+    COMPLETENESS = "COMPLETENESS"
+    MANIPULATION = "MANIPULATION"
+    META_ARGUMENTATION = "META_ARGUMENTATION"
+    COMMUNITY = "COMMUNITY"
+    OTHER = "OTHER"
+
+
+class TagOrigin(str, enum.Enum):
+    USER = "USER"
+    MODERATOR = "MODERATOR"
+    AI = "AI"
+
+
 class MoralFoundation(str, enum.Enum):
     CARE = "CARE"
     FAIRNESS = "FAIRNESS"
@@ -106,12 +126,22 @@ def _utcnow():
 
 # ── Association tables ─────────────────────────────────────────────────
 
-argument_node_tags = Table(
-    "argument_node_tags",
-    Base.metadata,
-    Column("argument_node_id", Integer, ForeignKey("argument_nodes.id", ondelete="CASCADE"), primary_key=True),
-    Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
-)
+class ArgumentNodeTag(Base):
+    """Association model for ArgumentNode ↔ Tag with origin tracking."""
+    __tablename__ = "argument_node_tags"
+    __table_args__ = (
+        UniqueConstraint("argument_node_id", "tag_id", name="uq_node_tag"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    argument_node_id = Column(Integer, ForeignKey("argument_nodes.id", ondelete="CASCADE"), nullable=False)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False)
+    origin = Column(Enum(TagOrigin), nullable=False, default=TagOrigin.USER)
+    created_at = Column(DateTime, default=_utcnow)
+
+    argument_node = relationship("ArgumentNode", back_populates="tag_links")
+    tag = relationship("Tag", back_populates="node_links")
+
 
 multi_node_pattern_members = Table(
     "multi_node_pattern_members",
@@ -193,7 +223,7 @@ class ArgumentNode(Base):
     argument_group = relationship("ArgumentGroup", back_populates="argument_nodes")
     parent = relationship("ArgumentNode", remote_side="ArgumentNode.id", back_populates="children")
     children = relationship("ArgumentNode", back_populates="parent", cascade="all, delete-orphan")
-    tags = relationship("Tag", secondary=argument_node_tags, back_populates="argument_nodes")
+    tag_links = relationship("ArgumentNodeTag", back_populates="argument_node", cascade="all, delete-orphan")
     votes = relationship("Vote", back_populates="argument_node", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="argument_node", cascade="all, delete-orphan")
     evidence = relationship("Evidence", back_populates="argument_node", cascade="all, delete-orphan")
@@ -224,9 +254,10 @@ class Tag(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False, index=True)
     moral_foundation = Column(Enum(MoralFoundation), nullable=True)
+    category = Column(Enum(TagCategory), nullable=True, default=TagCategory.OTHER)
     created_at = Column(DateTime, default=_utcnow)
 
-    argument_nodes = relationship("ArgumentNode", secondary=argument_node_tags, back_populates="tags")
+    node_links = relationship("ArgumentNodeTag", back_populates="tag")
     tag_votes = relationship("TagVote", back_populates="tag")
 
 
