@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ArgumentNode, Position, StatementType, Visibility
+from ..models import ArgumentNode, Position, StatementType, Visibility, ConflictZone, EdgeType
 from ..schemas import ArgumentNodeCreate, ArgumentNodeOut, ArgumentNodeUpdate
 
 router = APIRouter(prefix="/arguments", tags=["arguments"])
@@ -47,6 +47,22 @@ def create_argument(payload: ArgumentNodeCreate, user_id: int, db: Session = Dep
         if parent.topic_id != payload.topic_id:
             raise HTTPException(400, "Parent argument belongs to a different topic")
 
+    # Validate conflict_zone
+    conflict_zone = None
+    if payload.conflict_zone:
+        try:
+            conflict_zone = ConflictZone(payload.conflict_zone)
+        except ValueError:
+            raise HTTPException(400, f"Invalid conflict_zone: {payload.conflict_zone}")
+
+    # Validate edge_type
+    edge_type = None
+    if payload.edge_type:
+        try:
+            edge_type = EdgeType(payload.edge_type)
+        except ValueError:
+            raise HTTPException(400, f"Invalid edge_type: {payload.edge_type}")
+
     node = ArgumentNode(
         topic_id=payload.topic_id,
         parent_id=payload.parent_id,
@@ -60,6 +76,10 @@ def create_argument(payload: ArgumentNodeCreate, user_id: int, db: Session = Dep
         reason=payload.reason,
         example=payload.example,
         implication=payload.implication,
+        conflict_zone=conflict_zone,
+        edge_type=edge_type,
+        is_edge_attack=payload.is_edge_attack,
+        opens_conflict=payload.opens_conflict,
         created_by=user_id,
     )
     db.add(node)
@@ -121,6 +141,20 @@ def update_argument(node_id: int, payload: ArgumentNodeUpdate, db: Session = Dep
         node.example = payload.example
     if payload.implication is not None:
         node.implication = payload.implication
+    if payload.conflict_zone is not None:
+        try:
+            node.conflict_zone = ConflictZone(payload.conflict_zone)
+        except ValueError:
+            raise HTTPException(400, f"Invalid conflict_zone: {payload.conflict_zone}")
+    if payload.edge_type is not None:
+        try:
+            node.edge_type = EdgeType(payload.edge_type)
+        except ValueError:
+            raise HTTPException(400, f"Invalid edge_type: {payload.edge_type}")
+    if payload.is_edge_attack is not None:
+        node.is_edge_attack = payload.is_edge_attack
+    if payload.opens_conflict is not None:
+        node.opens_conflict = payload.opens_conflict
     db.commit()
     db.refresh(node)
     return node

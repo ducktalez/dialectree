@@ -189,11 +189,10 @@
     <p>Eine konkrete Diskussion, Schritt für Schritt</p>
   </div>
   <nav>
-    <a href="/">🌳 Baum</a>
+    <a href="/">⚡ Zickzack</a>
+    <a href="/baum">🌳 Baum</a>
     <a href="/entscheidung">⚖️ Waage</a>
-    <a href="/zickzack">⚡ Zickzack</a>
     <a href="/konflikt">🔍 Konflikt</a>
-    <a href="/praesentation">🧠 Mindmap</a>
   </nav>
 </header>
 
@@ -232,191 +231,128 @@
   // ── Dialogue data ──────────────────────────────
   const DIALOGUES = [
     {
-      id: 'rauchen',
-      title: 'Sollte Rauchen verboten werden?',
-      left: { label: 'PRO Verbot', cls: 'pro' },
-      right: { label: 'CONTRA Verbot', cls: 'con' },
+      id: 'quoten',
+      title: 'Sind Quotenregelungen rassistisch?',
+      left: { label: 'PRO Quote', cls: 'con' },
+      right: { label: 'CONTRA Quote', cls: 'pro' },
       steps: [
         {
-          side: 'left',
-          main: {
-            title: 'Rauchen verursacht nachweislich Krebs und Herzkrankheiten',
-            body: 'Tausende Studien belegen den kausalen Zusammenhang. WHO Gruppe-1-Karzinogen.',
-            zone: 'fact', zoneLabel: 'Faktenebene',
-            move: 'Eröffnung mit stärkstem Faktum',
-          },
-          alts: [
-            'Gesundheitskosten belasten die Allgemeinheit',
-            'Passivrauchen schädigt unbeteiligte Dritte',
-          ],
-        },
-        {
           side: 'right',
           main: {
-            title: 'Jeder darf über seinen Körper entscheiden',
-            body: 'Ein Verbot wäre ein unverhältnismäßiger Eingriff in die Selbstbestimmung. Erwachsene Menschen kennen die Risiken.',
+            title: 'Quotenregelungen sind rassistisch — sie bewerten nach Hautfarbe',
+            body: 'Wenn eine Person wegen ihrer Herkunft bevorzugt wird, ist das per Definition Diskriminierung. Asiatische Bewerber brauchen bei Harvard höhere Scores.',
             zone: 'value', zoneLabel: 'Werteebene',
-            move: 'Ebene wechseln: Fakt akzeptiert, auf Werte umlenken',
+            move: 'Eröffnung: Normative Behauptung mit Faktenstützung',
           },
           alts: [
-            'Prohibition erzeugt Schwarzmarkt',
-            'Wo zieht man die Grenze? Alkohol, Zucker?',
+            'Leistungsprinzip muss gelten — die beste Person soll den Job bekommen',
+            'Individuelle Rechte übertrumpfen Gruppenstatistiken',
           ],
         },
         {
           side: 'left',
           main: {
-            title: 'Passivrauchen schädigt unbeteiligte Dritte',
-            body: 'Deine Freiheit endet, wo meine Gesundheit beginnt. Nichtraucher werden unfreiwillig Risiken ausgesetzt.',
+            title: 'Historische Ungerechtigkeit erfordert aktive Korrektur',
+            body: 'Ohne Quoten bleiben strukturelle Barrieren bestehen. Formale Gleichheit reicht nicht. Frauenquoten in Aufsichtsräten: von 10% auf 35%.',
             zone: 'value', zoneLabel: 'Werteebene',
-            move: 'Freiheits-Argument entkräften: Drittschäden',
+            move: 'Steelmanning: Stärkstes Gegenargument bringen',
           },
           alts: [
-            'Kinder von Rauchern haben höheres Asthmarisiko',
-          ],
-        },
-        {
-          side: 'right',
-          main: {
-            title: 'Im Freien ist Passivrauch-Konzentration vernachlässigbar gering',
-            body: 'Rauchverbote in Gaststätten existieren bereits. Im Außenbereich ist die Belastung minimal.',
-            zone: 'fact', zoneLabel: 'Faktenebene',
-            move: 'Zurück auf Fakten: Ausmaß des Drittschadens bestreiten',
-          },
-          alts: [
-            'Raucherbereiche als Kompromiss',
+            'Diversity in Teams führt nachweislich zu besseren Ergebnissen',
           ],
         },
         {
           side: 'left',
           main: {
-            title: 'Kinder von Rauchern haben höheres Asthmarisiko — sie können nicht wählen',
-            body: 'In Wohnungen, Autos, auf Spielplätzen. Die Schwächsten können sich nicht schützen.',
+            title: 'Rassismus gegen Weiße gibt es nicht — Rassismus erfordert Machtstrukturen',
+            body: 'Akademische Definition: Rassismus = Vorurteil + institutionelle Macht. Daher kann positive Diskriminierung per Definition kein Rassismus sein.',
             zone: 'fact', zoneLabel: 'Faktenebene',
-            move: 'Drittschaden auf schutzlose Gruppe verengen',
+            move: 'Reframing: Definitions-Ebene wechseln',
           },
           alts: [],
         },
         {
           side: 'right',
           main: {
-            title: 'Dann Rauchverbote in Anwesenheit von Kindern — kein Totalverbot nötig',
-            body: 'Kinderschutz ist Konsens. Aber das rechtfertigt kein generelles Verbot für Erwachsene.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Teilzugeständnis: Kinderschutz ja, Totalverbot nein',
+            title: 'DOCH! Was ist überhaupt Rassismus? — Definitionsstreit',
+            body: 'Die Verbindung zwischen "historische Korrektur" und "kein Rassismus" setzt eine umstrittene Definition voraus. Das muss erst geklärt werden.',
+            zone: 'fact', zoneLabel: 'Faktenebene',
+            move: '🔗 Edge Attack: Greift die Verbindung an, nicht den Inhalt',
           },
           alts: [
-            'Elternrechte vs. Kindeswohl',
+            'Asiatische Amerikaner werden durch Quoten systematisch benachteiligt',
           ],
         },
         {
           side: 'left',
           main: {
-            title: 'Stufenweise Regulierung statt Totalverbot',
-            body: 'Werbeverbote, rauchfreie Zonen, Altersgrenzen anheben. Neuseeland macht es vor.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Position anpassen: kein Totalverbot, aber strenge Regulierung',
+            title: 'Der Begriff "Rassismus" muss erst definiert werden',
+            body: 'Ohne gemeinsame Definition redet man aneinander vorbei. Ist Rassismus = Vorurteil + Macht, oder = jede Ungleichbehandlung nach Ethnie?',
+            zone: 'fact', zoneLabel: 'Faktenebene',
+            move: 'Meta-Einordnung: Definitionsklärung als Voraussetzung',
           },
           alts: [],
+        },
+        {
+          side: 'right',
+          main: {
+            title: 'Quoten schaffen Stigmatisierung — Quotenperson statt Fachkraft',
+            body: 'Betroffene leiden unter dem Verdacht, nur wegen der Quote eingestellt worden zu sein. Das schadet den Menschen, die sie schützen sollen.',
+            zone: 'causal', zoneLabel: 'Kausalitätsebene',
+            move: 'Folgen-Argument: Unbeabsichtigte Konsequenzen aufzeigen',
+          },
+          alts: [],
+        },
+        {
+          side: 'left',
+          main: {
+            title: 'Anonymisierte Bewerbungsverfahren statt starrer Quoten',
+            body: 'Wenn man Herkunft und Geschlecht im Bewerbungsprozess entfernt, behebt man strukturelle Diskriminierung ohne neue zu schaffen.',
+            zone: 'causal', zoneLabel: 'Kausalitätsebene',
+            move: 'Konsensangebot: Alternative Lösung, die beide Seiten verbindet',
+          },
+          alts: [
+            'Das Leistungsprinzip funktioniert nur bei gleichen Startbedingungen',
+          ],
         },
       ],
       deadEnd: {
         type: 'consensus',
         icon: '🤝',
         label: 'Teilkonsens erreicht',
-        desc: 'Beide Seiten stimmen zu: Kinderschutz und stufenweise Regulierung sind sinnvoll. Der verbleibende Dissens ist ein Wertekonflikt: Wie viel staatliche Regulierung des Erwachsenenverhaltens ist akzeptabel?',
-        zoneText: 'Verbleibender Konflikt: Werteebene (Paternalismus vs. Autonomie)',
-        zoneCls: 'value',
-      }
-    },
-    {
-      id: 'klima',
-      title: 'Kann der Klimawandel von Menschen verhindert werden?',
-      left: { label: 'PRO Maßnahmen', cls: 'pro' },
-      right: { label: 'Skeptisch', cls: 'con' },
-      steps: [
-        {
-          side: 'left',
-          main: {
-            title: 'CO₂ erhöht die Temperatur — wir müssen Emissionen senken',
-            body: 'IPCC: "Unequivocal". Wenn wir die Ursache kennen, können wir handeln.',
-            zone: 'fact', zoneLabel: 'Faktenebene',
-            move: 'Wissenschaftlichen Konsens als Prämisse setzen',
-          },
-          alts: [
-            'Kipppunkte machen schnelles Handeln nötig',
-            'Kosten des Nichtstuns übersteigen Kosten des Handelns',
-          ],
-        },
-        {
-          side: 'right',
-          main: {
-            title: 'Die Frage ist nicht ob, sondern ob WIR es verhindern können',
-            body: 'Auch wenn CO₂ die Ursache ist: Kein realistischer Weg, globale Förderung fossiler Brennstoffe zu stoppen.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Fakt akzeptiert, Machbarkeit bestreiten',
-          },
-          alts: [
-            'Deutschlands 2% Anteil sind irrelevant',
-          ],
-        },
-        {
-          side: 'left',
-          main: {
-            title: 'Erneuerbare Energien ersetzen fossile — Transformation ist möglich',
-            body: 'Solar/Wind sind bereits günstiger. China investiert 890 Mrd.$ in Clean Tech.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Machbarkeit mit ökonomischen Trends belegen',
-          },
-          alts: [
-            'Vorbildfunktion und Technologieexport',
-            'CO₂-Bepreisung als Marktmechanismus',
-          ],
-        },
-        {
-          side: 'right',
-          main: {
-            title: 'Erneuerbare können keine Grundlast decken — Speicherproblem',
-            body: 'Nur 3 Wege für Energie on-demand: Fossil, Nuklear, Speicher. Power-to-Gas hat 60% Verlust, Pumpspeicher ist begrenzt.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Technische Machbarkeit konkret bestreiten',
-          },
-          alts: [
-            'Windenergie schwächt Windzirkulation',
-            'Carbon Leakage bei nationalen Alleingängen',
-          ],
-        },
-        {
-          side: 'left',
-          main: {
-            title: 'Batteriespeicher-Kosten fallen exponentiell — Problem löst sich',
-            body: 'Lithium-Ionen-Preise: -90% seit 2010. Natrium-Ionen und Feststoffbatterien in Entwicklung.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Technologietrend als Gegenargument',
-          },
-          alts: [],
-        },
-        {
-          side: 'right',
-          main: {
-            title: 'Selbst mit perfekter Technik: Alles Öl wird sowieso verbrannt',
-            body: 'Was Deutschland nicht kauft, kauft jemand anderes. Marktlogik. Politische Stimmungen ändern sich über Jahrzehnte.',
-            zone: 'causal', zoneLabel: 'Kausalitätsebene',
-            move: 'Systemische Unmöglichkeit: Globaler Markt',
-          },
-          alts: [],
-        },
-      ],
-      deadEnd: {
-        type: 'dissent',
-        icon: '🔀',
-        label: 'Struktureller Dissens',
-        desc: 'Beide Seiten teilen das Ziel (lebenswerte Welt) und die Fakten (CO₂ = Erwärmung). Der Dissens liegt auf der Kausalitätsebene: Ist globale Emissionsreduktion realistisch machbar oder eine Sisyphusaufgabe? Diese Frage ist empirisch noch nicht endgültig beantwortet.',
-        zoneText: 'Konfliktebene: Kausalität (Machbarkeit globaler Koordination)',
-        zoneCls: 'causal',
+        desc: 'Beide Seiten stimmen zu: Diskriminierung ist schlecht. Der verbleibende Dissens ist ein Definitionskonflikt (Was ist Rassismus?) und ein Kausalitätsstreit (Schaffen Quoten mehr Probleme als sie lösen?). Anonymisierte Verfahren als pragmatischer Kompromiss.',
+        zoneText: 'Verbleibender Konflikt: Faktenebene (Definition) + Kausalitätsebene (Wirksamkeit)',
+        zoneCls: 'fact',
       }
     },
   ];
+
+  /* ── Auskommentierte Dialoge (Rauchen, Klima) ──────────────────
+  // Die folgenden Dialoge waren die ursprünglichen Beispiele.
+  // Sie sind auskommentiert, da der Fokus auf der Quoten-Diskussion liegt.
+
+  const DIALOGUE_RAUCHEN = {
+    id: 'rauchen',
+    title: 'Sollte Rauchen verboten werden?',
+    left: { label: 'PRO Verbot', cls: 'pro' },
+    right: { label: 'CONTRA Verbot', cls: 'con' },
+    steps: [
+      { side: 'left', main: { title: 'Rauchen verursacht nachweislich Krebs', body: '...', zone: 'fact', zoneLabel: 'Faktenebene', move: '...' }, alts: [] },
+    ],
+    deadEnd: { type: 'consensus', icon: '🤝', label: 'Teilkonsens', desc: '...', zoneText: '...', zoneCls: 'value' }
+  };
+
+  const DIALOGUE_KLIMA = {
+    id: 'klima',
+    title: 'Kann der Klimawandel von Menschen verhindert werden?',
+    left: { label: 'PRO Maßnahmen', cls: 'pro' },
+    right: { label: 'Skeptisch', cls: 'con' },
+    steps: [
+      { side: 'left', main: { title: 'CO₂ erhöht die Temperatur', body: '...', zone: 'fact', zoneLabel: 'Faktenebene', move: '...' }, alts: [] },
+    ],
+    deadEnd: { type: 'dissent', icon: '🔀', label: 'Struktureller Dissens', desc: '...', zoneText: '...', zoneCls: 'causal' }
+  };
+  ── Ende auskommentierte Dialoge ────────────────────────────── */
 
   // ── Render ─────────────────────────────────────
 

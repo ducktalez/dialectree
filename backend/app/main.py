@@ -66,26 +66,20 @@ _STATIC_DIR = Path(__file__).parent / "static"
 
 @app.get("/", response_class=FileResponse)
 def root():
-    """Serves the minimal browser UI for exploring argument trees."""
+    """Serves the Zickzack view as main entry point."""
+    return FileResponse(_STATIC_DIR / "zickzack.html")
+
+
+@app.get("/baum", response_class=FileResponse)
+def tree_view():
+    """Layered argument tree visualisation."""
     return FileResponse(_STATIC_DIR / "index.html")
-
-
-@app.get("/rauchen", response_class=FileResponse)
-def rauchen_archive():
-    """Archived Rauchen visualization snapshot."""
-    return FileResponse(_STATIC_DIR / "rauchen.html")
 
 
 @app.get("/entscheidung", response_class=FileResponse)
 def decision_view():
     """Weighted balance visualisation for neutral decision-making."""
     return FileResponse(_STATIC_DIR / "entscheidung.html")
-
-
-@app.get("/praesentation", response_class=FileResponse)
-def presentation_view():
-    """Mind-map style argument visualisation for presentations."""
-    return FileResponse(_STATIC_DIR / "praesentation.html")
 
 
 @app.get("/konflikt", response_class=FileResponse)
@@ -102,7 +96,7 @@ def dialog_view():
 
 @app.get("/zickzack", response_class=FileResponse)
 def zickzack_view():
-    """SVG-based zig-zag argument strength visualisation."""
+    """SVG-based zig-zag argument strength visualisation (alias for /)."""
     return FileResponse(_STATIC_DIR / "zickzack.html")
 
 

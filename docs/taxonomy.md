@@ -28,6 +28,8 @@ in this document.
 13. [Label Types (Quality / Moderation)](#13-label-types-quality--moderation)
 14. [Rhetorical Devices & Question Types](#14-rhetorical-devices--question-types)
 15. [Statement Types: Positive vs. Normative](#15-statement-types-positive-vs-normative)
+25. [Conflict Zones](#25-conflict-zones-)
+26. [Edge Types](#26-edge-types-)
 16. [Authority Types](#16-authority-types)
 17. [Scope & Branching](#17-scope--branching)
 18. [Thought Experiments, Analogies & Transferability](#18-thought-experiments-analogies--transferability)
@@ -958,4 +960,40 @@ Use the generalised patterns from Step 2 for:
 | Step 1: Map dialogue | `/dialog` | ✅ (hardcoded examples) |
 | Step 2: Generalise | — | ❌ (requires multiple dialogues per topic) |
 | Step 3: Meta-analyse | — | ❌ (requires Step 2 data) |
+
+---
+
+## 25. Conflict Zones ✅
+
+Enum `ConflictZone` — classifies which argumentation layer a node operates in.
+Used by the zigzag view to colour-code arguments and reveal where the real dispute lies.
+
+| Value | Description | Colour |
+|-------|-------------|--------|
+| `FACT` | Empirical claims: data, studies, observations | Blue |
+| `CAUSAL` | Cause-effect reasoning: "if X then Y" | Orange |
+| `VALUE` | Normative / ethical claims: "we should" | Purple |
+
+**Model field:** `ArgumentNode.conflict_zone` (nullable enum).
+
+---
+
+## 26. Edge Types ✅
+
+Enum `EdgeType` — classifies how an argument responds to its parent node.
+Used by the zigzag view to render semantic labels on connection lines.
+
+| Value | Emoji | Label | Description |
+|-------|-------|-------|-------------|
+| `COMMUNITY_NOTE` | 📢 | Unwahr! | Factual correction — "this is false" |
+| `CONSEQUENCES` | ⚠️ | Folgen | Argues via consequences — "this leads to Y" |
+| `WEAKENING` | 🤷 | Schwach | Undermines the argument's strength without full refutation |
+| `REFRAME` | 💡 | Reframing | Redefines the context / shifts the frame |
+| `CONCESSION` | 🤝 | Konsens | Partial agreement — "you're right about X, but not Y" |
+
+**Model field:** `ArgumentNode.edge_type` (nullable enum).
+
+**Related fields:**
+- `is_edge_attack` (bool): When `true`, the argument targets the *connection* between parent and grandparent (undercutting defeater), not the parent's content directly.
+- `opens_conflict` (string, nullable): If this argument opens a new sub-debate, this field names the new conflict space.
 

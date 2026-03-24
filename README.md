@@ -12,6 +12,9 @@ Similar arguments (same point, different wording) are grouped into a single bubb
 
 Unprocessed ideas parked here until they have a clear home in the docs.
 
+- Ist diese Architektur auch für ein großes Paper-Netzwerk möglich? 
+  - Also nicht nur für Diskussionen, sondern auch für die Analyse von Argumentationssträngen in wissenschaftlichen Papern, politischen Reden, etc.
+  - Zumindest schon mal für die Darstellung als Baum. 
 - Kommt man am Ende zu einem Teilkonsens, kann man an einem oberen Punkt, zum Beispiel, eine Neuordnung vornehmen oder eine Erkenntnis gewinnen durch einen gewissen Argumentationsstrang.
   - Hier sollte eine Differenz gekennzeichnet werden falls es denn wirklich zu einer Anpassung von Meinungen kommt. 
   - Dieser ist natürlich eher angreifend, da selten jemand markieren würde, dass er Seine Meinung hat er geändert hat.

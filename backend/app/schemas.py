@@ -25,6 +25,7 @@ class UserOut(BaseModel):
 class TopicCreate(BaseModel):
     title: str
     description: Optional[str] = None
+    transcript_yaml: Optional[str] = None
 
 
 class TopicOut(BaseModel):
@@ -32,6 +33,7 @@ class TopicOut(BaseModel):
     id: int
     title: str
     description: Optional[str]
+    transcript_yaml: Optional[str] = None
     created_by: int
     created_at: datetime
 
@@ -52,6 +54,14 @@ class ArgumentNodeCreate(BaseModel):
     reason: Optional[str] = None
     example: Optional[str] = None
     implication: Optional[str] = None
+    # Zigzag view fields (Phase Z)
+    conflict_zone: Optional[str] = None  # FACT / CAUSAL / VALUE
+    edge_type: Optional[str] = None  # COMMUNITY_NOTE / CONSEQUENCES / WEAKENING / REFRAME / CONCESSION
+    is_edge_attack: bool = False
+    opens_conflict: Optional[str] = None
+    # 5-step refinement model
+    stage_added: int = 1
+    split_from_id: Optional[int] = None  # Stage-1 base argument this was split from
 
 
 class ArgumentNodeOut(BaseModel):
@@ -71,6 +81,12 @@ class ArgumentNodeOut(BaseModel):
     reason: Optional[str]
     example: Optional[str]
     implication: Optional[str]
+    conflict_zone: Optional[str]
+    edge_type: Optional[str]
+    is_edge_attack: bool
+    opens_conflict: Optional[str]
+    stage_added: int = 1
+    split_from_id: Optional[int] = None
     created_by: int
     created_at: datetime
 
@@ -87,6 +103,10 @@ class ArgumentNodeUpdate(BaseModel):
     reason: Optional[str] = None
     example: Optional[str] = None
     implication: Optional[str] = None
+    conflict_zone: Optional[str] = None
+    edge_type: Optional[str] = None
+    is_edge_attack: Optional[bool] = None
+    opens_conflict: Optional[str] = None
 
 
 # ── ArgumentGroup ─────────────────────────────────────────────────────
@@ -300,6 +320,11 @@ class ArgumentTreeNode(BaseModel):
     reason: Optional[str] = None
     example: Optional[str] = None
     implication: Optional[str] = None
+    # Zigzag view fields
+    conflict_zone: Optional[str] = None
+    edge_type: Optional[str] = None
+    is_edge_attack: bool = False
+    opens_conflict: Optional[str] = None
     created_by: int = 0
     vote_score: int = 0
     tags: list[TagOnNode] = []
@@ -307,4 +332,45 @@ class ArgumentTreeNode(BaseModel):
     evidence_count: int = 0
     comment_count: int = 0
     children: list["ArgumentTreeNode"] = []
+
+
+# ── Zigzag response ───────────────────────────────────────────────────
+
+class ZigzagStepOut(BaseModel):
+    """A single argument in the zigzag view (flat, chronological)."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    parent_id: Optional[int]
+    title: str
+    description: Optional[str]
+    position: str
+    position_score: Optional[float]
+    conflict_zone: Optional[str]
+    edge_type: Optional[str]
+    is_edge_attack: bool
+    opens_conflict: Optional[str]
+    stage_added: int = 1
+    split_from_id: Optional[int] = None
+    vote_score: int = 0
+    sibling_ids: list[int] = []
+    created_at: datetime
+
+
+class ZigzagTopicInfo(BaseModel):
+    id: int
+    title: str
+
+
+class ZigzagResponse(BaseModel):
+    topic: ZigzagTopicInfo
+    stage: int = 2
+    steps: list[ZigzagStepOut]
+
+
+class TranscriptResponse(BaseModel):
+    """Response for GET /api/topics/{id}/transcript (Stage 0)."""
+    topic_id: int
+    topic_title: str
+    transcript_yaml: Optional[str]
+
 

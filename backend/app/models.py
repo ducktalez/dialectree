@@ -2,7 +2,7 @@ import enum
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, ForeignKey, Enum, DateTime, Table,
+    Column, Integer, String, Text, Float, Boolean, ForeignKey, Enum, DateTime, Table,
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
@@ -92,6 +92,22 @@ class PatternType(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class ConflictZone(str, enum.Enum):
+    """Which argumentation layer the argument operates in (taxonomy §24)."""
+    FACT = "FACT"
+    CAUSAL = "CAUSAL"
+    VALUE = "VALUE"
+
+
+class EdgeType(str, enum.Enum):
+    """How this argument responds to its parent (taxonomy §25)."""
+    COMMUNITY_NOTE = "COMMUNITY_NOTE"
+    CONSEQUENCES = "CONSEQUENCES"
+    WEAKENING = "WEAKENING"
+    REFRAME = "REFRAME"
+    CONCESSION = "CONCESSION"
+
+
 class TagCategory(str, enum.Enum):
     DOMAIN = "DOMAIN"
     MORAL_FOUNDATION = "MORAL_FOUNDATION"
@@ -174,6 +190,8 @@ class Topic(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
+    # Stage 0: raw transcript as YAML (zigzag refinement model)
+    transcript_yaml = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=_utcnow)
 
@@ -215,14 +233,27 @@ class ArgumentNode(Base):
     reason = Column(Text, nullable=True)
     example = Column(Text, nullable=True)
     implication = Column(Text, nullable=True)
+    # Zigzag view fields (Phase Z)
+    conflict_zone = Column(Enum(ConflictZone), nullable=True)
+    edge_type = Column(Enum(EdgeType), nullable=True)
+    is_edge_attack = Column(Boolean, nullable=False, default=False)
+    opens_conflict = Column(String(300), nullable=True)
+    # 5-step refinement model (zigzag-plan.md)
+    stage_added = Column(Integer, nullable=False, default=1)  # Which stage introduced this node (1=base, 2=split)
+    split_from_id = Column(Integer, ForeignKey("argument_nodes.id"), nullable=True)  # Stage-1 base this was split from
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=_utcnow)
 
     topic = relationship("Topic", back_populates="argument_nodes")
     author = relationship("User", back_populates="argument_nodes")
     argument_group = relationship("ArgumentGroup", back_populates="argument_nodes")
-    parent = relationship("ArgumentNode", remote_side="ArgumentNode.id", back_populates="children")
-    children = relationship("ArgumentNode", back_populates="parent", cascade="all, delete-orphan")
+    # Two self-referencing FKs (parent_id, split_from_id) require explicit foreign_keys
+    parent = relationship("ArgumentNode", remote_side="ArgumentNode.id",
+                          foreign_keys=[parent_id], back_populates="children")
+    children = relationship("ArgumentNode", foreign_keys=[parent_id],
+                            back_populates="parent", cascade="all, delete-orphan")
+    split_from = relationship("ArgumentNode", remote_side="ArgumentNode.id",
+                              foreign_keys=[split_from_id])
     tag_links = relationship("ArgumentNodeTag", back_populates="argument_node", cascade="all, delete-orphan")
     votes = relationship("Vote", back_populates="argument_node", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="argument_node", cascade="all, delete-orphan")

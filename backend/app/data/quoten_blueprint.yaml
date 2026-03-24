@@ -1,0 +1,308 @@
+# quoten_blueprint.yaml
+# ──────────────────────────────────────────────────────────────────────
+# Kanonisches Blueprint-Beispiel: Quotenrassismus-Diskussion
+# Alle 5 Verfeinerungsstufen (0–5) in einer Datei.
+#
+# Zweck:
+#   - Leseformat für Entwickler und KI-Agenten
+#   - Quelle für Topic.transcript_yaml im Seed-Skript
+#   - Referenz für zukünftige Verarbeitungs-Pipelines
+#
+# Hinweis: Symbolische IDs (B1, A1 etc.) statt Datenbank-IDs.
+#          Die Datei ist unabhängig vom DB-State lesbar.
+# ──────────────────────────────────────────────────────────────────────
+
+meta:
+  title: "🔧 Blueprint: Quotenrassismus-Diskussion"
+  topic_question: "Sind Quotenregelungen rassistisch?"
+  participants:
+    L:
+      label: "CONTRA-Quoten-Seite"
+      stance: "Quotenregelungen sind eine Form von Rassismus"
+      position: PRO  # PRO = PRO der These "Quoten sind rassistisch"
+    R:
+      label: "PRO-Quoten-Seite"
+      stance: "Quotenregelungen sind notwendige Korrektur historischer Ungerechtigkeit"
+      position: CONTRA  # CONTRA der These "Quoten sind rassistisch"
+
+# ══════════════════════════════════════════════════════════════════════
+# STUFE 0 — Rohdaten / Transkript
+# Unverdichteter Diskussionstext, chronologisch.
+# Kann von einem Scraper, Video-Transkript oder manuell erstellt werden.
+# ══════════════════════════════════════════════════════════════════════
+
+stage_0:
+  label: "Rohdaten / Transkript"
+  description: >
+    Unverdichtete Diskussion als Rohtext. Keine Struktur, keine Zuordnung.
+    Ausgangspunkt für alle nachfolgenden Verfeinerungsstufen.
+  transcript: |
+    L: Quotenregelungen sind rassistisch — sie bewerten Menschen nach Hautfarbe.
+       Wenn jemand wegen seiner Herkunft bevorzugt wird, ist das Diskriminierung.
+       Asiatische Bewerber brauchen bei Harvard höhere Punktzahlen als andere Gruppen.
+       Das verletzt das Gleichheitsprinzip.
+
+    R: Das stimmt so nicht. Historische Ungerechtigkeit erfordert aktive Korrektur.
+       Ohne Quoten bleiben strukturelle Barrieren bestehen — formale Gleichheit
+       reicht nicht aus, wenn die Startbedingungen ungleich sind. Frauenquoten in
+       Aufsichtsräten haben den Frauenanteil von 10% auf 35% erhöht. Außerdem:
+       Diverse Teams liefern laut McKinsey nachweislich bessere Ergebnisse.
+
+    R: Und überhaupt — Rassismus gegen Weiße gibt es nicht. Akademische Definition:
+       Rassismus = Vorurteil + institutionelle Macht. Daher kann positive
+       Diskriminierung per Definition kein Rassismus sein.
+
+    L: DOCH! Was ist überhaupt Rassismus? Die Verbindung zwischen "historische
+       Korrektur" und "kein Rassismus" setzt eine umstrittene Definition voraus.
+       Das muss erst geklärt werden. Außerdem: Asiatische Amerikaner werden durch
+       Quoten systematisch benachteiligt — das widerlegt die These, dass nur
+       Weiße betroffen sind.
+
+    L+R: Okay — der Begriff "Rassismus" muss erst definiert werden. Ohne gemeinsame
+         Definition redet man aneinander vorbei. Ist Rassismus = Vorurteil + Macht,
+         oder = jede Ungleichbehandlung nach Ethnie?
+
+    L: Die Definitionsverschiebung selbst ist ein rhetorischer Trick: Wenn die
+       Definition so gewählt wird, dass das Gegenüber per Definition nicht Recht
+       haben KANN, ist das kein faires Argument — das ist Bad Faith.
+
+# ══════════════════════════════════════════════════════════════════════
+# STUFE 1 — Zickzack-Basiszuordnung
+# Chronologische Zuordnung zu Seiten. Ein Argument pro Turn.
+# Erster Zickzack, roter Faden implizit über parent_id-Kette.
+# stage_added = 1 für alle Nodes dieser Stufe.
+# ══════════════════════════════════════════════════════════════════════
+
+stage_1:
+  label: "Zickzack-Basiszuordnung"
+  description: >
+    Jede Gesprächsrunde wird einem Argument zugeordnet. Chronologische
+    Reihenfolge. Ein Argument pro Turn. Geschwister-Argumente werden
+    erst in Stufe 2 sichtbar.
+  steps:
+    - id: B1
+      side: L
+      position: PRO
+      conflict_zone: VALUE
+      responds_to: null
+      title: "B₁: Quotenregelungen sind Diskriminierung"
+      body: >
+        These klar formulieren: Ungleichbehandlung nach Ethnie ist per Definition
+        Diskriminierung. Art. 3 GG verbietet Ungleichbehandlung aufgrund von
+        Abstammung. Bei Harvard brauchen asiatische Bewerber höhere Scores.
+
+    - id: A1
+      side: R
+      position: CONTRA
+      conflict_zone: VALUE
+      responds_to: B1
+      title: "A₁: Strukturelle Benachteiligung erfordert aktive Korrektur"
+      body: >
+        Steelmanning: Die beste Version des Gegenarguments. Formale Gleichheit
+        reicht nicht, wenn Startbedingungen ungleich sind. Jahrhundertelange
+        Diskriminierung hat Ungleichheiten geschaffen. Temporäre
+        Korrekturmaßnahmen sind ethisch geboten.
+
+    - id: A2
+      side: NEUTRAL
+      position: NEUTRAL
+      conflict_zone: VALUE
+      edge_type: CONCESSION
+      responds_to: A1
+      title: "A₂: Konsens — Diskriminierung ist schlecht, Methode ist umstritten"
+      body: >
+        Beide Seiten stimmen überein: Diskriminierung ist abzulehnen. Der Dissens
+        liegt bei der Methode, nicht beim Ziel. Konsens-Felder explizit benennen.
+
+    - id: A3
+      side: L
+      position: PRO
+      conflict_zone: FACT
+      edge_type: COMMUNITY_NOTE
+      is_edge_attack: true
+      opens_conflict: "Was ist die korrekte Definition von Rassismus?"
+      responds_to: A2
+      title: "A₃: Was IST überhaupt Rassismus? — Definitionsebene klären"
+      body: >
+        Die Verbindung zwischen 'Korrektur' und 'kein Rassismus' setzt eine
+        umstrittene Definition voraus. Edge Attack auf die Inferenz — nicht den
+        Inhalt. Erst Definitionen klären, dann weiter diskutieren.
+
+    - id: A4
+      side: NEUTRAL
+      position: NEUTRAL
+      conflict_zone: FACT
+      responds_to: A3
+      title: "A₄: Definitionskonflikt — mehrere Positionen zur Rassismus-Definition"
+      body: >
+        Der Definitionskonflikt wird explizit gemacht. Verschiedene Positionen
+        existieren nebeneinander: akademisch (Macht + Vorurteil) vs. alltagssprachlich
+        (jede ethnisch motivierte Ungleichbehandlung) vs. kontextuell.
+
+    - id: A5
+      side: L
+      position: PRO
+      conflict_zone: VALUE
+      edge_type: CONSEQUENCES
+      is_edge_attack: true
+      responds_to: A4
+      title: "A₅: Bad Faith — Definitionsverschiebung als Totschlagargument"
+      body: >
+        Wenn die Definition so gewählt wird, dass das Gegenüber per Definition
+        nicht Recht haben KANN, ist das kein faires Argument. Bad Faith muss
+        benannt werden, sonst dreht man sich im Kreis.
+
+# ══════════════════════════════════════════════════════════════════════
+# STUFE 2 — Strukturverfeinerung / Split
+# Aufdröseln: Mehrere Argumente pro Turn möglich.
+# Split-Nodes referenzieren ihren Basis-Node via split_from.
+# stage_added = 2 für alle Nodes dieser Stufe.
+# ══════════════════════════════════════════════════════════════════════
+
+stage_2:
+  label: "Strukturverfeinerung / Split"
+  description: >
+    Jeder Turn kann in mehrere Sub-Argumente aufgeteilt werden.
+    Split-Nodes haben denselben parent (Gegner-Argument) wie ihr Basis-Node,
+    aber referenzieren via split_from das Basis-Argument aus Stufe 1.
+  splits:
+    - base: B1
+      note: "B₁ enthält zwei strukturell verschiedene Argumente"
+      sub_arguments:
+        - id: B1a
+          position: PRO
+          conflict_zone: CAUSAL
+          split_from: B1
+          responds_to: null  # Gleicher parent wie B1
+          title: "B₁a: Leistungsprinzip über alles"
+          body: >
+            Alternativ-Eröffnung: Fokus auf Meritokratie statt auf Rassismus-Begriff.
+            Quoten untergraben das Leistungsprinzip und können zu weniger qualifizierten
+            Besetzungen führen.
+
+        - id: B1b
+          position: PRO
+          conflict_zone: VALUE
+          split_from: B1
+          responds_to: null  # Gleicher parent wie B1
+          title: "B₁b: Individuelle Rechte vs. Gruppenidentität"
+          body: >
+            Philosophischer Rahmen: Liberalismus vs. Identitätspolitik.
+            Niemand sollte für die Taten seiner Vorfahren bestraft oder belohnt werden.
+
+    - base: A1
+      note: "A₁ enthält ein pragmatisch-ökonomisches Nebenargument"
+      sub_arguments:
+        - id: A1a
+          position: CONTRA
+          conflict_zone: FACT
+          split_from: A1
+          responds_to: B1  # Gleicher parent wie A1
+          title: "A₁a: Diverse Teams liefern bessere Ergebnisse"
+          body: >
+            Pragmatisch-ökonomisches Argument statt moralisches. McKinsey-Studien
+            zeigen: Diverse Teams sind innovativer und profitabler.
+
+    - base: A4
+      note: "A₄ enthält drei konkurrierende Definitionen"
+      sub_arguments:
+        - id: A4a
+          position: CONTRA
+          conflict_zone: FACT
+          edge_type: REFRAME
+          split_from: A4
+          responds_to: A3  # Gleicher parent wie A4
+          title: "A₄a: Akademische Definition: Rassismus = Vorurteil + Macht"
+          body: >
+            Institutionelle Macht ist konstitutiv für Rassismus. Ohne Machtstrukturen
+            ist es 'nur' Diskriminierung. Diese Definition schliesst positive
+            Diskriminierung als Rassismus aus.
+
+        - id: A4b
+          position: PRO
+          conflict_zone: FACT
+          split_from: A4
+          responds_to: A3  # Gleicher parent wie A4
+          title: "A₄b: Alltagsdefinition: Jede Ungleichbehandlung nach Ethnie = Rassismus"
+          body: >
+            Die meisten Menschen verstehen unter Rassismus jede ethnisch motivierte
+            Ungleichbehandlung, unabhängig von Machtstrukturen.
+
+        - id: A4c
+          position: NEUTRAL
+          conflict_zone: FACT
+          edge_type: CONCESSION
+          split_from: A4
+          responds_to: A3  # Gleicher parent wie A4
+          title: "A₄c: Beide Definitionen haben Berechtigung — kontextabhängig"
+          body: >
+            Die Definition hängt vom Kontext ab. Im Recht gilt die enge Definition,
+            in der Soziologie die weite Definition.
+
+# ══════════════════════════════════════════════════════════════════════
+# STUFE 3 — Zickzack Einordnung  [TODO: post-dev]
+# Bewertungen und argumentative Verfeinerungen.
+# Nur auf Argumente, nicht auf Verbindungen (kein Edge-Kommentieren vorerst).
+# ══════════════════════════════════════════════════════════════════════
+
+stage_3:
+  status: "TODO: post-dev"
+  label: "Zickzack Einordnung"
+  description: >
+    Bewertungen und argumentative Einordnungen werden hinzugefügt.
+    Vergessene Argumente können nachträglich ergänzt werden.
+    Entspricht der Sicht eines Lehrers auf die Diskussion.
+  note: >
+    Vorerst nicht implementiert. Betrifft Labels, Votes, nachträgliche
+    Argument-Ergänzungen. Edge-Kommentieren (Verbindungen kommentieren)
+    bleibt explizit deferred — zu einem späteren Zeitpunkt diskutieren.
+  planned_additions:
+    - "Labels auf bestehende Argumente (FALLACY, MISSING_EVIDENCE, ...)"
+    - "Nachträgliche Argumente mit stage_added=3"
+    - "Bewertung der Argumentqualität"
+    - "Kein Edge-Kommentieren — nur Argument-Kommentare"
+
+# ══════════════════════════════════════════════════════════════════════
+# STUFE 4 — Meta-Einordnung  [TODO: post-dev]
+# Argumentgruppen, Klassifizierung als Quelle/Grundannahme etc.
+# ══════════════════════════════════════════════════════════════════════
+
+stage_4:
+  status: "TODO: post-dev"
+  label: "Meta-Einordnung"
+  description: >
+    Argumentgruppen als zu klärende Unterpunkte zusammenfassen.
+    Argumente können als Quelle, Grundannahme, These etc. klassifiziert werden.
+    Entspricht konzeptuell Stufe 3.2.
+  planned_additions:
+    - "ArgumentGroup: 'Definitionsstreit' (A3, A4, A4a, A4b, A4c)"
+    - "Klassifizierung: B1 als normative These, R1_alt1 als Faktenquelle"
+    - "Hierarchische Unterpunkte: Definitionsstreit als eigene Sub-Diskussion"
+
+# ══════════════════════════════════════════════════════════════════════
+# STUFE 5 — Diskussionsnetz  [GEPLANT — separate Spezifikation nötig]
+# Konkrete Diskussion in allgemeines Argumentationsnetz einordnen.
+# ══════════════════════════════════════════════════════════════════════
+
+stage_5:
+  status: "PLANNED - needs separate specification"
+  label: "Diskussionsnetz / Meta-Diskussion"
+  description: >
+    Die konkrete Diskussion wird in ein allgemeines Argumentationsnetz eingeordnet.
+    Bereits durchgeführte Diskussionen werden zusammengeführt.
+  open_questions:
+    - >
+      Auswählbare Versionen pro Argument: Steelman-Version / neutrale Version /
+      radikale Version / häufigste Version / erste Version?
+    - >
+      Meta-Streit: Kann es Uneinigkeit über die korrekte abstrakte Zuordnung geben?
+    - >
+      AbstractArgument-Modell: Wie referenziert ein abstraktes Argument konkrete
+      Instances aus verschiedenen Diskussionen?
+    - >
+      Cross-Topic-Links: Wie werden Argumente aus verschiedenen Topics verknüpft?
+  required_new_models:
+    - "AbstractArgument (topic-übergreifend)"
+    - "ConcreteToAbstractLink (concrete_argument_id → abstract_argument_id)"
+    - "DiscussionVersion (steelman / neutral / radical / most_common / first)"
+

@@ -92,27 +92,22 @@ Each edge in the network should carry metadata:
 | 📢 | Opening claim | First assertion in a new strand |
 | 🤝 | Consensus point | Both sides agree here |
 
-### Edge Challenge (Kanten-Angriff)
+### Edge Attack (Kanten-Angriff)
 
-Users can **click on any connection** between two arguments to challenge the
-logical link. This is distinct from challenging the argument itself:
+An **edge attack** targets the *connection* between two arguments — not the content
+of either one. It challenges whether the response is a legitimate continuation of
+the discussion at all (an *undercutting defeater* in argumentation theory).
 
-- "This argument doesn't follow from the previous one"
-- "This is a topic change, not a response"
-- "This is a killer argument that shuts down discussion"
+**Example:** "DOCH! Was ist überhaupt Rassismus?" doesn't counter the argument's
+content — it attacks the *inference* from the previous argument to the response.
 
-**Interaction:** Click the edge emoji → popup with challenge options:
-- ❌ Invalid argument / fallacy
-- ⚠️ Missing evidence
-- 🎯 Scope violation / wrong topic
-- 🔄 Circular reasoning / already discussed
-- 💣 Killer argument
-- 🏷️ Just a label, not an argument
-- 🤷 Weak argument
+**Visualized as:** A card with dashed red border positioned at the midpoint of the
+connection line, connected by a dashed red line with ❌.
 
-When challenged, the edge changes appearance (orange, dashed) and the emoji
-updates to reflect the challenge type. This is the mechanism for marking
-"Totschlagargumente" and other meta-rhetorical moves.
+> **Removed:** The interactive challenge popup (7-button popup on edge click) was
+> removed. All challenge categories (fallacy, missing evidence, scope violation, etc.)
+> are already covered by the existing `Label` and `Vote` systems on argument nodes.
+> See `implementation-plan.md § Edge Challenge System (removed)` for the mapping.
 
 ### Sources vs. Arguments
 

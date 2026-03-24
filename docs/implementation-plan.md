@@ -460,28 +460,26 @@ deny the conclusion but undermines the inferential link between premise and conc
 3. Edge attacks often open a **new conflict space** (e.g., "What IS racism?").
    Should this auto-create a new `Topic` or a sub-discussion?
 
-### Edge Challenge System (prototyped, interactive)
+### Edge Challenge System (removed)
 
-Users can click an edge marker to open a **challenge popup** that lets them mark the
-transition as problematic:
+The interactive challenge popup (7-button popup on edge click) was **removed** from
+`zickzack.html`. Rationale: every challenge category is already covered by existing
+mechanisms:
 
-| Challenge | Emoji | Meaning |
-|-----------|-------|---------|
-| Invalides Argument / Fehlschluss | ❌ | Logical fallacy |
-| Fehlender Beleg | ⚠️ | Missing evidence |
-| Themaverfehlung / falscher Scope | 🎯 | Off-topic for this thread |
-| Zirkelschluss / bereits diskutiert | 🔄 | Circular reasoning |
-| Totschlagargument | 💣 | Conversation-stopper |
-| Nur ein Label, kein Argument | 🏷️ | Name-calling, not reasoning |
-| Schwaches Argument | 🤷 | Weak / unsubstantiated |
+| Former Challenge | Covered by |
+|------------------|------------|
+| Invalides Argument / Fehlschluss | `Label.FALLACY` on the argument node |
+| Fehlender Beleg | Follow-up argument ("missing evidence") |
+| Themaverfehlung / falscher Scope | `Label.SCOPE_VIOLATION` |
+| Zirkelschluss | `Label.FALLACY` (sub-type circular) |
+| Totschlagargument | `Label.KILLER_ARGUMENT` |
+| Nur ein Label | `Label.LABEL_ARGUMENT` |
+| Schwaches Argument | Downvote |
 
-**Distinction from edge types:** Edge *types* describe the nature of the argument
-transition (set by the author). Edge *challenges* are reactions by other participants
-who dispute the legitimacy of that transition.
-
-**Future:** Challenges could feed into a voting/moderation system that collapses or
-highlights disputed edges. This connects to the existing `Label` system (e.g.,
-`FALLACY`, `SCOPE_VIOLATION`).
+**What remains:** Edge *types* (author-set semantic labels like `reframe`, `concession`)
+and Edge *attacks* (undercutting defeaters — cards that target a connection, not content)
+are still present. These represent genuinely distinct concepts that cannot be modelled
+as regular follow-up arguments.
 
 ### Drag-and-Drop (deferred)
 
@@ -489,6 +487,132 @@ Card dragging is implemented but disabled (`DRAG_ENABLED = false`). The infrastr
 (updateLines, drag handlers) is preserved for future use. Re-enable when:
 - The UX for "what does dragging mean semantically" is clarified
 - Positions can be persisted (requires backend support)
+
+---
+
+## Phase Z – Dynamic Zigzag View (5-Stufen-Verfeinerungsmodell)
+
+> **Status:** Stufen 0–2 implementiert. Stufen 3–4 deferred. Stufe 5 geplant, separate Spezifikation erforderlich.
+> **Depends on:** Phase 0 (core models).
+> **Detail document:** [`docs/zigzag-plan.md`](zigzag-plan.md) (vollständiges Stufenmodell, Feldmapping, YAML-Format).
+>
+> **Architekturentscheidungen:**
+> - Kein `is_thread_primary`: roter Faden implizit über `parent_id`, nicht gespeichert.
+> - Kein Edge-Kommentieren (vorerst): Kommentare/Labels nur auf Argumente, nicht auf Verbindungen.
+> - Stufe 5 (Diskussionsnetz) erfordert `AbstractArgument`-Modell + Cross-Topic-Links — vor Implementierung separat spezifizieren.
+
+### Z.0 — Rohdaten / Transkript / YAML ✅
+
+| Task | Type |
+|------|------|
+| Add `transcript_yaml` (Text, nullable) to `Topic` | Model |
+| Expose in `TopicOut` and `TopicCreate` schemas | Schema |
+| New endpoint `GET /api/topics/{id}/transcript` returns YAML | API |
+| Create `backend/app/data/quoten_blueprint.yaml` with all stages | Data |
+| Seed: set `transcript_yaml` on Blueprint topic | Seed |
+
+### Z.1 — Zickzack-Basiszuordnung ✅
+
+| Task | Type |
+|------|------|
+| Add `stage_added` (Integer, default 1) to `ArgumentNode` | Model |
+| Expose in schemas | Schema |
+| `GET /api/topics/{id}/zigzag?stage=N` filters `stage_added <= N` (default 2) | API |
+| Seed: set `stage_added=1` on all Blueprint base arguments (B₁, A₁…A₅) | Seed |
+| UI: stage tab `1️⃣ Basis` shows canvas with `?stage=1` | Frontend |
+
+### Z.2 — Strukturverfeinerung / Split ✅
+
+| Task | Type |
+|------|------|
+| Add `split_from_id` (FK→argument_nodes, nullable) to `ArgumentNode` | Model |
+| Expose in schemas | Schema |
+| Seed: add new A₄ base node (stage 1); set `stage_added=2` + `split_from_id` on B₁a, B₁b, A₁a, A₄a, A₄b, A₄c | Seed |
+| UI: stage tab `2️⃣ Verfeinerung` shows canvas with `?stage=2` (default) | Frontend |
+
+### Z.3 — Zickzack Einordnung ⚙️ TODO: post-dev
+
+Bewertungen und argumentative Verfeinerungen hinzufügen. Nur auf **Argumente**, nicht auf Verbindungen (Edge-Kommentieren bleibt deferred — zu einem späteren Zeitpunkt diskutieren).
+
+### Z.4 — Meta-Einordnung ⚙️ TODO: post-dev
+
+Argumentgruppen als zu klärende Unterpunkte markieren. Weitere Aufdröslung von Argumenten (Quelle, Grundannahme etc.). Gehört konzeptuell zu Z.3, wird als eigener Schritt implementiert.
+
+### Z.5 — Diskussionsnetz 🔭 Geplant
+
+Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert:
+- `AbstractArgument`-Modell (Topic-übergreifend)
+- Cross-Topic-Links
+- Auswählbare Versionen (Steelman / neutral / radikal / häufigste / erste Version)
+- Meta-Streit über korrekte Zuordnung
+
+**Vor Implementierung: separate Spezifikation erforderlich.**
+
+### Z.UI — Frontend Stufen-Navigation ✅
+
+| Task | Type |
+|------|------|
+| Stufen-Tabs 0–5 im Header des Canvas | Frontend |
+| Stufe 0: YAML-Viewer (kein Canvas), Daten via `/transcript` | Frontend |
+| Stufen 1–2: Zigzag Canvas, gefiltert nach `?stage=N` | Frontend |
+| Stufen 3–4: Placeholder `⚙️ Noch nicht implementiert` | Frontend |
+| Stufe 5: Placeholder `🔭 Diskussionsnetz — separate Spezifikation erforderlich` | Frontend |
+
+### Implementation Order
+
+```
+Z.0 transcript_yaml ──► Z.1 stage_added ──► Z.2 split_from_id
+                                               │
+                                           Z.UI Stage tabs (0–5)
+                                               │
+                                      Z.3 (deferred) ──► Z.4 (deferred)
+                                                              │
+                                                         Z.5 (planned)
+```
+
+---
+
+## UI Collaboration Workflow
+
+> *How to communicate UI/layout ideas efficiently between developer and Copilot.*
+
+### Problem
+Describing visual changes in text is imprecise. Screenshots help but can't be edited
+collaboratively. Code diffs show implementation, not intent.
+
+### Recommended Approaches
+
+**1. Edit-and-point (empfohlen für dieses Projekt):**
+Edit `zickzack.html` directly in the browser dev tools or PyCharm, take a screenshot
+or describe the change, and reference the **blueprint dialogue** (`🔧 Blueprint`)
+as the shared test case. Example:
+> "Im Blueprint: A₄a–A₄c sollen im Fächer-Modus nebeneinander stehen, nicht untereinander.
+> A₃ (Meta-Einordnung) soll über den dreien zentriert sein."
+
+**2. ASCII-Mockups im Chat:**
+Quick sketches using box-drawing characters. Works well for layout:
+```
+      [Topic]
+    ┌────┼────┐
+   A₁   A₂   B₁
+         │
+    ┌────┼────┐
+   A₄a  A₄b  A₄c
+```
+
+**3. Annotierte Screenshots:**
+Screenshot machen → in Paint/Preview Pfeile und Beschriftungen hinzufügen →
+als Bild in den Chat ziehen. Copilot kann Bilder analysieren.
+
+**4. HTML als Whiteboard:**
+Den Blueprint-Dialog in `zickzack.html` als interaktives Whiteboard nutzen:
+Karten per Drag verschieben (ist aktiviert), dann beschreiben was sich ändern soll.
+Der Blueprint existiert genau dafür.
+
+### Convention
+When describing UI changes, reference the **blueprint step names** (B₁, A₁, A₂, etc.)
+and specify the **view mode** (chronological or fan). This creates an unambiguous shared
+vocabulary.
 
 ---
 

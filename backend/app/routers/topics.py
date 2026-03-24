@@ -1,13 +1,16 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from ..database import get_db
 from ..models import Topic, ArgumentNode, ArgumentNodeTag, Vote, Visibility
-from ..schemas import TopicCreate, TopicOut, ArgumentTreeNode, TagOnNode
+from ..schemas import (
+    TopicCreate, TopicOut, ArgumentTreeNode, TagOnNode,
+    ZigzagStepOut, ZigzagTopicInfo, ZigzagResponse, TranscriptResponse,
+)
 
 router = APIRouter(prefix="/topics", tags=["topics"])
 
@@ -102,6 +105,10 @@ def get_argument_tree(topic_id: int, show_hidden: bool = False, db: Session = De
             reason=node.reason,
             example=node.example,
             implication=node.implication,
+            conflict_zone=node.conflict_zone.value if node.conflict_zone else None,
+            edge_type=node.edge_type.value if node.edge_type else None,
+            is_edge_attack=node.is_edge_attack or False,
+            opens_conflict=node.opens_conflict,
             created_by=node.created_by,
             vote_score=vote_scores.get(node.id, 0),
             tags=[
@@ -129,6 +136,89 @@ def get_argument_tree(topic_id: int, show_hidden: bool = False, db: Session = De
             roots.append(tree_node)
 
     return roots
+
+
+@router.get("/{topic_id}/transcript", response_model=TranscriptResponse)
+def get_transcript(topic_id: int, db: Session = Depends(get_db)):
+    """Returns the raw YAML transcript for Stage 0 of the refinement model."""
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(404, "Topic not found")
+    return TranscriptResponse(
+        topic_id=topic.id,
+        topic_title=topic.title,
+        transcript_yaml=topic.transcript_yaml,
+    )
+
+
+@router.get("/{topic_id}/zigzag", response_model=ZigzagResponse)
+def get_zigzag(
+    topic_id: int,
+    stage: int = Query(default=2, ge=1, le=5, description="Refinement stage filter (1=base only, 2=with splits)"),
+    db: Session = Depends(get_db),
+):
+    """Returns a flat, chronologically sorted list of arguments for the zigzag view.
+    
+    stage parameter filters nodes by stage_added <= stage:
+      1 = base arguments only (one per turn, the red thread chain)
+      2 = base + split sub-arguments (default, full view)
+      3-5 = same as 2 for now (stages 3-5 not yet implemented)
+    """
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(404, "Topic not found")
+
+    nodes = (
+        db.query(ArgumentNode)
+        .filter(
+            ArgumentNode.topic_id == topic_id,
+            ArgumentNode.visibility == Visibility.VISIBLE,
+            ArgumentNode.stage_added <= stage,
+        )
+        .order_by(ArgumentNode.created_at.asc())
+        .all()
+    )
+
+    # Pre-compute vote scores
+    vote_scores: dict[int, int] = {}
+    for node in nodes:
+        score = db.query(func.coalesce(func.sum(Vote.value), 0)).filter(
+            Vote.argument_node_id == node.id
+        ).scalar()
+        vote_scores[node.id] = score
+
+    # Group by parent_id for sibling lookup (only among visible nodes in this stage)
+    node_ids = {n.id for n in nodes}
+    parent_groups: dict[int | None, list[int]] = {}
+    for node in nodes:
+        parent_groups.setdefault(node.parent_id, []).append(node.id)
+
+    steps = []
+    for node in nodes:
+        siblings = [sid for sid in parent_groups.get(node.parent_id, []) if sid != node.id]
+        steps.append(ZigzagStepOut(
+            id=node.id,
+            parent_id=node.parent_id,
+            title=node.title,
+            description=node.description,
+            position=node.position.value,
+            position_score=node.position_score,
+            conflict_zone=node.conflict_zone.value if node.conflict_zone else None,
+            edge_type=node.edge_type.value if node.edge_type else None,
+            is_edge_attack=node.is_edge_attack or False,
+            opens_conflict=node.opens_conflict,
+            stage_added=node.stage_added,
+            split_from_id=node.split_from_id,
+            vote_score=vote_scores.get(node.id, 0),
+            sibling_ids=siblings,
+            created_at=node.created_at,
+        ))
+
+    return ZigzagResponse(
+        topic=ZigzagTopicInfo(id=topic.id, title=topic.title),
+        stage=stage,
+        steps=steps,
+    )
 
 
 @router.delete("/{topic_id}", status_code=204)

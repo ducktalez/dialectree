@@ -114,3 +114,114 @@ class TestTopics:
         assert resp.status_code == 200
         assert len(resp.json()) == 0
 
+
+class TestZigzagView:
+    """Tests for GET /api/topics/{id}/zigzag endpoint."""
+
+    def test_zigzag_basic(self, client, sample_user, sample_topic):
+        """Zigzag returns a flat, chronologically sorted list."""
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        a1 = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Opening claim", "position": "CONTRA",
+            "conflict_zone": "VALUE", "position_score": 0.2,
+        }).json()
+        a2 = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "parent_id": a1["id"],
+            "title": "Counter", "position": "PRO",
+            "conflict_zone": "FACT", "edge_type": "REFRAME",
+        }).json()
+
+        resp = client.get(f"/api/topics/{tid}/zigzag")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["topic"]["id"] == tid
+        assert len(data["steps"]) == 2
+        # Chronological order
+        assert data["steps"][0]["id"] == a1["id"]
+        assert data["steps"][1]["id"] == a2["id"]
+        # Fields present
+        step1 = data["steps"][0]
+        assert step1["conflict_zone"] == "VALUE"
+        assert step1["position"] == "CONTRA"
+        assert step1["position_score"] == 0.2
+        step2 = data["steps"][1]
+        assert step2["conflict_zone"] == "FACT"
+        assert step2["edge_type"] == "REFRAME"
+        assert step2["parent_id"] == a1["id"]
+
+    def test_zigzag_siblings(self, client, sample_user, sample_topic):
+        """Sibling_ids lists other nodes with the same parent_id."""
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        root = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Root", "position": "PRO",
+        }).json()
+        c1 = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "parent_id": root["id"],
+            "title": "Child A", "position": "CONTRA",
+        }).json()
+        c2 = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "parent_id": root["id"],
+            "title": "Child B", "position": "CONTRA",
+        }).json()
+
+        resp = client.get(f"/api/topics/{tid}/zigzag")
+        steps = resp.json()["steps"]
+        child_a = next(s for s in steps if s["id"] == c1["id"])
+        child_b = next(s for s in steps if s["id"] == c2["id"])
+        assert c2["id"] in child_a["sibling_ids"]
+        assert c1["id"] in child_b["sibling_ids"]
+        # Root has no siblings (no parent)
+        root_step = next(s for s in steps if s["id"] == root["id"])
+        assert root_step["sibling_ids"] == []
+
+    def test_zigzag_edge_attack(self, client, sample_user, sample_topic):
+        """Edge attack flag is correctly returned."""
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        a1 = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Claim", "position": "PRO",
+        }).json()
+        atk = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "parent_id": a1["id"],
+            "title": "Edge attack!", "position": "CONTRA",
+            "is_edge_attack": True, "conflict_zone": "VALUE",
+        }).json()
+
+        resp = client.get(f"/api/topics/{tid}/zigzag")
+        steps = resp.json()["steps"]
+        atk_step = next(s for s in steps if s["id"] == atk["id"])
+        assert atk_step["is_edge_attack"] is True
+
+    def test_zigzag_vote_score(self, client, sample_user, sample_topic):
+        """Vote scores are computed in the zigzag response."""
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        a = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Votable", "position": "PRO",
+        }).json()
+        client.post(f"/api/votes/?user_id={uid}", json={
+            "argument_node_id": a["id"], "value": 1,
+        })
+        resp = client.get(f"/api/topics/{tid}/zigzag")
+        step = next(s for s in resp.json()["steps"] if s["id"] == a["id"])
+        assert step["vote_score"] == 1
+
+    def test_zigzag_opens_conflict(self, client, sample_user, sample_topic):
+        """opens_conflict field is returned correctly."""
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        a = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Splits discussion", "position": "PRO",
+            "opens_conflict": "Sub-topic Alpha",
+        }).json()
+        resp = client.get(f"/api/topics/{tid}/zigzag")
+        step = next(s for s in resp.json()["steps"] if s["id"] == a["id"])
+        assert step["opens_conflict"] == "Sub-topic Alpha"
+
+    def test_zigzag_not_found(self, client):
+        resp = client.get("/api/topics/9999/zigzag")
+        assert resp.status_code == 404
+
+

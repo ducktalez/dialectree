@@ -9,11 +9,17 @@
     body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
 
     header {
-      background: #1a237e; color: #fff; padding: 14px 24px;
-      display: flex; align-items: center; gap: 12px;
+      background: #1a237e; color: #fff; padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
     }
     header h1 { font-size: 1.15rem; }
-    header p  { font-size: 0.82rem; opacity: 0.8; }
+    header p  { font-size: 0.72rem; opacity: 0.8; }
+    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    header a {
+      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    }
+    header a:hover { background: rgba(255,255,255,.12); }
 
     #app { padding: 12px 20px; }
 
@@ -137,12 +143,6 @@
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 0 0 2px #f5f5f5;
     }
-    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
-    header a {
-      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
-      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
-    }
-    header a:hover { background: rgba(255,255,255,.12); }
   </style>
 </head>
 <body>
@@ -152,10 +152,12 @@
     <p>Strukturierte Argumentationsbäume für bessere Diskussionen</p>
   </div>
   <nav>
-    <a href="/">⚡ Zickzack</a>
+    <a href="/">🌳 Baum</a>
     <a href="/entscheidung">⚖️ Waage</a>
     <a href="/dialog">💬 Dialog</a>
+    <a href="/zickzack">⚡ Zickzack</a>
     <a href="/konflikt">🔍 Konflikt</a>
+    <a href="/praesentation">🧠 Mindmap</a>
   </nav>
 </header>
 
@@ -166,7 +168,8 @@
     <div class="legend-item"><div class="legend-dot" style="background:#d32f2f"></div> CONTRA</div>
     <div class="legend-item"><div class="legend-dot" style="background:#f57c00"></div> NEUTRAL</div>
     <div class="legend-item"><div class="legend-dot" style="background:#ff8f00"></div> Ziel</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#7b1fa2"></div> Grundziel</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7b1fa2"></div> Wert</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#00796b"></div> Bereich</div>
   </div>
   <div id="loading" style="display:none">Lade Argumentationsbaum…</div>
   <div id="error"   style="display:none"></div>
@@ -252,7 +255,7 @@
       });
     });
 
-    const goals   = [...tagMap.values()].filter(t => t.category === 'SOCIETAL_GOAL');
+    const values  = [...tagMap.values()].filter(t => t.category === 'MORAL_FOUNDATION');
     const domains = [...tagMap.values()].filter(t => t.category === 'DOMAIN' || t.category === 'META_ARGUMENTATION');
 
     // Group nodes by depth
@@ -263,18 +266,33 @@
     // Build connections
     const connections = [];
 
-    // Goal → Societal goals
-    goals.forEach(g => {
-      connections.push({ ft: 'goal', fi: 'goal', tt: 'tag', ti: g.name, pos: 'META' });
+    // Goal → Values
+    values.forEach(v => {
+      connections.push({ ft: 'goal', fi: 'goal', tt: 'tag', ti: v.name, pos: 'META' });
+    });
+    // Goal → Domains (if no values exist, connect goal directly to domains)
+    if (values.length === 0) {
+      domains.forEach(d => {
+        connections.push({ ft: 'goal', fi: 'goal', tt: 'tag', ti: d.name, pos: 'META' });
+      });
+    }
+
+    // Values → Domains (co-occurrence)
+    values.forEach(v => {
+      domains.forEach(d => {
+        if ([...v.nodeIds].some(id => d.nodeIds.has(id)))
+          connections.push({ ft: 'tag', fi: v.name, tt: 'tag', ti: d.name, pos: 'META' });
+      });
     });
 
-    // Societal goals → Topic
-    goals.forEach(g => {
-      connections.push({ ft: 'tag', fi: g.name, tt: 'topic', ti: 'topic', pos: 'META' });
+    // Domains → Topic
+    domains.forEach(d => {
+      connections.push({ ft: 'tag', fi: d.name, tt: 'topic', ti: 'topic', pos: 'META' });
     });
-    // Fallback: if no goals, connect goal directly to topic
-    if (goals.length === 0) {
-      connections.push({ ft: 'goal', fi: 'goal', tt: 'topic', ti: 'topic', pos: 'META' });
+    if (domains.length === 0) {
+      values.forEach(v => {
+        connections.push({ ft: 'tag', fi: v.name, tt: 'topic', ti: 'topic', pos: 'META' });
+      });
     }
 
     // Topic → Root arguments
@@ -348,7 +366,8 @@
     goalLayer.appendChild(goalRow);
     stack.appendChild(goalLayer);
 
-    addLayer('🎯 Gesellschaftliche Grundziele', goals.map(g => makeTagCard(g, 'value-node')));
+    addLayer('🎯 Moralische Grundwerte', values.map(v => makeTagCard(v, 'value-node')));
+    addLayer('🏛 Gesellschaftliche Bereiche', domains.map(d => makeTagCard(d, 'domain-node')));
 
     // Topic layer (always present)
     const tLayer = document.createElement('div');
