@@ -238,7 +238,7 @@ class ArgumentNode(Base):
     edge_type = Column(Enum(EdgeType), nullable=True)
     is_edge_attack = Column(Boolean, nullable=False, default=False)
     opens_conflict = Column(String(300), nullable=True)
-    # 5-step refinement model (zigzag-plan.md)
+    # 0–6 refinement model (see implementation-plan.md / Phase Z)
     stage_added = Column(Integer, nullable=False, default=1)  # Which stage introduced this node (1=base, 2=split)
     split_from_id = Column(Integer, ForeignKey("argument_nodes.id"), nullable=True)  # Stage-1 base this was split from
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)

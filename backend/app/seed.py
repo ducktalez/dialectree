@@ -113,8 +113,7 @@ def seed():
     l2_1 = ArgumentNode(
         topic_id=topic1.id, parent_id=r1.id, split_from_id=l2.id,
         title="(2.1) Rassismus gegen Weiße gibt es nicht",
-        description="Akademische Definition: Rassismus = Vorurteil + institutionelle Macht. "
-                    "Weiße als dominante Gruppe können keine Opfer von Rassismus sein.",
+        description=None,
         position=Position.PRO, created_by=alice.id,
         conflict_zone=ConflictZone.FACT,
         stage_added=2,

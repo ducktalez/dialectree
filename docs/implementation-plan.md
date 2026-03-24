@@ -487,13 +487,20 @@ Card dragging is implemented and enabled (`DRAG_ENABLED = true`). All connection
 (main lines, sibling/origin connections, blue chronological flow, split-to-split) update
 live during drag. Positions are not persisted — they reset on reload.
 
+**Shared GUI core:** The zigzag view now uses one common geometric core for all early stages:
+- shared anchor resolution helpers (topic anchor, card-center anchor, logical edge anchor)
+- shared SVG update helpers for curved flow paths and straight logical connections
+- stage-specific rendering only decides **which** connection types are drawn, not how anchor math works
+
+This keeps drag behaviour stable across Stage 1–3 and avoids stage-specific geometry bugs.
+
 ---
 
 ## Phase Z – Dynamic Zigzag View (6-Stufen-Verfeinerungsmodell)
 
-> **Status:** Stufen 0–2 implementiert. Stufe 3 pending. Stufen 4–5 deferred. Stufe 6 geplant, separate Spezifikation erforderlich.
+> **Status:** Stufen 0–3 implementiert. Stufen 4–5 deferred. Stufe 6 geplant, separate Spezifikation erforderlich.
 > **Depends on:** Phase 0 (core models).
-> **Detail document:** [`docs/zigzag-plan.md`](zigzag-plan.md) (vollständiges Stufenmodell, Feldmapping, YAML-Format).
+> **Specification:** Die Detail-Spezifikation ist unten direkt in diese Phase integriert.
 >
 > **Architekturentscheidungen:**
 > - Kein `is_thread_primary`: roter Faden implizit über `parent_id`, nicht gespeichert.
@@ -530,28 +537,31 @@ live during drag. Positions are not persisted — they reset on reload.
 | Expose in schemas | Schema |
 | Seed: add new A₄ base node (stage 1); set `stage_added=2` + `split_from_id` on B₁a, B₁b, A₁a, A₄a, A₄b, A₄c | Seed |
 | UI: stage tab `2️⃣ Split-Prozess` shows canvas with `?stage=2` — both originals and splits visible | Frontend |
-| Basis-Argumente (stage_added=1) keep raw/notepad style in this view | Frontend |
+| Basis-Argumente (stage_added=1) keep raw/notepad style in this view and are shown expanded by default | Frontend |
+| Stage-2 split cards are shown expanded, but display only their title (no description/body yet) | Frontend |
 | Roh-Kette between originals: thick, dimmed (proportional to consolidated info) | Frontend |
 | Ursprungs-Argument connections (grey dashed): split → origin via `split_from_id` | Frontend |
 | Blue chronological flow: curvy topic-blue line through card centers (Topic→R1→L2.1→…) | Frontend |
+| Legend/control panel below the canvas inside the visualization frame describes the four connection types | Frontend |
+| Clicking the dashed blue legend entry toggles the blue chronology line on/off | Frontend |
 | Split-to-split connections: bright green/red straight lines, `parent_id` → specific opponent split | Frontend |
 | L4 splits named (4.1)/(4.2)/(4.3) style with ↩ 3.2 back-references in seed + transcript | Seed |
 | Split `parent_id` points to specific opponent split (not original parent) | Seed |
 | All connections follow cards during drag | Frontend |
 
-### Z.2a — Stufe-2 Verbindungsarten ⬜ Pending
+### Z.2a — Stufe-3 Verbindungsarten ✅
 
-Two distinct connection types in Stage 3 Verfeinerung (see `zigzag-plan.md § Stufe 3`):
+Two distinct connection types in Stage 3 Verfeinerung are implemented in `zickzack.html`:
 
 | Task | Type |
 |------|------|
-| **Chronological flow** connections: dashed lines, topic-colored, dock at center of card | Frontend |
-| **Logical reference** connections: solid lines, green (PRO) / red (CONTRA), dock at sides | Frontend |
+| **Chronological flow** connections: dashed topic-blue curves through card centers | Frontend |
+| **Logical reference** connections: solid green (PRO) / red (CONTRA), straight, side-docked | Frontend |
 | Distinguish both types visually so the discussion flow and logical structure are independently readable | Frontend |
 
 ### Z.2b — Split-Toggle-Visualisierung ⬜ Deferred
 
-Button on each split argument to temporarily switch the view to the original argument. Hides sibling splits to maintain the "never show original + splits simultaneously" rule. See `zigzag-plan.md § Split-Visualisierung`.
+Button on each split argument to temporarily switch the view to the original argument. Hides sibling splits to maintain the "never show original + splits simultaneously" rule.
 
 | Task | Type |
 |------|------|
@@ -570,14 +580,18 @@ Interactive split creation and connection editing in Stage 2 (Split-Prozess):
 | API: `POST /api/arguments/{id}/split` — create split-set from a base argument | API |
 | Visual feedback: highlight which original is being split, show split-set grouping | Frontend |
 
-### Z.3 — Verfeinerung (Ergebnis-Ansicht) ⬜ Pending
+### Z.3 — Verfeinerung (Ergebnis-Ansicht) ✅
 
 | Task | Type |
 |------|------|
 | UI: stage tab `3️⃣ Verfeinerung` shows canvas with `?stage=2` data, but **hides** originals that have splits | Frontend |
 | Filter logic: if any node has `split_from_id` pointing to an original, that original is hidden | Frontend |
 | Unsplit originals remain visible in normal card style (not raw style) | Frontend |
-| Two connection types: chronological (dashed) + logical reference (solid, colored) | Frontend |
+| Stage 3 is the first step that adds description/body content to split cards | Frontend |
+| Stage-3 cards are collapsible and start collapsed by default | Frontend |
+| In chronological layout, split cards of the same side stack directly under each other in the same column | Frontend |
+| Two connection types: chronological (dashed blue center-flow) + logical reference (solid, colored) | Frontend |
+| API contract remains `?stage=2` data for the frontend; backend accepts `stage=3..6` and currently returns the same node set as stage 2 | API + Frontend |
 
 ### Z.4 — Zickzack Einordnung ⚙️ TODO: post-dev
 
@@ -607,6 +621,106 @@ Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert:
 | Stufen 4–5: Placeholder `⚙️ Noch nicht implementiert` | Frontend |
 | Stufe 6: Placeholder `🔭 Diskussionsnetz — separate Spezifikation erforderlich` | Frontend |
 
+### Phase Z — Detailed Specification
+
+#### 0–6 refinement model
+
+The zigzag view uses one additive data model (`ArgumentNode`) across seven stages:
+
+| Stage | Name | What changes in the UI | Current status |
+|------|------|-------------------------|----------------|
+| 0 | Transcript | Editable raw transcript textarea, no canvas | ✅ |
+| 1 | Basis | Raw transcript-like zigzag, one node per turn, no analysis | ✅ |
+| 2 | Split-Prozess | Work step: originals + splits visible simultaneously | ✅ |
+| 3 | Verfeinerung | Split origins disappear, refined split view only | ✅ |
+| 4 | Einordnung | Votes, comments, conflict-zone markers, edge semantics | ⚙️ TODO: post-dev |
+| 5 | Meta | Argument groups, premises, source/meta classification | ⚙️ TODO: post-dev |
+| 6 | Netz | Cross-topic argument network | 🔭 Planned |
+
+#### Stage-specific rules
+
+**Stage 0 — Transcript**
+- Editable textarea backed by `GET/PUT /api/topics/{id}/transcript`
+- No placeholder-only mode: empty transcript is still editable
+
+**Stage 1 — Basis**
+- Raw content only: no extra analysis, no back-references like `3.1` or `2.2`
+- Transcript/notepad visual style, no votes/comments/labels
+- Pure chronological chain: each card links to the previous one
+
+**Stage 2 — Split-Prozess**
+- Exception to the minimal-information rule: originals and splits are shown together
+- Stage-1 cards stay in raw/notepad style
+- Stage-1/original cards stay expanded by default
+- Split cards also stay expanded by default, but they show only their title at this stage; the body/description is intentionally deferred
+- A small legend/control panel sits below the canvas inside the visualization frame and explains the four connection types
+- The dashed blue chronology line can be toggled on/off directly from that panel
+- Four connection types:
+  1. raw chain between originals (thick, dimmed)
+  2. origin connection `split_from_id` → original (grey dashed)
+  3. blue chronological flow through unfolded sequence (curved, card-center docked)
+  4. bright green/red logical references via `parent_id`
+- Cards are draggable; all connection types follow during drag
+
+**Stage 3 — Verfeinerung**
+- Any original referenced by `split_from_id` is hidden
+- Unsplit originals remain visible in normal card style
+- Split cards receive their body/description for the first time in this stage
+- Stage-3 cards are collapsible and start collapsed by default; expanding reveals the full content
+- In chronological view, split cards on the same side stack in one shared column instead of being laterally offset
+- The legend/control panel below the canvas remains available; the dashed blue chronology line can still be toggled on/off
+- Exactly two connection types remain:
+  1. chronological flow (topic-blue, dashed, flowing through card centers)
+  2. logical reference (green/red, straight, side-docked), including the root argument's connection to the topic
+- Backend currently reuses stage-2 node data; Stage-3 semantics are applied in the frontend
+
+#### Split model
+
+- `split_from_id` points from a split node to its stage-1 origin
+- `parent_id` points to the specific opponent node or opponent split the split answers
+- Visual grouping in Stage 2 is done by `split_from_id`, not by `parent_id`
+
+#### Data model fields used by Phase Z
+
+| Field | Model | Meaning |
+|------|-------|---------|
+| `transcript_yaml` | `Topic` | Raw transcript for stage 0 |
+| `stage_added` | `ArgumentNode` | The stage in which the node first appears |
+| `split_from_id` | `ArgumentNode` | Stage-1 base node this split was extracted from |
+| `conflict_zone` | `ArgumentNode` | FACT / CAUSAL / VALUE |
+| `edge_type` | `ArgumentNode` | Semantic reaction type |
+| `is_edge_attack` | `ArgumentNode` | Undercutting/edge attack |
+| `opens_conflict` | `ArgumentNode` | Name of newly opened sub-conflict |
+
+#### API semantics
+
+`GET /api/topics/{id}/zigzag?stage=N`
+- Returns a flat chronologically sorted list
+- Filters by `stage_added <= N`
+- `stage=1` = base nodes only
+- `stage=2` = base + split nodes
+- `stage=3..6` currently return the same backend node set as stage 2; later-stage visibility/line semantics are currently handled in the frontend
+
+`GET /api/topics/{id}/transcript`
+- Returns `Topic.transcript_yaml`
+
+`PUT /api/topics/{id}/transcript`
+- Replaces the full transcript content
+
+#### Source transcript files
+
+| File | Format | Purpose |
+|------|--------|---------|
+| `backend/app/data/quoten_diskussion.md` | Markdown | Human-readable quota discussion transcript |
+| `backend/app/data/quoten_blueprint.yaml` | YAML | Machine-readable blueprint topic |
+
+#### Still deferred
+
+- Split/original toggle per split card
+- GUI editing for split-set creation and connection drawing
+- Stage 4–6 interaction model
+- Edge-commenting on connections
+
 ### Implementation Order
 
 ```
@@ -614,7 +728,7 @@ Z.0 transcript_yaml ──► Z.1 stage_added ──► Z.2 split_from_id (Split
                                                │
                                            Z.UI Stage tabs (0–6)
                                                │
-                                           Z.3 Verfeinerung (pending)
+                                           Z.3 Verfeinerung ✅
                                                │
                                       Z.4 (deferred) ──► Z.5 (deferred)
                                                               │

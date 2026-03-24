@@ -1,3 +1,6 @@
+from sqlalchemy import text
+
+
 class TestTopics:
     def test_create_topic(self, client, sample_user):
         resp = client.post(f"/api/topics/?user_id={sample_user['id']}", json={
@@ -94,6 +97,27 @@ class TestTopics:
 
     def test_update_topic_not_found(self, client):
         resp = client.patch("/api/topics/9999", json={"title": "Nope"})
+        assert resp.status_code == 404
+
+    def test_get_and_update_transcript(self, client, sample_topic):
+        get_resp = client.get(f"/api/topics/{sample_topic['id']}/transcript")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["transcript_yaml"] is None
+
+        put_resp = client.put(
+            f"/api/topics/{sample_topic['id']}/transcript",
+            json={"transcript_yaml": "# Transcript\n\nR1: Test."},
+        )
+        assert put_resp.status_code == 200
+        assert put_resp.json()["topic_id"] == sample_topic["id"]
+        assert put_resp.json()["transcript_yaml"] == "# Transcript\n\nR1: Test."
+
+        get_again = client.get(f"/api/topics/{sample_topic['id']}/transcript")
+        assert get_again.status_code == 200
+        assert get_again.json()["transcript_yaml"] == "# Transcript\n\nR1: Test."
+
+    def test_get_transcript_not_found(self, client):
+        resp = client.get("/api/topics/9999/transcript")
         assert resp.status_code == 404
 
     def test_cascade_delete_topic(self, client, sample_user):
@@ -223,5 +247,37 @@ class TestZigzagView:
     def test_zigzag_not_found(self, client):
         resp = client.get("/api/topics/9999/zigzag")
         assert resp.status_code == 404
+
+    def test_zigzag_stage_filter_and_later_stage_passthrough(self, client, db, sample_user, sample_topic):
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        base = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Base", "position": "PRO",
+        }).json()
+        split = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "parent_id": base["id"], "title": "Split", "position": "CONTRA",
+        }).json()
+
+        db.execute(
+            text("UPDATE argument_nodes SET stage_added = 2, split_from_id = :base_id WHERE id = :split_id"),
+            {"base_id": base["id"], "split_id": split["id"]},
+        )
+        db.commit()
+
+        stage1 = client.get(f"/api/topics/{tid}/zigzag?stage=1")
+        assert stage1.status_code == 200
+        assert [s["title"] for s in stage1.json()["steps"]] == ["Base"]
+
+        stage2 = client.get(f"/api/topics/{tid}/zigzag?stage=2")
+        assert stage2.status_code == 200
+        assert [s["title"] for s in stage2.json()["steps"]] == ["Base", "Split"]
+
+        stage3 = client.get(f"/api/topics/{tid}/zigzag?stage=3")
+        assert stage3.status_code == 200
+        assert [s["title"] for s in stage3.json()["steps"]] == ["Base", "Split"]
+
+        stage6 = client.get(f"/api/topics/{tid}/zigzag?stage=6")
+        assert stage6.status_code == 200
+        assert [s["title"] for s in stage6.json()["steps"]] == ["Base", "Split"]
 
 

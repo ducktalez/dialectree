@@ -170,7 +170,7 @@ def update_transcript(topic_id: int, payload: TranscriptUpdate, db: Session = De
 @router.get("/{topic_id}/zigzag", response_model=ZigzagResponse)
 def get_zigzag(
     topic_id: int,
-    stage: int = Query(default=2, ge=1, le=5, description="Refinement stage filter (1=base only, 2=with splits)"),
+    stage: int = Query(default=2, ge=1, le=6, description="Refinement stage filter (1=base only, 2=with splits, 3-6 reuse stage-2 data for now)"),
     db: Session = Depends(get_db),
 ):
     """Returns a flat, chronologically sorted list of arguments for the zigzag view.
@@ -178,7 +178,7 @@ def get_zigzag(
     stage parameter filters nodes by stage_added <= stage:
       1 = base arguments only (one per turn, the red thread chain)
       2 = base + split sub-arguments (default, full view)
-      3-5 = same as 2 for now (stages 3-5 not yet implemented)
+      3-6 = same as 2 for now; later-stage semantics are currently handled in the frontend
     """
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:

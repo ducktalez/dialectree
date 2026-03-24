@@ -45,7 +45,6 @@
     .zz-canvas {
       position: relative;
       width: 100%; background: #0d1117;
-      border-radius: 10px; border: 1px solid #30363d;
       overflow: visible;
     }
     .zz-canvas svg {
@@ -90,7 +89,7 @@
     /* ── DESIGN: Stage-1 raw transcript style ──
        Stage 1 cards look like raw data / notepad — colorless, monospace,
        no position coloring. Clearly distinguishable from refined Stage-2 cards.
-       See zigzag-plan.md § Stufe 1. -->  */
+       See implementation-plan.md § Phase Z. -->  */
     .zz-card.stage-raw {
       background: #161b22;
       border: 1px dashed #30363d;
@@ -235,6 +234,46 @@
     .stage-description:empty { display: none; }
     .stage-description strong { color: #c9d1d9; }
 
+    .stage-topbar { margin-bottom: 8px; }
+    .stage-topbar .stage-description { margin-bottom: 0; }
+    .zz-frame {
+      background: #0d1117;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+      overflow: hidden;
+    }
+    .legend-panel {
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      padding: 7px 10px; font-size: 0.66rem; color: #8b949e;
+    }
+    .legend-panel.hidden { display: none; }
+    .legend-title { font-size: 0.72rem; font-weight: 600; color: #c9d1d9; margin-bottom: 6px; }
+    .legend-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .legend-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      flex: 1 1 220px;
+      min-width: 0;
+      padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.04);
+    }
+    .legend-item.inactive { opacity: 0.45; }
+    .legend-item.toggleable {
+      cursor: pointer; background: #161b22; border-color: #30363d; transition: all .12s;
+    }
+    .legend-item.toggleable:hover { border-color: #58a6ff; color: #c9d1d9; }
+    .legend-item.toggleable.off { opacity: 0.65; }
+    .legend-item-main { flex: 1; }
+    .legend-item-label { display: block; font-weight: 600; color: #c9d1d9; }
+    .legend-item-desc { display: block; line-height: 1.35; }
+    .legend-toggle-label { font-size: 0.6rem; color: #58a6ff; white-space: nowrap; }
+    .legend-line {
+      width: 28px; height: 0; margin-top: 8px; border-top: 2px solid #8b949e; flex-shrink: 0;
+    }
+    .legend-line.raw { border-top-width: 4px; border-top-color: rgba(88,166,255,0.35); }
+    .legend-line.origin { border-top: 2px dashed #8b949e; }
+    .legend-line.chrono { border-top: 2px dashed #1f6feb; }
+    .legend-line.logical { border-top-color: #3fb950; box-shadow: 14px 0 0 0 #f85149; width: 14px; }
+
     /* ── Transcript viewer / editor (Stage 0) ── */
     .transcript-edit {
       width: 100%; min-height: 420px; resize: vertical;
@@ -289,7 +328,8 @@
   </div>
   <nav>
     <div class="user-selector">
-      👤 <select id="user-select"><option value="1">alice</option></select>
+      <label for="user-select">👤</label>
+      <select id="user-select"><option value="1">alice</option></select>
     </div>
     <a href="/baum">🌳 Baum</a>
     <a href="/entscheidung">⚖️ Waage</a>
@@ -311,7 +351,9 @@
     <button class="stage-btn deferred" data-stage="6" title="Noch nicht spezifiziert">6️⃣ Netz</button>
   </div>
   <!-- DESIGN: Stage description shows what THIS stage adds vs the previous one -->
-  <div class="stage-description" id="stage-description"></div>
+  <div class="stage-topbar">
+    <div class="stage-description" id="stage-description"></div>
+  </div>
   <div class="mode-toggle" id="mode-toggle" style="display:none">
     <button class="mode-btn active" data-mode="chrono">📜 Chronologisch</button>
     <!-- TODO: post-dev – re-enable when fan layout is ready
@@ -319,8 +361,11 @@
     -->
   </div>
   <div id="stage-content">
-    <div class="zz-canvas" id="canvas">
-      <svg id="zz-svg"></svg>
+    <div class="zz-frame">
+      <div class="zz-canvas" id="canvas">
+        <svg id="zz-svg"></svg>
+      </div>
+      <div class="legend-panel hidden" id="legend-panel"></div>
     </div>
   </div>
 </div>
@@ -354,13 +399,14 @@
   let currentStage = 1;
   let currentData = null;
   let renderState = null;
+  let showBlueChronoFlow = true;
 
   // ── Stage descriptions: what THIS stage adds vs the previous ──
   const STAGE_DESCRIPTIONS = {
     0: '<strong>Rohdaten</strong> — Die Diskussion als lesbarer Text. Kein Canvas, keine Visualisierung.',
     1: '<strong>Basiszuordnung</strong> — Jedes Argument chronologisch einer Seite zugeordnet. Einfacher Zickzack zwischen PRO und CONTRA.',
-    2: '<strong>2️⃣ Split-Prozess</strong> — Arbeitsschritt: Originale und ihre Splits gleichzeitig sichtbar. Basis-Argumente im Rohformat.',
-    3: '<strong>Verfeinerung</strong> — Nur Split-Argumente sichtbar. Gesplittete Originale verschwinden.',
+    2: '<strong>2️⃣ Split-Prozess</strong> — Arbeitsschritt: Originale offen im Rohformat. Split-Karten zeigen nur ihre Titel; Inhalte folgen erst in Stufe 3.',
+    3: '<strong>Verfeinerung</strong> — Nur Split-Argumente sichtbar. Gesplittete Originale verschwinden; die Split-Inhalte werden jetzt sichtbar.',
     4: '<strong>+ Einordnung</strong> — Bewertungen, Labels, Kommentare auf Argumente. <em>[Noch nicht implementiert]</em>',
     5: '<strong>+ Meta</strong> — Argumentgruppen, Klassifizierung als Quelle / Grundannahme. <em>[Noch nicht implementiert]</em>',
     6: '<strong>+ Netz</strong> — Einordnung in allgemeines Diskussionsnetz. <em>[Geplant — separate Spezifikation]</em>',
@@ -368,6 +414,71 @@
 
   function updateStageDescription() {
     document.getElementById('stage-description').innerHTML = STAGE_DESCRIPTIONS[currentStage] || '';
+  }
+
+  function renderLegendPanel() {
+    const panel = document.getElementById('legend-panel');
+    if (!panel) return;
+
+    const visible = currentStage === 2 || currentStage === 3;
+    panel.classList.toggle('hidden', !visible);
+    if (!visible) {
+      panel.innerHTML = '';
+      return;
+    }
+
+    const items = [
+      {
+        key: 'raw',
+        label: 'Roh-Kette',
+        desc: 'Reihenfolge der ursprünglichen Basisargumente.',
+        active: currentStage === 2,
+        lineClass: 'raw',
+      },
+      {
+        key: 'origin',
+        label: 'Ursprungs-Argument',
+        desc: 'Welchem Original ein Split entstammt.',
+        active: currentStage === 2,
+        lineClass: 'origin',
+      },
+      {
+        key: 'chrono',
+        label: 'Chronologischer Fluss',
+        desc: 'Gesprächsverlauf.',
+        active: true,
+        lineClass: 'chrono',
+        toggleable: true,
+      },
+      {
+        key: 'logical',
+        label: 'Logische Referenz',
+        desc: 'Worauf ein Argument inhaltlich antwortet.',
+        active: true,
+        lineClass: 'logical',
+      },
+    ];
+
+    panel.innerHTML = `
+      <div class="legend-title">Verbindungen</div>
+      <div class="legend-list">
+        ${items.map(item => `
+          <div class="legend-item ${item.active ? '' : 'inactive'} ${item.toggleable ? 'toggleable' : ''} ${item.key === 'chrono' && !showBlueChronoFlow ? 'off' : ''}" ${item.toggleable ? `data-legend-toggle="${item.key}"` : ''}>
+            <span class="legend-line ${item.lineClass}"></span>
+            <div class="legend-item-main">
+              <span class="legend-item-label">${item.label}</span>
+              <span class="legend-item-desc">${item.desc}</span>
+            </div>
+            ${item.toggleable ? `<span class="legend-toggle-label">${showBlueChronoFlow ? 'aktiv' : 'aus'}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>`;
+
+    panel.querySelector('[data-legend-toggle="chrono"]')?.addEventListener('click', () => {
+      showBlueChronoFlow = !showBlueChronoFlow;
+      renderLegendPanel();
+      if (currentData && currentStage > 0 && currentStage < 4) render();
+    });
   }
 
   function getUserId() {
@@ -490,8 +601,9 @@
   function showCanvas() {
     const content = document.getElementById('stage-content');
     if (!content.querySelector('.zz-canvas')) {
-      content.innerHTML = '<div class="zz-canvas" id="canvas"><svg id="zz-svg"></svg></div>';
+      content.innerHTML = '<div class="zz-frame"><div class="zz-canvas" id="canvas"><svg id="zz-svg"></svg></div><div class="legend-panel hidden" id="legend-panel"></div></div>';
     }
+    renderLegendPanel();
   }
 
   function showStagePlaceholder(stage) {
@@ -518,6 +630,7 @@
       btn.classList.add('active');
       currentStage = parseInt(btn.dataset.stage);
       updateStageDescription();
+      renderLegendPanel();
 
       // Hide mode toggle for clean stages (0-3 are always chronological)
       document.getElementById('mode-toggle').style.display = currentStage >= 4 ? 'flex' : 'none';
@@ -578,29 +691,44 @@
     // Stage 1: all cards raw. Stage 2 (Split-Prozess): stage_added=1 cards stay raw.
     if (currentStage === 1 || (currentStage === 2 && step.stage_added === 1)) card.classList.add('stage-raw');
 
+    const isStage2Raw = currentStage === 2 && step.stage_added === 1;
+    const isStage2Split = currentStage === 2 && step.stage_added === 2;
+    const shouldHaveToggle = currentStage >= 3;
+    const shouldStartCollapsed = currentStage === 3 || (isSibling && currentStage >= 4);
+    const collapseIcon = shouldStartCollapsed ? '▸' : '▾';
+
     // Stage 1: single merged text block — no title/body distinction, no interactive features.
     // Stage 2: Split-Prozess — originals in raw style + splits with badge (working step).
     // Stage 3: Verfeinerung — only splits visible (originals filtered out before card creation).
     // Stage 4+: full features (TODO: post-dev).
     let html = '';
 
-    if (currentStage === 1 || (currentStage === 2 && step.stage_added === 1)) {
+    if (currentStage === 1) {
       // Raw style: merge title and description into one continuous text
       const fullText = step.description
         ? `${step.title} — ${step.description}`
         : step.title;
       html += `<div class="card-text">${esc(fullText)}</div>`;
+    } else if (isStage2Raw) {
+      // Stage 2 originals stay visually raw and open by default, like a direct
+      // carry-over from the basis step.
+      const fullText = step.description
+        ? `${step.title} — ${step.description}`
+        : step.title;
+      html += `<div class="card-text">${esc(fullText)}</div>`;
     } else {
-      // Stage 2 splits + Stage 3+: title header + body
+      // Stage 2 split cards are title-only. Stage 3+ shows title + body.
       html += `<div class="card-header">`;
-      if (currentStage >= 4) html += `<span class="collapse-toggle">▸</span>`;
+      if (shouldHaveToggle) html += `<span class="collapse-toggle">${collapseIcon}</span>`;
       html += `<div class="card-title">${esc(step.title)}</div>`;
       html += `</div>`;
-      html += `<div class="card-content">`;
-      if (step.description) html += `<div class="card-body">${esc(step.description)}</div>`;
+      if (!isStage2Split) {
+        html += `<div class="card-content">`;
+        if (step.description) html += `<div class="card-body">${esc(step.description)}</div>`;
+      }
 
-      // Stage 2: split badge
-      if (step.stage_added === 2) {
+      // Stage 3+: split badge
+      if (step.stage_added === 2 && currentStage >= 3) {
         html += `<span style="display:inline-block;margin-top:3px;padding:0 5px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1e2a1e;color:#3fb950" title="Stufe-2-Split">✂ Split</span>`;
       }
 
@@ -613,11 +741,8 @@
         if (step.opens_conflict) html += `<div class="new-conflict">→ ${esc(step.opens_conflict)}</div>`;
       }
 
-      // Stage 2+: sibling/alternative indicators
-      if (step.sibling_ids && step.sibling_ids.length > 0 && !isSibling) {
-        html += `<div class="card-alts">↳ ${step.sibling_ids.length} Alternative${step.sibling_ids.length > 1 ? 'n' : ''}</div>`;
-      }
-      if (isSibling) html += `<div class="inactive-label">↳ Alternative</div>`;
+      // Stage 2/3 split cards should remain visually identical full cards.
+      // No collapsed or "alternative stub" treatment in the refined/work views.
 
       // Stage 4+: action buttons (TODO: post-dev)
       if (currentStage >= 4) {
@@ -629,13 +754,15 @@
         html += `<button class="btn-comment" data-id="${step.id}" title="Kommentar">💬</button>`;
         html += `</div>`;
       }
-      html += `</div>`;
+      if (!isStage2Split) html += `</div>`;
     }
 
     card.innerHTML = html;
-    if (currentStage >= 2 && isSibling) card.classList.add('collapsed');
+    if (shouldStartCollapsed) {
+      card.classList.add('collapsed');
+    }
 
-    // Collapse toggle (only stages 4+)
+    // Collapse toggle (Stage-3+ cards)
     const collapseToggle = card.querySelector('.collapse-toggle');
     if (collapseToggle) {
       collapseToggle.addEventListener('click', (e) => {
@@ -665,9 +792,46 @@
     return item.el.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top - canvas.clientTop;
   }
 
+  // ── Shared anchor / connection helpers ─────────
+  // DESIGN: The zigzag UI has one shared geometric core across stages.
+  // Stages differ in WHICH connections they render, but anchor resolution and
+  // SVG updates should be centralized so drag behaviour stays stable.
+  function getCenterAnchor(item, CARD_W, CX, topicBottom) {
+    if (!item) return { x: CX, y: topicBottom };
+    return {
+      x: item.x + CARD_W / 2,
+      y: item.topY + (item.height || 40) / 2,
+    };
+  }
+
+  function getLogicalSourceAnchor(item, CX, topicBottom) {
+    if (!item) return { x: CX, y: topicBottom };
+    return { x: item.edgeX, y: item.botY - 4 };
+  }
+
+  function getLogicalTargetAnchor(item) {
+    return { x: item.edgeX, y: item.topY + 8 };
+  }
+
+  function setCurvedFlowPath(pathEl, sourceAnchor, targetAnchor) {
+    const cpY1 = sourceAnchor.y + (targetAnchor.y - sourceAnchor.y) * 0.4;
+    const cpY2 = sourceAnchor.y + (targetAnchor.y - sourceAnchor.y) * 0.6;
+    pathEl.setAttribute(
+      'd',
+      `M${sourceAnchor.x},${sourceAnchor.y} C${sourceAnchor.x},${cpY1} ${targetAnchor.x},${cpY2} ${targetAnchor.x},${targetAnchor.y}`,
+    );
+  }
+
+  function setStraightLine(lineEl, sourceAnchor, targetAnchor) {
+    lineEl.setAttribute('x1', sourceAnchor.x);
+    lineEl.setAttribute('y1', sourceAnchor.y);
+    lineEl.setAttribute('x2', targetAnchor.x);
+    lineEl.setAttribute('y2', targetAnchor.y);
+  }
+
   function renderChrono(data) {
     const canvas = document.getElementById('canvas');
-    canvas.querySelectorAll('.zz-card,.zz-topic,.zz-deadend,.edge-marker,.zz-side-label,.inline-form').forEach(e => e.remove());
+    canvas.querySelectorAll('.zz-card,.zz-topic,.zz-deadend,.edge-marker,.zz-side-label,.inline-form,.loading,.error').forEach(e => e.remove());
 
     const W = Math.max(canvas.clientWidth, 700);
     const CX = W / 2;
@@ -813,9 +977,16 @@
       item.siblings.forEach((sibItem) => {
         const sibWeight = sibItem.step.position_score ?? 0.3;
         const sibOffset = sibWeight * MAX_OFFSET;
-        let sibX = sibItem.side === 'L'
-          ? CX - GAP - CARD_W - sibOffset - 40
-          : CX + GAP + sibOffset + 40;
+        let sibX;
+        if (currentStage === 3) {
+          // Refined Stage 3 keeps split cards directly underneath each other
+          // in the same semantic side column.
+          sibX = cardX;
+        } else {
+          sibX = sibItem.side === 'L'
+            ? CX - GAP - CARD_W - sibOffset - 40
+            : CX + GAP + sibOffset + 40;
+        }
 
         sibItem.el.style.left = sibX + 'px';
         sibItem.el.style.top = sibCurY + 'px';
@@ -887,15 +1058,19 @@
       const lineWidth = isRawConn ? 4 : 2;
       const lineOpacity = isRawConn ? 0.18 : 0.4;
 
-      // Main line
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', fromX); line.setAttribute('y1', fromY);
-      line.setAttribute('x2', toX); line.setAttribute('y2', toY);
-      line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', String(lineWidth));
-      line.setAttribute('stroke-opacity', String(lineOpacity));
-      svg.appendChild(line);
-      item.mainLine = line;
+      // Stage 3 renders its own dual-connection system below.
+      if (currentStage !== 3) {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', fromX); line.setAttribute('y1', fromY);
+        line.setAttribute('x2', toX); line.setAttribute('y2', toY);
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', String(lineWidth));
+        line.setAttribute('stroke-opacity', String(lineOpacity));
+        svg.appendChild(line);
+        item.mainLine = line;
+      } else {
+        item.mainLine = null;
+      }
 
       // Edge type marker (only stages 3+, clean stages have no edge annotations)
       const et = currentStage >= 4 && item.step.edge_type && EDGE_TYPES[item.step.edge_type];
@@ -918,7 +1093,7 @@
       // Splits are attached to their base argument, not to the connection between arguments.
       // Stage 2: sibling lines become "Ursprungs-Argument" connections (neutral grey),
       // attaching slightly lower on the origin card to distinguish from parent connections.
-      if (item.siblings.length > 0) {
+      if (currentStage === 2 && item.siblings.length > 0) {
         const defaultSibColor = item.side === 'L' ? PRO_C : CON_C;
         // Dock point = bottom of the primary card (where splits branch off)
         const dockX = item.edgeX;
@@ -948,6 +1123,14 @@
       }
     });
 
+    // ── Stage 2/3: additional semantic connections ─────────────────────────────
+    // Stage 2 = work view with origin + raw-chain + chrono + split references.
+    // Stage 3 = refined view with two connection types only:
+    //   - chronological flow (topic-blue, dashed, through card centers)
+    //   - logical reference (green/red, straight, side-docked)
+    // TODO: post-dev — smooth branching from chronological line to source argument in split view
+    const extraLines = [];
+
     // ── Stage 2: Blue chronological flow + split-to-split connections ──────────
     // Four connection types in Stage 2:
     //   1. Raw chain (thick, dimmed) — handled above in main lines
@@ -956,8 +1139,6 @@
     //      Topic → R1 → L2.1 → L2.2 → R3.1 → R3.2 → L4.1 → ...
     //      Semantically separated from argument connections by running through midpoints.
     //   4. Split-to-split: bright green/red STRAIGHT lines — specific connections via parent_id
-    // TODO: post-dev — smooth branching from chronological line to source argument in split view
-    const stage2ExtraLines = [];
     if (currentStage === 2) {
       // ─ 3. Blue chronological flow (curvy, through card centers) ─
       // Build the unfolded sequence: for each stage-1 original, substitute with its splits (if any)
@@ -975,45 +1156,26 @@
         }
       });
 
-      // Helper: get card center X/Y for the blue flow line
-      function cardMidX(it) {
-        return (it.x != null ? it.x : 0) + CARD_W / 2;
-      }
-      function cardMidY(it) {
-        const top = it.topY != null ? it.topY : it.y;
-        const h = it.height || 40;
-        return top + h / 2;
-      }
-
-      const TOPIC_BLUE = '#1f6feb';
-      for (let i = 0; i < chronoSequence.length; i++) {
-        const target = chronoSequence[i];
-        const tMX = cardMidX(target);
-        const tMY = cardMidY(target);
-        let fMX, fMY;
-        if (i === 0) {
-          fMX = CX;
-          fMY = topicBottom;
-        } else {
-          const src = chronoSequence[i - 1];
-          fMX = cardMidX(src);
-          fMY = cardMidY(src);
+      if (showBlueChronoFlow) {
+        const TOPIC_BLUE = '#1f6feb';
+        for (let i = 0; i < chronoSequence.length; i++) {
+          const target = chronoSequence[i];
+          const bLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const sourceAnchor = getCenterAnchor(i > 0 ? chronoSequence[i - 1] : null, CARD_W, CX, topicBottom);
+          const targetAnchor = getCenterAnchor(target, CARD_W, CX, topicBottom);
+          setCurvedFlowPath(bLine, sourceAnchor, targetAnchor);
+          bLine.setAttribute('stroke', TOPIC_BLUE);
+          bLine.setAttribute('stroke-width', '2.5');
+          bLine.setAttribute('stroke-opacity', '0.45');
+          bLine.setAttribute('stroke-dasharray', '6,4');
+          bLine.setAttribute('fill', 'none');
+          svg.appendChild(bLine);
+          extraLines.push({
+            el: bLine, type: 'chrono',
+            srcItem: i > 0 ? chronoSequence[i - 1] : null,
+            tgtItem: target,
+          });
         }
-        // Curvy S-curve through card centers — gives a sense of flow
-        const cpY1 = fMY + (tMY - fMY) * 0.4;
-        const cpY2 = fMY + (tMY - fMY) * 0.6;
-        const bLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        bLine.setAttribute('d', `M${fMX},${fMY} C${fMX},${cpY1} ${tMX},${cpY2} ${tMX},${tMY}`);
-        bLine.setAttribute('stroke', TOPIC_BLUE);
-        bLine.setAttribute('stroke-width', '2.5');
-        bLine.setAttribute('stroke-opacity', '0.45');
-        bLine.setAttribute('fill', 'none');
-        svg.appendChild(bLine);
-        stage2ExtraLines.push({
-          el: bLine, type: 'chrono',
-          srcItem: i > 0 ? chronoSequence[i - 1] : null,
-          tgtItem: target,
-        });
       }
 
       // ─ 4. Split-to-split connections (bright green/red, straight) ─
@@ -1033,23 +1195,69 @@
         // Example: L2.1 responds to R1 (unsplit), R3.1 responds to L2.1 (split).
 
         const color = splitItem.side === 'L' ? PRO_C : CON_C;
-        const fX = targetItem.edgeX != null ? targetItem.edgeX : (targetItem.side === 'L' ? targetItem.x + CARD_W : targetItem.x);
-        const fY = (targetItem.botY != null ? targetItem.botY : (targetItem.y + (targetItem.height || 40))) - 4;
-        const tX = splitItem.edgeX != null ? splitItem.edgeX : (splitItem.side === 'L' ? splitItem.x + CARD_W : splitItem.x);
-        const tY = (splitItem.topY != null ? splitItem.topY : splitItem.y) + 8;
-
-        // Straight line — bright, clear argumentative connection
         const sLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        sLine.setAttribute('x1', fX); sLine.setAttribute('y1', fY);
-        sLine.setAttribute('x2', tX); sLine.setAttribute('y2', tY);
+        setStraightLine(
+          sLine,
+          getLogicalSourceAnchor(targetItem, CX, topicBottom),
+          getLogicalTargetAnchor(splitItem),
+        );
         sLine.setAttribute('stroke', color);
         sLine.setAttribute('stroke-width', '2');
         sLine.setAttribute('stroke-opacity', '0.6');
         svg.appendChild(sLine);
-        stage2ExtraLines.push({
+        extraLines.push({
           el: sLine, type: 'split',
           srcItem: targetItem,
           tgtItem: splitItem,
+        });
+      });
+    }
+
+    // ── Stage 3: refined dual-connection view ─────────────────────────────────
+    if (currentStage === 3) {
+      const visibleSequence = displaySteps
+        .map(step => allItemById[step.id])
+        .filter(Boolean);
+
+      if (showBlueChronoFlow) {
+        const TOPIC_BLUE = '#1f6feb';
+        visibleSequence.forEach((target, idx) => {
+          const chronoPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          setCurvedFlowPath(
+            chronoPath,
+            getCenterAnchor(idx > 0 ? visibleSequence[idx - 1] : null, CARD_W, CX, topicBottom),
+            getCenterAnchor(target, CARD_W, CX, topicBottom),
+          );
+          chronoPath.setAttribute('stroke', TOPIC_BLUE);
+          chronoPath.setAttribute('stroke-width', '2');
+          chronoPath.setAttribute('stroke-opacity', '0.38');
+          chronoPath.setAttribute('stroke-dasharray', '6,4');
+          chronoPath.setAttribute('fill', 'none');
+          svg.appendChild(chronoPath);
+          extraLines.push({
+            el: chronoPath, type: 'chrono',
+            srcItem: idx > 0 ? visibleSequence[idx - 1] : null,
+            tgtItem: target,
+          });
+        });
+      }
+
+      visibleSequence.forEach(item => {
+        const src = item.step.parent_id ? allItemById[item.step.parent_id] : null;
+        const refLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        setStraightLine(
+          refLine,
+          getLogicalSourceAnchor(src, CX, topicBottom),
+          getLogicalTargetAnchor(item),
+        );
+        refLine.setAttribute('stroke', item.side === 'L' ? PRO_C : CON_C);
+        refLine.setAttribute('stroke-width', '2');
+        refLine.setAttribute('stroke-opacity', '0.58');
+        svg.appendChild(refLine);
+        extraLines.push({
+          el: refLine, type: 'logical',
+          srcItem: src,
+          tgtItem: item,
         });
       });
     }
@@ -1069,7 +1277,7 @@
     svg.setAttribute('height', finalH);
     svg.setAttribute('viewBox', `0 0 ${W} ${finalH}`);
 
-    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, stage2ExtraLines };
+    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, extraLines };
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1440,7 +1648,7 @@
 
   function updateDragLines() {
     if (!renderState || renderState.mode !== 'chrono') return;
-    const { items, CX, topicBottom, CARD_W, stage2ExtraLines } = renderState;
+    const { items, CX, topicBottom, CARD_W, extraLines } = renderState;
 
     // Recalculate positions for ALL items (primary + siblings)
     items.forEach((item) => {
@@ -1504,38 +1712,25 @@
       }
     });
 
-    // Update Stage 2 extra lines (chronological flow + split-to-split)
-    if (stage2ExtraLines && stage2ExtraLines.length > 0) {
-      stage2ExtraLines.forEach(conn => {
+    // Update semantic extra lines (stage 2/3)
+    if (extraLines && extraLines.length > 0) {
+      extraLines.forEach(conn => {
         const src = conn.srcItem;
         const tgt = conn.tgtItem;
         if (!tgt) return;
 
         if (conn.type === 'chrono') {
-          // Blue flow: curvy path through card centers
-          const tMX = tgt.x + CARD_W / 2;
-          const tMY = tgt.topY + (tgt.height || 40) / 2;
-          let fMX, fMY;
-          if (!src) {
-            fMX = CX;
-            fMY = topicBottom;
-          } else {
-            fMX = src.x + CARD_W / 2;
-            fMY = src.topY + (src.height || 40) / 2;
-          }
-          const cpY1 = fMY + (tMY - fMY) * 0.4;
-          const cpY2 = fMY + (tMY - fMY) * 0.6;
-          conn.el.setAttribute('d', `M${fMX},${fMY} C${fMX},${cpY1} ${tMX},${cpY2} ${tMX},${tMY}`);
-        } else if (conn.type === 'split') {
-          // Split-to-split: straight line
-          const fX = src.edgeX;
-          const fY = src.botY - 4;
-          const tX = tgt.edgeX;
-          const tY = tgt.topY + 8;
-          conn.el.setAttribute('x1', fX);
-          conn.el.setAttribute('y1', fY);
-          conn.el.setAttribute('x2', tX);
-          conn.el.setAttribute('y2', tY);
+          setCurvedFlowPath(
+            conn.el,
+            getCenterAnchor(src, CARD_W, CX, topicBottom),
+            getCenterAnchor(tgt, CARD_W, CX, topicBottom),
+          );
+        } else if (conn.type === 'split' || conn.type === 'logical') {
+          setStraightLine(
+            conn.el,
+            getLogicalSourceAnchor(src, CX, topicBottom),
+            getLogicalTargetAnchor(tgt),
+          );
         }
       });
     }
@@ -1577,6 +1772,7 @@
   // ── Init ───────────────────────────────────────
   (async () => {
     updateStageDescription();
+    renderLegendPanel();
     await loadUsers();
     await loadTopics();
   })();

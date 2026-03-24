@@ -128,8 +128,8 @@ Diskussionen durchlaufen sieben Analyse-Stufen (0–6). Dieselbe `ArgumentNode`-
 |-------|----------------------|
 | 0 | `Topic.transcript_yaml` — roher YAML-Text der Diskussion |
 | 1 | `ArgumentNode.stage_added=1` — ein Node pro Turn, **rohe Zuordnung** (nur Gesagtes, keine Analyse, transkript-artiger Stil) |
-| 2 | **Split-Prozess** (Arbeitsschritt) — Originale + Splits gleichzeitig sichtbar. Drei Verbindungsarten: Ursprungs-Argument (grau), chronologischer Fluss (farbig), Cross-Split (farbig gestrichelt) |
-| 3 | **Verfeinerung** — Gesplittete Originale verschwinden, nur Splits bleiben. Zwei Verbindungsarten: Chronologie (gestrichelt) + logische Referenz (durchgezogen) |
+| 2 | **Split-Prozess** (Arbeitsschritt) — Originale + Splits gleichzeitig sichtbar. Originale bleiben im Rohformat und offen; Split-Karten zeigen zunächst nur ihren Titel. Unterhalb des Canvas beschreibt ein kleines Legenden-/Control-Panel die vier Verbindungsarten; der blaue Chronologiefluss kann dort ein-/ausgeblendet werden. Vier Verbindungsarten: Roh-Kette, Ursprungs-Argument, chronologischer Fluss, logische Split-Referenzen |
+| 3 | **Verfeinerung** — Gesplittete Originale verschwinden, nur Splits bleiben. Hier werden die Inhalte/Beschreibungen der Split-Karten erstmals sichtbar; Karten starten eingeklappt und werden je Seite in einer gemeinsamen Spalte gestapelt. Das Legenden-/Control-Panel bleibt verfügbar und kann die blaue Chronologie ausblenden. Zwei Verbindungsarten: Chronologie (gestrichelt) + logische Referenz (durchgezogen) |
 | 4 | ⚙️ TODO: post-dev — Bewertungen, argumentative Verfeinerungen |
 | 5 | ⚙️ TODO: post-dev — Meta-Einordnung, Argumentgruppen, Grundannahmen |
 | 6 | 🔭 Geplant — Diskussionsnetz, Cross-Topic-Links, AbstractArgument-Modell |
@@ -137,7 +137,7 @@ Diskussionen durchlaufen sieben Analyse-Stufen (0–6). Dieselbe `ArgumentNode`-
 - **Kein `is_thread_primary`**: Der rote Faden ist implizit über die `parent_id`-Kette bestimmbar, wird nicht gespeichert.
 - **Kein Edge-Kommentieren** (vorerst): Nur Argumente sind kommentierbar. Verbindungen später.
 - **Stufe 1 = Rohdaten**: Kein analytischer Inhalt, farbloser Notepad-Stil. Nummerierung (R1, A₁ etc.) nur für Entwicklungsreferenz.
-- **Stufe 2 = Split-Prozess**: Arbeitsschritt — zeigt beides gleichzeitig (Ausnahme). Drei Verbindungsarten: Ursprungs-Argument (grau/neutral, `split_from_id`), chronologischer Fluss (farbig, `parent_id`), Cross-Split (farbig gestrichelt, Gegner-Splits).
-- **Stufe 3 = Verfeinerung**: Ergebnis — Originale verschwinden, nur Splits bleiben. Minimale Information.
-- Detail: [`docs/zigzag-plan.md`](zigzag-plan.md)
+- **Stufe 2 = Split-Prozess**: Arbeitsschritt — zeigt beides gleichzeitig (Ausnahme). Originale bleiben offen im Rohstil; Split-Karten zeigen nur ihre Titel. Unterhalb des Canvas beschreibt ein kleines Legenden-/Control-Panel die vier Verbindungsarten; die blaue Chronologie ist dort schaltbar.
+- **Stufe 3 = Verfeinerung**: Ergebnis — Originale verschwinden, nur Splits bleiben. Die Inhalte der Split-Karten werden hier erstmals sichtbar; Karten starten eingeklappt und stehen pro Seite untereinander in einer gemeinsamen Spalte. Das Legenden-/Control-Panel bleibt aktiv.
+- Detail: `docs/implementation-plan.md` § Phase Z
 
