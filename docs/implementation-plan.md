@@ -481,25 +481,26 @@ and Edge *attacks* (undercutting defeaters — cards that target a connection, n
 are still present. These represent genuinely distinct concepts that cannot be modelled
 as regular follow-up arguments.
 
-### Drag-and-Drop (deferred)
+### Drag-and-Drop (enabled)
 
-Card dragging is implemented but disabled (`DRAG_ENABLED = false`). The infrastructure
-(updateLines, drag handlers) is preserved for future use. Re-enable when:
-- The UX for "what does dragging mean semantically" is clarified
-- Positions can be persisted (requires backend support)
+Card dragging is implemented and enabled (`DRAG_ENABLED = true`). All connection types
+(main lines, sibling/origin connections, blue chronological flow, split-to-split) update
+live during drag. Positions are not persisted — they reset on reload.
 
 ---
 
-## Phase Z – Dynamic Zigzag View (5-Stufen-Verfeinerungsmodell)
+## Phase Z – Dynamic Zigzag View (6-Stufen-Verfeinerungsmodell)
 
-> **Status:** Stufen 0–2 implementiert. Stufen 3–4 deferred. Stufe 5 geplant, separate Spezifikation erforderlich.
+> **Status:** Stufen 0–2 implementiert. Stufe 3 pending. Stufen 4–5 deferred. Stufe 6 geplant, separate Spezifikation erforderlich.
 > **Depends on:** Phase 0 (core models).
 > **Detail document:** [`docs/zigzag-plan.md`](zigzag-plan.md) (vollständiges Stufenmodell, Feldmapping, YAML-Format).
 >
 > **Architekturentscheidungen:**
 > - Kein `is_thread_primary`: roter Faden implizit über `parent_id`, nicht gespeichert.
 > - Kein Edge-Kommentieren (vorerst): Kommentare/Labels nur auf Argumente, nicht auf Verbindungen.
-> - Stufe 5 (Diskussionsnetz) erfordert `AbstractArgument`-Modell + Cross-Topic-Links — vor Implementierung separat spezifizieren.
+> - Stufe 2 (Split-Prozess) ist ein **Arbeitsschritt** — zeigt Originale + Splits gleichzeitig.
+> - Stufe 3 (Verfeinerung) zeigt nur Splits — gesplittete Originale verschwinden.
+> - Stufe 6 (Diskussionsnetz) erfordert `AbstractArgument`-Modell + Cross-Topic-Links — vor Implementierung separat spezifizieren.
 
 ### Z.0 — Rohdaten / Transkript / YAML ✅
 
@@ -521,24 +522,72 @@ Card dragging is implemented but disabled (`DRAG_ENABLED = false`). The infrastr
 | Seed: set `stage_added=1` on all Blueprint base arguments (B₁, A₁…A₅) | Seed |
 | UI: stage tab `1️⃣ Basis` shows canvas with `?stage=1` | Frontend |
 
-### Z.2 — Strukturverfeinerung / Split ✅
+### Z.2 — Split-Prozess (Arbeitsschritt) ✅
 
 | Task | Type |
 |------|------|
 | Add `split_from_id` (FK→argument_nodes, nullable) to `ArgumentNode` | Model |
 | Expose in schemas | Schema |
 | Seed: add new A₄ base node (stage 1); set `stage_added=2` + `split_from_id` on B₁a, B₁b, A₁a, A₄a, A₄b, A₄c | Seed |
-| UI: stage tab `2️⃣ Verfeinerung` shows canvas with `?stage=2` (default) | Frontend |
+| UI: stage tab `2️⃣ Split-Prozess` shows canvas with `?stage=2` — both originals and splits visible | Frontend |
+| Basis-Argumente (stage_added=1) keep raw/notepad style in this view | Frontend |
+| Roh-Kette between originals: thick, dimmed (proportional to consolidated info) | Frontend |
+| Ursprungs-Argument connections (grey dashed): split → origin via `split_from_id` | Frontend |
+| Blue chronological flow: curvy topic-blue line through card centers (Topic→R1→L2.1→…) | Frontend |
+| Split-to-split connections: bright green/red straight lines, `parent_id` → specific opponent split | Frontend |
+| L4 splits named (4.1)/(4.2)/(4.3) style with ↩ 3.2 back-references in seed + transcript | Seed |
+| Split `parent_id` points to specific opponent split (not original parent) | Seed |
+| All connections follow cards during drag | Frontend |
 
-### Z.3 — Zickzack Einordnung ⚙️ TODO: post-dev
+### Z.2a — Stufe-2 Verbindungsarten ⬜ Pending
+
+Two distinct connection types in Stage 3 Verfeinerung (see `zigzag-plan.md § Stufe 3`):
+
+| Task | Type |
+|------|------|
+| **Chronological flow** connections: dashed lines, topic-colored, dock at center of card | Frontend |
+| **Logical reference** connections: solid lines, green (PRO) / red (CONTRA), dock at sides | Frontend |
+| Distinguish both types visually so the discussion flow and logical structure are independently readable | Frontend |
+
+### Z.2b — Split-Toggle-Visualisierung ⬜ Deferred
+
+Button on each split argument to temporarily switch the view to the original argument. Hides sibling splits to maintain the "never show original + splits simultaneously" rule. See `zigzag-plan.md § Split-Visualisierung`.
+
+| Task | Type |
+|------|------|
+| Toggle button on split cards: click → show original, hide other splits of same set | Frontend |
+| Reverse toggle: click again → restore split view | Frontend |
+| Ensure no information is shown twice at any point | Frontend |
+
+### Z.2c — GUI-Editing für Splits ⬜ Deferred
+
+Interactive split creation and connection editing in Stage 2 (Split-Prozess):
+
+| Task | Type |
+|------|------|
+| Create a new split-set from an existing argument (select argument → "✂ Aufteilen" → enter split titles) | Frontend |
+| Draw logical reference connections between split arguments and their targets | Frontend |
+| API: `POST /api/arguments/{id}/split` — create split-set from a base argument | API |
+| Visual feedback: highlight which original is being split, show split-set grouping | Frontend |
+
+### Z.3 — Verfeinerung (Ergebnis-Ansicht) ⬜ Pending
+
+| Task | Type |
+|------|------|
+| UI: stage tab `3️⃣ Verfeinerung` shows canvas with `?stage=2` data, but **hides** originals that have splits | Frontend |
+| Filter logic: if any node has `split_from_id` pointing to an original, that original is hidden | Frontend |
+| Unsplit originals remain visible in normal card style (not raw style) | Frontend |
+| Two connection types: chronological (dashed) + logical reference (solid, colored) | Frontend |
+
+### Z.4 — Zickzack Einordnung ⚙️ TODO: post-dev
 
 Bewertungen und argumentative Verfeinerungen hinzufügen. Nur auf **Argumente**, nicht auf Verbindungen (Edge-Kommentieren bleibt deferred — zu einem späteren Zeitpunkt diskutieren).
 
-### Z.4 — Meta-Einordnung ⚙️ TODO: post-dev
+### Z.5 — Meta-Einordnung ⚙️ TODO: post-dev
 
-Argumentgruppen als zu klärende Unterpunkte markieren. Weitere Aufdröslung von Argumenten (Quelle, Grundannahme etc.). Gehört konzeptuell zu Z.3, wird als eigener Schritt implementiert.
+Argumentgruppen als zu klärende Unterpunkte markieren. Weitere Aufdröslung von Argumenten (Quelle, Grundannahme etc.). Gehört konzeptuell zu Z.4, wird als eigener Schritt implementiert.
 
-### Z.5 — Diskussionsnetz 🔭 Geplant
+### Z.6 — Diskussionsnetz 🔭 Geplant
 
 Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert:
 - `AbstractArgument`-Modell (Topic-übergreifend)
@@ -552,22 +601,24 @@ Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert:
 
 | Task | Type |
 |------|------|
-| Stufen-Tabs 0–5 im Header des Canvas | Frontend |
+| Stufen-Tabs 0–6 im Header des Canvas | Frontend |
 | Stufe 0: YAML-Viewer (kein Canvas), Daten via `/transcript` | Frontend |
-| Stufen 1–2: Zigzag Canvas, gefiltert nach `?stage=N` | Frontend |
-| Stufen 3–4: Placeholder `⚙️ Noch nicht implementiert` | Frontend |
-| Stufe 5: Placeholder `🔭 Diskussionsnetz — separate Spezifikation erforderlich` | Frontend |
+| Stufen 1–3: Zigzag Canvas, gefiltert nach `?stage=N` | Frontend |
+| Stufen 4–5: Placeholder `⚙️ Noch nicht implementiert` | Frontend |
+| Stufe 6: Placeholder `🔭 Diskussionsnetz — separate Spezifikation erforderlich` | Frontend |
 
 ### Implementation Order
 
 ```
-Z.0 transcript_yaml ──► Z.1 stage_added ──► Z.2 split_from_id
+Z.0 transcript_yaml ──► Z.1 stage_added ──► Z.2 split_from_id (Split-Prozess)
                                                │
-                                           Z.UI Stage tabs (0–5)
+                                           Z.UI Stage tabs (0–6)
                                                │
-                                      Z.3 (deferred) ──► Z.4 (deferred)
+                                           Z.3 Verfeinerung (pending)
+                                               │
+                                      Z.4 (deferred) ──► Z.5 (deferred)
                                                               │
-                                                         Z.5 (planned)
+                                                         Z.6 (planned)
 ```
 
 ---

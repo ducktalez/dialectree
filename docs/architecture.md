@@ -120,20 +120,24 @@ The central model carries fields for multiple concerns:
 - **ArgumentNodeTag association model**: the Tag ↔ ArgumentNode link is a full ORM model (not a bare association table) to support `origin` tracking (USER / MODERATOR / AI). Tags also carry a `category` (TagCategory enum) for meta-grouping.
 - **Explicit `foreign_keys` on self-referencing relationships**: `ArgumentNode` has two FKs to itself (`parent_id`, `split_from_id`). All self-referencing relationships must specify `foreign_keys=[…]` to avoid `AmbiguousForeignKeysError`.
 
-## 5-Stufen-Verfeinerungsmodell (Zigzag)
+## 6-Stufen-Verfeinerungsmodell (Zigzag)
 
-Diskussionen durchlaufen sechs Analyse-Stufen (0–5). Dieselbe `ArgumentNode`-Struktur wird additiv reicher:
+Diskussionen durchlaufen sieben Analyse-Stufen (0–6). Dieselbe `ArgumentNode`-Struktur wird additiv reicher:
 
 | Stufe | Neue Felder / Konzepte |
 |-------|----------------------|
 | 0 | `Topic.transcript_yaml` — roher YAML-Text der Diskussion |
-| 1 | `ArgumentNode.stage_added=1` — ein Node pro Turn, chronologische Zuordnung |
-| 2 | `ArgumentNode.stage_added=2` + `split_from_id` — Aufspaltung in Sub-Argumente |
-| 3 | ⚙️ TODO: post-dev — Bewertungen, argumentative Verfeinerungen |
-| 4 | ⚙️ TODO: post-dev — Meta-Einordnung, Argumentgruppen, Grundannahmen |
-| 5 | 🔭 Geplant — Diskussionsnetz, Cross-Topic-Links, AbstractArgument-Modell |
+| 1 | `ArgumentNode.stage_added=1` — ein Node pro Turn, **rohe Zuordnung** (nur Gesagtes, keine Analyse, transkript-artiger Stil) |
+| 2 | **Split-Prozess** (Arbeitsschritt) — Originale + Splits gleichzeitig sichtbar. Drei Verbindungsarten: Ursprungs-Argument (grau), chronologischer Fluss (farbig), Cross-Split (farbig gestrichelt) |
+| 3 | **Verfeinerung** — Gesplittete Originale verschwinden, nur Splits bleiben. Zwei Verbindungsarten: Chronologie (gestrichelt) + logische Referenz (durchgezogen) |
+| 4 | ⚙️ TODO: post-dev — Bewertungen, argumentative Verfeinerungen |
+| 5 | ⚙️ TODO: post-dev — Meta-Einordnung, Argumentgruppen, Grundannahmen |
+| 6 | 🔭 Geplant — Diskussionsnetz, Cross-Topic-Links, AbstractArgument-Modell |
 
 - **Kein `is_thread_primary`**: Der rote Faden ist implizit über die `parent_id`-Kette bestimmbar, wird nicht gespeichert.
 - **Kein Edge-Kommentieren** (vorerst): Nur Argumente sind kommentierbar. Verbindungen später.
+- **Stufe 1 = Rohdaten**: Kein analytischer Inhalt, farbloser Notepad-Stil. Nummerierung (R1, A₁ etc.) nur für Entwicklungsreferenz.
+- **Stufe 2 = Split-Prozess**: Arbeitsschritt — zeigt beides gleichzeitig (Ausnahme). Drei Verbindungsarten: Ursprungs-Argument (grau/neutral, `split_from_id`), chronologischer Fluss (farbig, `parent_id`), Cross-Split (farbig gestrichelt, Gegner-Splits).
+- **Stufe 3 = Verfeinerung**: Ergebnis — Originale verschwinden, nur Splits bleiben. Minimale Information.
 - Detail: [`docs/zigzag-plan.md`](zigzag-plan.md)
 

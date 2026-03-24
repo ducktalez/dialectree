@@ -30,246 +30,212 @@ def seed():
     db.flush()
 
     # ══════════════════════════════════════════════════════════════════
-    #  TOPIC 1: Quotenrassismus – Vollständiger Zigzag-Dialog
+    #  TOPIC 1: Quotenrassismus – Zigzag-Dialog aus Transkript
     #
-    #  Basiert auf der Diskussionsstruktur aus implementation-plan.md:
-    #  L1 → R1 → L2 → R2 (edge attack) → L3 → R3 → L4 (Konsens)
-    #  mit Alternativen / Geschwistern auf jeder Ebene.
+    #  Struktur folgt direkt aus quoten_diskussion.md:
+    #    Stage 1: R1 → L2 → R3 → L4  (ein Node pro Turn)
+    #    Stage 2: Splits der Turns (2.1/2.2, 3.1/3.2, L4×3)
+    #
+    #  R = Rechts / NEIN zu Quoten (CONTRA)
+    #  L = Links  / JA  zu Quoten (PRO)
     # ══════════════════════════════════════════════════════════════════
 
+    # Load Stage-0 transcript (Markdown) for Topic 1
+    _md_path = _DATA_DIR / "quoten_diskussion.md"
+    _topic1_transcript = _md_path.read_text(encoding="utf-8") if _md_path.exists() else None
+
     topic1 = Topic(
-        title="Sind Quotenregelungen rassistisch?",
+        title="Sollte es Quoten für Minderheiten geben?",
         description="Quotenregelungen sollen historische Benachteiligung ausgleichen — "
                     "doch sind sie selbst eine Form von Rassismus?",
+        transcript_yaml=_topic1_transcript,
         created_by=alice.id,
     )
     db.add(topic1)
     db.flush()
 
-    # ── L1: Eröffnung (PRO Quoten = rassistisch) ─────────────────
-    l1 = ArgumentNode(
-        topic_id=topic1.id,
-        title="Quotenregelungen sind rassistisch — sie bewerten nach Hautfarbe",
-        description="Wenn eine Person wegen ihrer Herkunft bevorzugt wird, ist das per Definition Diskriminierung.",
-        position=Position.PRO, created_by=bob.id,
-        statement_type=StatementType.NORMATIVE,
-        conflict_zone=ConflictZone.VALUE,
-        claim="Quotenregelungen diskriminieren nach Herkunft.",
-        reason="Jede Ungleichbehandlung aufgrund von Ethnie ist Rassismus, egal in welche Richtung.",
-        example="Asiatische Bewerber brauchen bei Harvard höhere Scores als andere Gruppen.",
-        implication="Quoten müssen abgeschafft werden, um echte Gleichberechtigung zu erreichen.",
-    )
-    db.add(l1)
-    db.flush()
+    # ── Stage 1: Basis-Argumente (stage_added=1) ──────────────────
+    # Raw transcript only — one node per turn, no analytical labels.
+    # R1 eröffnet, L2 antwortet, R3 widerspricht, L4 erwidert.
 
-    # Alternativen zu L1 (gleicher parent_id = null → Geschwister)
-    l1_alt1 = ArgumentNode(
-        topic_id=topic1.id,
-        title="Leistungsprinzip muss gelten — die beste Person soll den Job bekommen",
-        description="Quoten untergraben Meritokratie und können zu weniger qualifizierten Besetzungen führen.",
-        position=Position.PRO, created_by=bob.id,
-        statement_type=StatementType.MIXED,
-        conflict_zone=ConflictZone.CAUSAL,
-    )
-    l1_alt2 = ArgumentNode(
-        topic_id=topic1.id,
-        title="Individuelle Rechte übertrumpfen Gruppenstatistiken",
-        description="Niemand sollte für die Taten seiner Vorfahren bestraft oder belohnt werden.",
-        position=Position.PRO, created_by=bob.id,
-        statement_type=StatementType.NORMATIVE,
-        conflict_zone=ConflictZone.VALUE,
-    )
-    db.add_all([l1_alt1, l1_alt2])
-    db.flush()
-
-    # ── R1: Gegenargument (CONTRA – historische Korrektur) ────────
     r1 = ArgumentNode(
-        topic_id=topic1.id, parent_id=l1.id,
-        title="Historische Ungerechtigkeit erfordert aktive Korrektur",
-        description="Ohne Quoten bleiben strukturelle Barrieren bestehen. Formale Gleichheit reicht nicht.",
-        position=Position.CONTRA, created_by=alice.id,
-        statement_type=StatementType.NORMATIVE,
+        topic_id=topic1.id,
+        title="R1",
+        description="Quotenregelungen sind rassistisch gegenüber Weißen und schlecht.",
+        position=Position.CONTRA, created_by=bob.id,
         conflict_zone=ConflictZone.VALUE,
-        claim="Positive Diskriminierung korrigiert strukturelle Benachteiligung.",
-        reason="Jahrhundertelange Diskriminierung hat Ungleichheiten geschaffen, die sich nicht von selbst auflösen.",
-        example="Frauenquoten in Aufsichtsräten haben den Frauenanteil von 10% auf 35% erhöht.",
-        implication="Temporäre Ungleichbehandlung ist nötig, um echte Chancengleichheit herzustellen.",
+        stage_added=1,
     )
-    # Alternative zu R1
-    r1_alt1 = ArgumentNode(
-        topic_id=topic1.id, parent_id=l1.id,
-        title="Diversity in Teams führt nachweislich zu besseren Ergebnissen",
-        description="McKinsey-Studien zeigen: Diverse Teams sind innovativer und profitabler.",
-        position=Position.CONTRA, created_by=alice.id,
-        conflict_zone=ConflictZone.FACT,
-    )
-    db.add_all([r1, r1_alt1])
+    db.add(r1)
     db.flush()
 
-    # ── L2: Antwort auf R1 (PRO – Gegenangriff) ──────────────────
     l2 = ArgumentNode(
         topic_id=topic1.id, parent_id=r1.id,
-        title="Rassismus gegen Weiße gibt es nicht — Rassismus erfordert Machtstrukturen",
-        description="Akademische Definition: Rassismus = Vorurteil + institutionelle Macht. "
-                    "Daher kann positive Diskriminierung per Definition kein Rassismus sein.",
-        position=Position.CONTRA, created_by=alice.id,
-        conflict_zone=ConflictZone.FACT, edge_type=EdgeType.REFRAME,
-        opens_conflict="Welche Definition von Rassismus ist korrekt?",
+        title="L2",
+        description="Rassismus gegen Weiße gibt es nicht. "
+                    "Quoten sollen die Unterrepräsentation durch strukturelle "
+                    "Diskriminierung von Gruppen ausgleichen.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.VALUE,
+        stage_added=1,
     )
     db.add(l2)
     db.flush()
 
-    # ── R2: Edge Attack auf die Verbindung L2→R1 ─────────────────
-    # "DOCH! Was ist überhaupt Rassismus?" — greift nicht den Inhalt
-    # von L2 an, sondern die Inferenz (undercutting defeater).
-    r2 = ArgumentNode(
-        topic_id=topic1.id, parent_id=l2.id,
-        title="DOCH! Was ist überhaupt Rassismus? — Definitionsstreit",
-        description="Die Verbindung zwischen 'historische Korrektur' und 'kein Rassismus' "
-                    "setzt eine umstrittene Definition voraus. Das muss erst geklärt werden.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.FACT, edge_type=EdgeType.COMMUNITY_NOTE,
-        is_edge_attack=True,
-        opens_conflict="Was ist die korrekte Definition von Rassismus?",
-    )
-    # Alternative zu R2
-    r2_alt1 = ArgumentNode(
-        topic_id=topic1.id, parent_id=l2.id,
-        title="Asiatische Amerikaner werden durch Quoten systematisch benachteiligt",
-        description="Harvard-Zulassungsdaten zeigen: Asiaten brauchen höhere Scores. "
-                    "Das widerlegt die These, dass nur Weiße betroffen sind.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.FACT, edge_type=EdgeType.WEAKENING,
-    )
-    db.add_all([r2, r2_alt1])
-    db.flush()
-
-    # ── L3: Meta-Einordnung (NEUTRAL) ─────────────────────────────
-    l3 = ArgumentNode(
-        topic_id=topic1.id, parent_id=r2.id,
-        title="Der Begriff 'Rassismus' muss erst definiert werden",
-        description="Ohne gemeinsame Definition redet man aneinander vorbei. "
-                    "Ist Rassismus = Vorurteil + Macht, oder = jede Ungleichbehandlung nach Ethnie?",
-        position=Position.NEUTRAL, created_by=charlie.id,
-        statement_type=StatementType.MIXED,
-        conflict_zone=ConflictZone.FACT,
-        edge_type=EdgeType.REFRAME,
-        opens_conflict="Was ist die korrekte Definition von Rassismus?",
-    )
-    db.add(l3)
-    db.flush()
-
-    # ── R3: Quoten schaffen Stigmatisierung ───────────────────────
     r3 = ArgumentNode(
-        topic_id=topic1.id, parent_id=l3.id,
-        title="Quoten schaffen Stigmatisierung — Quotenperson statt anerkannte Fachkraft",
-        description="Betroffene leiden unter dem Verdacht, nur wegen der Quote eingestellt "
-                    "worden zu sein. Das schadet den Menschen, die sie schützen sollen.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.CAUSAL, edge_type=EdgeType.CONSEQUENCES,
+        topic_id=topic1.id, parent_id=l2.id,
+        title="R3",
+        description="Doch, Rassismus gegen Weiße gibt es. "
+                    "Die Unterschiede sind erklärbar durch Kultur- und IQ-Unterschiede.",
+        position=Position.CONTRA, created_by=bob.id,
+        conflict_zone=ConflictZone.FACT,
+        stage_added=1,
     )
     db.add(r3)
     db.flush()
 
-    # ── L4: Kompromissvorschlag ───────────────────────────────────
     l4 = ArgumentNode(
         topic_id=topic1.id, parent_id=r3.id,
-        title="Anonymisierte Bewerbungsverfahren statt starrer Quoten",
-        description="Wenn man Herkunft und Geschlecht im Bewerbungsprozess entfernt, "
-                    "behebt man strukturelle Diskriminierung ohne neue zu schaffen.",
-        position=Position.NEUTRAL, created_by=charlie.id,
-        statement_type=StatementType.MIXED,
-        conflict_zone=ConflictZone.CAUSAL,
-        edge_type=EdgeType.CONCESSION,
+        title="L4",
+        description="Das ist Rassismus. "
+                    "IQ hat keine Bedeutung für den Erfolg. "
+                    "IQ ist nicht angeboren — Unterschiede folgen aus struktureller Diskriminierung.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.FACT,
+        opens_conflict="Relevance of IQ",
+        stage_added=1,
     )
-    # Alternative zu L4
-    l4_alt1 = ArgumentNode(
-        topic_id=topic1.id, parent_id=r3.id,
-        title="Das Leistungsprinzip funktioniert nur bei gleichen Startbedingungen",
-        description="Wer aus einem benachteiligten Umfeld kommt, hatte nie die gleichen Chancen.",
-        position=Position.CONTRA, created_by=charlie.id,
-        conflict_zone=ConflictZone.CAUSAL, edge_type=EdgeType.WEAKENING,
-        is_edge_attack=True,
+    db.add(l4)
+    db.flush()
+
+    # ── Stage 2: Splits (stage_added=2) ───────────────────────────
+    # L2 → (2.1) und (2.2): parent=r1 (gleicher Gegner wie L2)
+    l2_1 = ArgumentNode(
+        topic_id=topic1.id, parent_id=r1.id, split_from_id=l2.id,
+        title="(2.1) Rassismus gegen Weiße gibt es nicht",
+        description="Akademische Definition: Rassismus = Vorurteil + institutionelle Macht. "
+                    "Weiße als dominante Gruppe können keine Opfer von Rassismus sein.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.FACT,
+        stage_added=2,
     )
-    db.add_all([l4, l4_alt1])
+    l2_2 = ArgumentNode(
+        topic_id=topic1.id, parent_id=r1.id, split_from_id=l2.id,
+        title="(2.2) Quoten korrigieren Unterrepräsentation durch strukturelle Diskriminierung",
+        description="Minderheiten sind historisch benachteiligt. "
+                    "Quoten sind Korrekturmechanismus, kein Angriff auf andere Gruppen.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.VALUE,
+        stage_added=2,
+    )
+    db.add_all([l2_1, l2_2])
+    db.flush()
+
+    # R3 → (3.1) und (3.2): parent zeigt auf spezifischen L2-Split
+    #   (3.1) ↩ 2.1 — antwortet auf L2.1
+    #   (3.2) ↩ 2.2 — antwortet auf L2.2
+    r3_1 = ArgumentNode(
+        topic_id=topic1.id, parent_id=l2_1.id, split_from_id=r3.id,
+        title="(3.1) ↩ 2.1: Doch, Rassismus gegen Weiße gibt es",
+        description="Jede Ungleichbehandlung aufgrund von Ethnie ist Rassismus — "
+                    "unabhängig von Machtstrukturen.",
+        position=Position.CONTRA, created_by=bob.id,
+        conflict_zone=ConflictZone.FACT,
+        stage_added=2,
+    )
+    r3_2 = ArgumentNode(
+        topic_id=topic1.id, parent_id=l2_2.id, split_from_id=r3.id,
+        title="(3.2) ↩ 2.2: Unterschiede erklärbar durch Kultur- und IQ-Unterschiede",
+        description="Gruppenunterschiede haben kulturelle und biologische Ursachen — "
+                    "nicht allein strukturelle Diskriminierung.",
+        position=Position.CONTRA, created_by=bob.id,
+        conflict_zone=ConflictZone.FACT,
+        stage_added=2,
+    )
+    db.add_all([r3_1, r3_2])
+    db.flush()
+
+    # L4 → drei Sub-Argumente: parent=r3_2 (alle L4-Splits antworten auf 3.2)
+    # (3.1 ist ein dead-end — kein L4-Argument antwortet darauf)
+    l4_1 = ArgumentNode(
+        topic_id=topic1.id, parent_id=r3_2.id, split_from_id=l4.id,
+        title="(4.1) ↩ 3.2: Das ist Rassismus",
+        description="Gruppenunterschiede mit IQ zu erklären reproduziert rassistische Denkmuster.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.VALUE,
+        stage_added=2,
+    )
+    l4_2 = ArgumentNode(
+        topic_id=topic1.id, parent_id=r3_2.id, split_from_id=l4.id,
+        title="(4.2) ↩ 3.2: IQ hat keine Bedeutung für den Erfolg",
+        description="Beruflicher Erfolg wird durch soziale Netzwerke, Kapital und Chancen bestimmt — nicht durch IQ.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.FACT,
+        stage_added=2,
+    )
+    l4_3 = ArgumentNode(
+        topic_id=topic1.id, parent_id=r3_2.id, split_from_id=l4.id,
+        title="(4.3) ↩ 3.2: IQ ist nicht angeboren — Unterschiede folgen aus struktureller Diskriminierung",
+        description="IQ-Gruppenunterschiede verschwinden bei gleichen Bildungs- und Lebensbedingungen.",
+        position=Position.PRO, created_by=alice.id,
+        conflict_zone=ConflictZone.FACT,
+        stage_added=2,
+    )
+    db.add_all([l4_1, l4_2, l4_3])
     db.flush()
 
     # ── Tags ──────────────────────────────────────────────────────
     tag_justice = Tag(name="Gerechtigkeit & Teilhabe", category=TagCategory.SOCIETAL_GOAL)
     tag_freedom = Tag(name="Freiheit & Selbstbestimmung", category=TagCategory.SOCIETAL_GOAL)
     tag_equality = Tag(name="Gleichberechtigung", category=TagCategory.DOMAIN)
-    tag_law = Tag(name="Recht", category=TagCategory.DOMAIN)
     tag_sociology = Tag(name="Soziologie", category=TagCategory.DOMAIN)
     tag_fairness = Tag(name="Fairness", moral_foundation=MoralFoundation.FAIRNESS,
                        category=TagCategory.MORAL_FOUNDATION)
     tag_care = Tag(name="Fürsorge", moral_foundation=MoralFoundation.CARE,
                    category=TagCategory.MORAL_FOUNDATION)
-    db.add_all([tag_justice, tag_freedom, tag_equality, tag_law, tag_sociology,
-                tag_fairness, tag_care])
+    db.add_all([tag_justice, tag_freedom, tag_equality, tag_sociology, tag_fairness, tag_care])
     db.flush()
 
     db.add_all([
-        ArgumentNodeTag(argument_node_id=l1.id, tag_id=tag_freedom.id, origin=TagOrigin.AI),
-        ArgumentNodeTag(argument_node_id=l1.id, tag_id=tag_equality.id, origin=TagOrigin.USER),
-        ArgumentNodeTag(argument_node_id=r1.id, tag_id=tag_justice.id, origin=TagOrigin.AI),
-        ArgumentNodeTag(argument_node_id=r1.id, tag_id=tag_equality.id, origin=TagOrigin.USER),
-        ArgumentNodeTag(argument_node_id=l1_alt1.id, tag_id=tag_fairness.id, origin=TagOrigin.USER),
-        ArgumentNodeTag(argument_node_id=l3.id, tag_id=tag_sociology.id, origin=TagOrigin.AI),
-        ArgumentNodeTag(argument_node_id=r1_alt1.id, tag_id=tag_care.id, origin=TagOrigin.AI),
-        ArgumentNodeTag(argument_node_id=l4.id, tag_id=tag_fairness.id, origin=TagOrigin.MODERATOR),
+        ArgumentNodeTag(argument_node_id=r1.id, tag_id=tag_freedom.id, origin=TagOrigin.AI),
+        ArgumentNodeTag(argument_node_id=l2.id, tag_id=tag_justice.id, origin=TagOrigin.AI),
+        ArgumentNodeTag(argument_node_id=l2.id, tag_id=tag_equality.id, origin=TagOrigin.USER),
+        ArgumentNodeTag(argument_node_id=r3_2.id, tag_id=tag_sociology.id, origin=TagOrigin.AI),
+        ArgumentNodeTag(argument_node_id=l4.id, tag_id=tag_fairness.id, origin=TagOrigin.USER),
+        ArgumentNodeTag(argument_node_id=l4_3.id, tag_id=tag_care.id, origin=TagOrigin.AI),
     ])
 
     # ── Votes ─────────────────────────────────────────────────────
     db.add_all([
-        Vote(user_id=bob.id, argument_node_id=l1.id, value=1),
-        Vote(user_id=alice.id, argument_node_id=r1.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=r1.id, value=1),
-        Vote(user_id=bob.id, argument_node_id=l1_alt1.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=l3.id, value=1),
-        Vote(user_id=alice.id, argument_node_id=l3.id, value=1),
-        Vote(user_id=bob.id, argument_node_id=r2.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=l4.id, value=1),
+        Vote(user_id=alice.id, argument_node_id=r1.id, value=-1),
+        Vote(user_id=bob.id, argument_node_id=r1.id, value=1),
+        Vote(user_id=alice.id, argument_node_id=l2.id, value=1),
+        Vote(user_id=charlie.id, argument_node_id=l2.id, value=1),
+        Vote(user_id=bob.id, argument_node_id=r3_2.id, value=1),
+        Vote(user_id=charlie.id, argument_node_id=r3_2.id, value=-1),
+        Vote(user_id=alice.id, argument_node_id=l4.id, value=1),
+        Vote(user_id=charlie.id, argument_node_id=l4_3.id, value=1),
     ])
 
     # ── Comments ──────────────────────────────────────────────────
     db.add_all([
-        Comment(argument_node_id=l1.id, user_id=alice.id,
-                text="Das Argument ignoriert den historischen Kontext komplett."),
-        Comment(argument_node_id=r1.id, user_id=bob.id,
-                text="Historische Korrektur ist berechtigt, aber warum ausgerechnet über Quoten?"),
-        Comment(argument_node_id=l3.id, user_id=bob.id,
-                text="Guter Punkt — ohne Definitionsklärung dreht man sich im Kreis."),
-        Comment(argument_node_id=r2.id, user_id=charlie.id,
-                text="Klassischer Definitionsstreit. Die akademische und die alltagssprachliche "
-                     "Definition von Rassismus klaffen auseinander."),
-        Comment(argument_node_id=l4.id, user_id=alice.id,
-                text="Pragmatischer Ansatz, der beide Seiten berücksichtigt."),
+        Comment(argument_node_id=r1.id, user_id=alice.id,
+                text="Eröffnungsthese ohne Belege — typischer Gesprächseinstieg."),
+        Comment(argument_node_id=l2.id, user_id=bob.id,
+                text="(2.1) setzt die akademische Definition als gegeben voraus. Das ist umstritten."),
+        Comment(argument_node_id=r3_2.id, user_id=charlie.id,
+                text="Das IQ-Argument öffnet einen klassischen Sub-Streitpunkt "
+                     "— und verschiebt die Beweislast auf L."),
+        Comment(argument_node_id=l4.id, user_id=bob.id,
+                text="L4 antwortet als Block auf den Sub-Streitpunkt aus R3.2."),
     ])
-
-    # ── Evidence ──────────────────────────────────────────────────
-    db.add(Evidence(
-        argument_node_id=r1_alt1.id,
-        evidence_type=EvidenceType.STUDY,
-        title="McKinsey: Diversity Wins (2020)",
-        url="https://www.mckinsey.com/capabilities/people-and-organizational-performance/our-insights/diversity-wins-how-inclusion-matters",
-        quality_score=0.85,
-        created_by=alice.id,
-    ))
-    db.add(Evidence(
-        argument_node_id=r2_alt1.id,
-        evidence_type=EvidenceType.LAW,
-        title="Students for Fair Admissions v. Harvard (2023)",
-        url="https://www.supremecourt.gov/opinions/22pdf/20-1199_hgdj.pdf",
-        quality_score=0.95,
-        created_by=bob.id,
-    ))
 
     # ── Labels ────────────────────────────────────────────────────
     db.add(NodeLabel(
-        argument_node_id=l2.id,
+        argument_node_id=l2_1.id,
         label_type=LabelType.FALLACY,
-        justification="No-True-Scotsman / Definitionsverschiebung: Die Definition von Rassismus "
-                       "wird so verengt, dass Gegenbeispiele per Definition ausgeschlossen werden.",
+        justification="No-True-Scotsman: Die akademische Rassismus-Definition wird so gewählt, "
+                      "dass Weiße per Definition keine Opfer sein können.",
         created_by=bob.id,
     ))
 
@@ -297,13 +263,13 @@ def seed():
     db.flush()
 
     # ── STUFE 1: Basis-Argumente (stage_added=1) ──────────────────
-    # Ein Argument pro Turn, chronologisch. Der rote Faden ist implizit
-    # über die parent_id-Kette: b1 → a1 → a2 → a3 → a4 → a5
+    # Raw transcript only — one argument per turn, no analytical labels.
+    # The red thread is implicit via parent_id chain: b1 → a1 → a2 → a3 → a4 → a5
 
     b1 = ArgumentNode(
         topic_id=topic2.id,
         title="B₁: Quotenregelungen sind Diskriminierung",
-        description="These klar formulieren: Ungleichbehandlung nach Ethnie ist per Definition Diskriminierung.",
+        description="Ungleichbehandlung nach Ethnie ist per Definition Diskriminierung.",
         position=Position.PRO, created_by=bob.id,
         statement_type=StatementType.NORMATIVE,
         conflict_zone=ConflictZone.VALUE,
@@ -319,8 +285,7 @@ def seed():
     a1 = ArgumentNode(
         topic_id=topic2.id, parent_id=b1.id,
         title="A₁: Strukturelle Benachteiligung erfordert aktive Korrektur",
-        description="Steelmanning: Die beste Version des Gegenarguments. "
-                    "Formale Gleichheit reicht nicht, wenn Startbedingungen ungleich sind.",
+        description="Formale Gleichheit reicht nicht, wenn Startbedingungen ungleich sind.",
         position=Position.CONTRA, created_by=alice.id,
         statement_type=StatementType.NORMATIVE,
         conflict_zone=ConflictZone.VALUE,
@@ -351,7 +316,7 @@ def seed():
         topic_id=topic2.id, parent_id=a2.id,
         title="A₃: Was IST überhaupt Rassismus? — Definitionsebene klären",
         description="Die Verbindung zwischen 'Korrektur' und 'kein Rassismus' setzt "
-                    "eine umstrittene Definition voraus. Edge Attack auf die Inferenz.",
+                    "eine umstrittene Definition voraus.",
         position=Position.PRO, created_by=bob.id,
         conflict_zone=ConflictZone.FACT, edge_type=EdgeType.COMMUNITY_NOTE,
         is_edge_attack=True,
@@ -366,8 +331,8 @@ def seed():
     a4 = ArgumentNode(
         topic_id=topic2.id, parent_id=a3.id,
         title="A₄: Definitionskonflikt — mehrere Positionen zur Rassismus-Definition",
-        description="Der Definitionskonflikt wird explizit gemacht. Verschiedene Positionen "
-                    "existieren nebeneinander: akademisch vs. alltagssprachlich vs. kontextuell.",
+        description="Verschiedene Positionen existieren nebeneinander: "
+                    "akademisch vs. alltagssprachlich vs. kontextuell.",
         position=Position.NEUTRAL, created_by=charlie.id,
         conflict_zone=ConflictZone.FACT,
         stage_added=1,
@@ -400,7 +365,7 @@ def seed():
         topic_id=topic2.id, parent_id=None,
         split_from_id=b1.id,
         title="B₁a: Leistungsprinzip über alles",
-        description="Alternativ-Eröffnung: Fokus auf Meritokratie statt auf Rassismus-Begriff.",
+        description="Fokus auf Meritokratie statt auf Rassismus-Begriff.",
         position=Position.PRO, created_by=bob.id,
         conflict_zone=ConflictZone.CAUSAL,
         stage_added=2,

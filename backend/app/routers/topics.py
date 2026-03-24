@@ -9,7 +9,7 @@ from ..database import get_db
 from ..models import Topic, ArgumentNode, ArgumentNodeTag, Vote, Visibility
 from ..schemas import (
     TopicCreate, TopicOut, ArgumentTreeNode, TagOnNode,
-    ZigzagStepOut, ZigzagTopicInfo, ZigzagResponse, TranscriptResponse,
+    ZigzagStepOut, ZigzagTopicInfo, ZigzagResponse, TranscriptResponse, TranscriptUpdate,
 )
 
 router = APIRouter(prefix="/topics", tags=["topics"])
@@ -144,6 +144,22 @@ def get_transcript(topic_id: int, db: Session = Depends(get_db)):
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(404, "Topic not found")
+    return TranscriptResponse(
+        topic_id=topic.id,
+        topic_title=topic.title,
+        transcript_yaml=topic.transcript_yaml,
+    )
+
+
+@router.put("/{topic_id}/transcript", response_model=TranscriptResponse)
+def update_transcript(topic_id: int, payload: TranscriptUpdate, db: Session = Depends(get_db)):
+    """Updates the raw YAML transcript for Stage 0. Replaces the full content."""
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(404, "Topic not found")
+    topic.transcript_yaml = payload.transcript_yaml
+    db.commit()
+    db.refresh(topic)
     return TranscriptResponse(
         topic_id=topic.id,
         topic_title=topic.title,

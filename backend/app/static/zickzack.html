@@ -86,9 +86,29 @@
     .zz-card.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,.4); opacity: 0.9; transition: none; }
     .zz-card.L { border-right: 4px solid #3fb950; }
     .zz-card.R { border-left: 4px solid #f85149; }
+
+    /* ── DESIGN: Stage-1 raw transcript style ──
+       Stage 1 cards look like raw data / notepad — colorless, monospace,
+       no position coloring. Clearly distinguishable from refined Stage-2 cards.
+       See zigzag-plan.md § Stufe 1. -->  */
+    .zz-card.stage-raw {
+      background: #161b22;
+      border: 1px dashed #30363d;
+      border-left: none; border-right: none;
+      font-family: 'Courier New', Courier, monospace;
+      box-shadow: none;
+      opacity: 0.92;
+    }
+    .zz-card.stage-raw.L { border-right: none; }
+    .zz-card.stage-raw.R { border-left: none; }
+    .zz-card.stage-raw .card-text {
+      color: #8b949e; font-size: 0.74rem;
+    }
     .zz-card .card-header { display: flex; align-items: flex-start; gap: 4px; }
     .zz-card .card-title { font-size: 0.78rem; font-weight: 600; color: #e6edf3; flex: 1; }
     .zz-card .card-body  { font-size: 0.64rem; color: #8b949e; margin-top: 2px; }
+    /* Stage 1: single merged text block */
+    .zz-card .card-text  { font-size: 0.75rem; color: #e6edf3; line-height: 1.45; }
     .zz-card .card-zone  {
       display: inline-block; margin-top: 3px; padding: 0 5px; border-radius: 6px;
       font-size: 0.58rem; font-weight: 600;
@@ -206,15 +226,34 @@
     .stage-btn.deferred { opacity: 0.5; cursor: not-allowed; }
     .stage-btn.deferred:hover { border-color: #30363d; color: #8b949e; }
 
-    /* ── Transcript viewer (Stage 0) ── */
-    .transcript-view {
-      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-      padding: 16px 20px; font-family: 'Courier New', monospace; font-size: 0.72rem;
-      line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; overflow-x: auto;
-      max-height: 600px; overflow-y: auto;
+    /* ── Stage description banner ── */
+    .stage-description {
+      font-size: 0.75rem; color: #8b949e; margin-bottom: 8px; padding: 6px 12px;
+      background: #1c2128; border-radius: 6px; border: 1px solid #30363d;
+      line-height: 1.5;
     }
-    .transcript-view .yaml-key { color: #79c0ff; }
-    .transcript-view .yaml-comment { color: #484f58; font-style: italic; }
+    .stage-description:empty { display: none; }
+    .stage-description strong { color: #c9d1d9; }
+
+    /* ── Transcript viewer / editor (Stage 0) ── */
+    .transcript-edit {
+      width: 100%; min-height: 420px; resize: vertical;
+      font-family: 'Courier New', monospace; font-size: 0.72rem;
+      line-height: 1.6; color: #c9d1d9; background: #161b22;
+      border: 1px solid #30363d; border-radius: 8px;
+      padding: 16px 20px; box-sizing: border-box;
+      white-space: pre; overflow-x: auto;
+    }
+    .transcript-edit:focus { outline: none; border-color: #58a6ff; }
+    .transcript-actions {
+      display: flex; align-items: center; gap: 8px; margin-top: 6px;
+    }
+    .transcript-actions button {
+      padding: 5px 14px; border-radius: 6px; border: none;
+      background: #1f6feb; color: #fff; cursor: pointer; font-size: 0.78rem;
+    }
+    .transcript-actions button:hover { background: #388bfd; }
+    .save-status { font-size: 0.72rem; color: #8b949e; }
     .transcript-info {
       font-size: 0.75rem; color: #8b949e; margin-bottom: 8px; padding: 6px 10px;
       background: #1c2128; border-radius: 6px; border: 1px solid #30363d;
@@ -264,13 +303,16 @@
   <div class="stage-selector" id="stage-selector">
     <span class="stage-label">Stufe:</span>
     <button class="stage-btn" data-stage="0">📄 Transkript</button>
-    <button class="stage-btn" data-stage="1">1️⃣ Basis</button>
-    <button class="stage-btn active" data-stage="2">2️⃣ Verfeinerung</button>
-    <button class="stage-btn deferred" data-stage="3" title="Noch nicht implementiert">3️⃣ Einordnung</button>
-    <button class="stage-btn deferred" data-stage="4" title="Noch nicht implementiert">4️⃣ Meta</button>
-    <button class="stage-btn deferred" data-stage="5" title="Noch nicht spezifiziert">5️⃣ Netz</button>
+    <button class="stage-btn active" data-stage="1">1️⃣ Basis</button>
+    <button class="stage-btn" data-stage="2">2️⃣ Split-Prozess</button>
+    <button class="stage-btn" data-stage="3">3️⃣ Verfeinerung</button>
+    <button class="stage-btn deferred" data-stage="4" title="Noch nicht implementiert">4️⃣ Einordnung</button>
+    <button class="stage-btn deferred" data-stage="5" title="Noch nicht implementiert">5️⃣ Meta</button>
+    <button class="stage-btn deferred" data-stage="6" title="Noch nicht spezifiziert">6️⃣ Netz</button>
   </div>
-  <div class="mode-toggle" id="mode-toggle">
+  <!-- DESIGN: Stage description shows what THIS stage adds vs the previous one -->
+  <div class="stage-description" id="stage-description"></div>
+  <div class="mode-toggle" id="mode-toggle" style="display:none">
     <button class="mode-btn active" data-mode="chrono">📜 Chronologisch</button>
     <!-- TODO: post-dev – re-enable when fan layout is ready
     <button class="mode-btn" data-mode="fan">🌳 Fächer</button>
@@ -309,9 +351,24 @@
   // ── State ──────────────────────────────────────
   let currentTopicId = null;
   let currentMode = 'chrono';
-  let currentStage = 2;
+  let currentStage = 1;
   let currentData = null;
   let renderState = null;
+
+  // ── Stage descriptions: what THIS stage adds vs the previous ──
+  const STAGE_DESCRIPTIONS = {
+    0: '<strong>Rohdaten</strong> — Die Diskussion als lesbarer Text. Kein Canvas, keine Visualisierung.',
+    1: '<strong>Basiszuordnung</strong> — Jedes Argument chronologisch einer Seite zugeordnet. Einfacher Zickzack zwischen PRO und CONTRA.',
+    2: '<strong>2️⃣ Split-Prozess</strong> — Arbeitsschritt: Originale und ihre Splits gleichzeitig sichtbar. Basis-Argumente im Rohformat.',
+    3: '<strong>Verfeinerung</strong> — Nur Split-Argumente sichtbar. Gesplittete Originale verschwinden.',
+    4: '<strong>+ Einordnung</strong> — Bewertungen, Labels, Kommentare auf Argumente. <em>[Noch nicht implementiert]</em>',
+    5: '<strong>+ Meta</strong> — Argumentgruppen, Klassifizierung als Quelle / Grundannahme. <em>[Noch nicht implementiert]</em>',
+    6: '<strong>+ Netz</strong> — Einordnung in allgemeines Diskussionsnetz. <em>[Geplant — separate Spezifikation]</em>',
+  };
+
+  function updateStageDescription() {
+    document.getElementById('stage-description').innerHTML = STAGE_DESCRIPTIONS[currentStage] || '';
+  }
 
   function getUserId() {
     return parseInt(document.getElementById('user-select').value) || 1;
@@ -335,7 +392,58 @@
     return r.json();
   }
 
-  // ── Load topics → tabs ─────────────────────────
+  async function putJSON(url, body) {
+    const r = await fetch(url, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`${r.status}: ${txt}`);
+    }
+    return r.json();
+  }
+
+  // ── Load stage 0: editable transcript ─────────
+  // Always shows a textarea — empty if no transcript, filled if one exists.
+  // User can edit and save; future: generate stages 1-2 from this text.
+  async function loadTranscript() {
+    const content = document.getElementById('stage-content');
+    content.innerHTML = '<div class="loading">⏳ Lade Transkript…</div>';
+    try {
+      const data = await fetchJSON(`${API}/topics/${currentTopicId}/transcript`);
+      const currentText = data.transcript_yaml || '';
+      const hint = currentText ? '' : ' — <em>Noch kein Transkript vorhanden. Hier eingeben und speichern.</em>';
+      content.innerHTML = `
+        <div class="transcript-info">
+          📄 <strong>Stufe 0: Rohdaten / Transkript</strong>${hint}
+        </div>
+        <textarea id="transcript-textarea" class="transcript-edit" spellcheck="false">${esc(currentText)}</textarea>
+        <div class="transcript-actions">
+          <button onclick="saveTranscript()">💾 Speichern</button>
+          <span id="save-status" class="save-status"></span>
+        </div>`;
+    } catch (e) {
+      content.innerHTML = `<div class="error">❌ ${esc(e.message)}</div>`;
+    }
+  }
+
+  async function saveTranscript() {
+    const textarea = document.getElementById('transcript-textarea');
+    const statusEl = document.getElementById('save-status');
+    if (!textarea || !currentTopicId) return;
+    statusEl.textContent = '⏳ Speichern…';
+    try {
+      await putJSON(`${API}/topics/${currentTopicId}/transcript`, {
+        transcript_yaml: textarea.value || null,
+      });
+      statusEl.textContent = '✅ Gespeichert';
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2500);
+    } catch (e) {
+      statusEl.textContent = `❌ ${esc(e.message)}`;
+    }
+  }
+
+
   async function loadTopics() {
     const topics = await fetchJSON(`${API}/topics/`);
     const tabs = document.getElementById('tabs');
@@ -356,7 +464,7 @@
     currentTopicId = topicId;
     if (currentStage === 0) {
       await loadTranscript();
-    } else if (currentStage >= 3) {
+    } else if (currentStage >= 4) {
       showStagePlaceholder(currentStage);
     } else {
       await loadZigzag();
@@ -370,49 +478,12 @@
     const canvas = document.getElementById('canvas');
     canvas.innerHTML = '<svg id="zz-svg"></svg><div class="loading">⏳ Lade…</div>';
     try {
-      currentData = await fetchJSON(`${API}/topics/${currentTopicId}/zigzag?stage=${currentStage}`);
+      // Stages 2 and 3 both use ?stage=2 from the API — difference is frontend filtering
+      const apiStage = currentStage >= 2 ? 2 : currentStage;
+      currentData = await fetchJSON(`${API}/topics/${currentTopicId}/zigzag?stage=${apiStage}`);
       render();
     } catch (e) {
       canvas.innerHTML = `<svg id="zz-svg"></svg><div class="error">❌ ${esc(e.message)}</div>`;
-    }
-  }
-
-  // ── Load stage 0: transcript ───────────────────
-  async function loadTranscript() {
-    const content = document.getElementById('stage-content');
-    content.innerHTML = '<div class="loading">⏳ Lade Transkript…</div>';
-    try {
-      const data = await fetchJSON(`${API}/topics/${currentTopicId}/transcript`);
-      if (!data.transcript_yaml) {
-        content.innerHTML = `
-          <div class="stage-placeholder">
-            <div class="ph-icon">📄</div>
-            <div class="ph-title">Kein Transkript vorhanden</div>
-            <div class="ph-desc">Für dieses Topic wurde noch kein Transkript (Stage 0) hinterlegt.</div>
-          </div>`;
-        return;
-      }
-      // Simple YAML syntax highlighting
-      const highlighted = data.transcript_yaml
-        .split('\n')
-        .map(line => {
-          if (line.trim().startsWith('#')) {
-            return `<span class="yaml-comment">${esc(line)}</span>`;
-          }
-          return line.replace(/^(\s*)([\w_-]+)(\s*:)/, (_, indent, key, colon) =>
-            `${esc(indent)}<span class="yaml-key">${esc(key)}${esc(colon)}</span>`
-          );
-        })
-        .join('\n');
-      content.innerHTML = `
-        <div class="transcript-info">
-          📄 <strong>Stufe 0: Rohdaten / Transkript</strong> —
-          Maschinenlesbares YAML mit allen Stufen-Informationen.
-          Für Topic: <em>${esc(data.topic_title)}</em>
-        </div>
-        <div class="transcript-view">${highlighted}</div>`;
-    } catch (e) {
-      content.innerHTML = `<div class="error">❌ ${esc(e.message)}</div>`;
     }
   }
 
@@ -426,9 +497,9 @@
   function showStagePlaceholder(stage) {
     const content = document.getElementById('stage-content');
     const configs = {
-      3: { icon: '⚙️', title: 'Stufe 3: Einordnung', desc: 'Bewertungen und argumentative Verfeinerungen. Nur auf Argumente (kein Edge-Kommentieren). Noch nicht implementiert.' },
-      4: { icon: '⚙️', title: 'Stufe 4: Meta-Einordnung', desc: 'Argumentgruppen markieren, Klassifizierung als Quelle / Grundannahme. Noch nicht implementiert.' },
-      5: { icon: '🔭', title: 'Stufe 5: Diskussionsnetz', desc: 'Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert separate Spezifikation (AbstractArgument-Modell, Cross-Topic-Links).' },
+      4: { icon: '⚙️', title: 'Stufe 4: Einordnung', desc: 'Bewertungen und argumentative Verfeinerungen. Nur auf Argumente (kein Edge-Kommentieren). Noch nicht implementiert.' },
+      5: { icon: '⚙️', title: 'Stufe 5: Meta-Einordnung', desc: 'Argumentgruppen markieren, Klassifizierung als Quelle / Grundannahme. Noch nicht implementiert.' },
+      6: { icon: '🔭', title: 'Stufe 6: Diskussionsnetz', desc: 'Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert separate Spezifikation (AbstractArgument-Modell, Cross-Topic-Links).' },
     };
     const c = configs[stage] || { icon: '❓', title: `Stufe ${stage}`, desc: 'Unbekannte Stufe.' };
     content.innerHTML = `
@@ -446,10 +517,14 @@
       document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentStage = parseInt(btn.dataset.stage);
+      updateStageDescription();
+
+      // Hide mode toggle for clean stages (0-3 are always chronological)
+      document.getElementById('mode-toggle').style.display = currentStage >= 4 ? 'flex' : 'none';
 
       if (currentStage === 0) {
         await loadTranscript();
-      } else if (currentStage >= 3) {
+      } else if (currentStage >= 4) {
         showStagePlaceholder(currentStage);
       } else {
         await loadZigzag();
@@ -499,55 +574,79 @@
     const card = document.createElement('div');
     card.className = `zz-card ${side}`;
     if (isSibling) card.classList.add('sibling-card');
-    if (step.is_edge_attack) card.classList.add('edge-attack');
+    if (step.is_edge_attack && currentStage >= 4) card.classList.add('edge-attack');
+    // Stage 1: all cards raw. Stage 2 (Split-Prozess): stage_added=1 cards stay raw.
+    if (currentStage === 1 || (currentStage === 2 && step.stage_added === 1)) card.classList.add('stage-raw');
 
-    const zone = step.conflict_zone;
-    const zoneCol = ZONE_COLORS[zone] || '#8b949e';
-    const zoneBg  = ZONE_BG[zone] || '#161b22';
-    const zoneText = ZONE_LABEL[zone] || '';
-
+    // Stage 1: single merged text block — no title/body distinction, no interactive features.
+    // Stage 2: Split-Prozess — originals in raw style + splits with badge (working step).
+    // Stage 3: Verfeinerung — only splits visible (originals filtered out before card creation).
+    // Stage 4+: full features (TODO: post-dev).
     let html = '';
-    html += `<div class="card-header">`;
-    html += `<span class="collapse-toggle">▸</span>`;
-    html += `<div class="card-title">${esc(step.title)}</div>`;
-    html += `</div>`;
-    html += `<div class="card-content">`;
-    if (step.description) html += `<div class="card-body">${esc(step.description)}</div>`;
-    if (zone) html += `<span class="card-zone" style="background:${zoneBg};color:${zoneCol}">${zoneText}</span>`;
-    if (step.stage_added === 2) {
-      html += `<span style="display:inline-block;margin-top:2px;margin-left:3px;padding:0 5px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1e2a1e;color:#3fb950" title="Stufe-2-Split">✂ Split</span>`;
+
+    if (currentStage === 1 || (currentStage === 2 && step.stage_added === 1)) {
+      // Raw style: merge title and description into one continuous text
+      const fullText = step.description
+        ? `${step.title} — ${step.description}`
+        : step.title;
+      html += `<div class="card-text">${esc(fullText)}</div>`;
+    } else {
+      // Stage 2 splits + Stage 3+: title header + body
+      html += `<div class="card-header">`;
+      if (currentStage >= 4) html += `<span class="collapse-toggle">▸</span>`;
+      html += `<div class="card-title">${esc(step.title)}</div>`;
+      html += `</div>`;
+      html += `<div class="card-content">`;
+      if (step.description) html += `<div class="card-body">${esc(step.description)}</div>`;
+
+      // Stage 2: split badge
+      if (step.stage_added === 2) {
+        html += `<span style="display:inline-block;margin-top:3px;padding:0 5px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1e2a1e;color:#3fb950" title="Stufe-2-Split">✂ Split</span>`;
+      }
+
+      // Stage 4+: conflict zone, opens_conflict (TODO: post-dev)
+      if (currentStage >= 4) {
+        const zone = step.conflict_zone;
+        if (zone) {
+          html += `<span class="card-zone" style="background:${ZONE_BG[zone]||'#161b22'};color:${ZONE_COLORS[zone]||'#8b949e'}">${ZONE_LABEL[zone]||''}</span>`;
+        }
+        if (step.opens_conflict) html += `<div class="new-conflict">→ ${esc(step.opens_conflict)}</div>`;
+      }
+
+      // Stage 2+: sibling/alternative indicators
+      if (step.sibling_ids && step.sibling_ids.length > 0 && !isSibling) {
+        html += `<div class="card-alts">↳ ${step.sibling_ids.length} Alternative${step.sibling_ids.length > 1 ? 'n' : ''}</div>`;
+      }
+      if (isSibling) html += `<div class="inactive-label">↳ Alternative</div>`;
+
+      // Stage 4+: action buttons (TODO: post-dev)
+      if (currentStage >= 4) {
+        html += `<div class="card-actions">`;
+        html += `<button class="btn-vote-up" data-id="${step.id}" title="Upvote">▲</button>`;
+        html += `<span class="vote-score">${step.vote_score || 0}</span>`;
+        html += `<button class="btn-vote-down" data-id="${step.id}" title="Downvote">▼</button>`;
+        html += `<button class="btn-reply" data-id="${step.id}" title="Antworten">＋</button>`;
+        html += `<button class="btn-comment" data-id="${step.id}" title="Kommentar">💬</button>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
     }
-    if (step.opens_conflict) {
-      html += `<div class="new-conflict">→ ${esc(step.opens_conflict)}</div>`;
-    }
-    if (step.sibling_ids && step.sibling_ids.length > 0 && !isSibling) {
-      html += `<div class="card-alts">↳ ${step.sibling_ids.length} Alternative${step.sibling_ids.length > 1 ? 'n' : ''}</div>`;
-    }
-    if (isSibling) {
-      html += `<div class="inactive-label">↳ Alternative</div>`;
-    }
-    // Action buttons
-    html += `<div class="card-actions">`;
-    html += `<button class="btn-vote-up" data-id="${step.id}" title="Upvote">▲</button>`;
-    html += `<span class="vote-score">${step.vote_score || 0}</span>`;
-    html += `<button class="btn-vote-down" data-id="${step.id}" title="Downvote">▼</button>`;
-    html += `<button class="btn-reply" data-id="${step.id}" title="Antworten">＋</button>`;
-    html += `<button class="btn-comment" data-id="${step.id}" title="Kommentar">💬</button>`;
-    html += `</div>`;
-    html += `</div>`;
+
     card.innerHTML = html;
-    if (isSibling) card.classList.add('collapsed');
+    if (currentStage >= 2 && isSibling) card.classList.add('collapsed');
 
-    // Collapse toggle
-    card.querySelector('.collapse-toggle').addEventListener('click', (e) => {
-      e.stopPropagation();
-      card.classList.toggle('collapsed');
-      card.querySelector('.collapse-toggle').textContent =
-        card.classList.contains('collapsed') ? '▸' : '▾';
-      if (typeof relayout === 'function') relayout();
-    });
+    // Collapse toggle (only stages 4+)
+    const collapseToggle = card.querySelector('.collapse-toggle');
+    if (collapseToggle) {
+      collapseToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        card.classList.toggle('collapsed');
+        collapseToggle.textContent = card.classList.contains('collapsed') ? '▸' : '▾';
+        if (typeof relayout === 'function') relayout();
+      });
+    }
 
-    // Action handlers
+    // Action handlers (only stages 3+)
     card.querySelector('.btn-vote-up')?.addEventListener('click', (e) => { e.stopPropagation(); vote(step.id, 1); });
     card.querySelector('.btn-vote-down')?.addEventListener('click', (e) => { e.stopPropagation(); vote(step.id, -1); });
     card.querySelector('.btn-reply')?.addEventListener('click', (e) => { e.stopPropagation(); showReplyForm(step.id, card); });
@@ -607,21 +706,52 @@
     const stepMap = {};
     steps.forEach(s => { stepMap[s.id] = s; });
 
-    // Build primary chain: first step per parent_id → primary; rest → siblings
-    const seenParents = new Set();
+    // ── Stage 3 (Verfeinerung): filter out originals that have been split ──
+    // Build set of IDs that are referenced by split_from_id
+    const splitOriginIds = new Set();
+    if (currentStage === 3) {
+      steps.forEach(s => { if (s.split_from_id) splitOriginIds.add(s.split_from_id); });
+    }
+
+    // Filter steps for display
+    const displaySteps = currentStage === 3
+      ? steps.filter(s => !splitOriginIds.has(s.id))  // hide originals that were split
+      : steps;
+
+    // ── Stage 1: simple linear chain — every step is primary, no siblings ──
+    // ── Stage 2 (Split-Prozess): originals are primary chain, splits are siblings of their origin ──
+    // ── Stage 3 (Verfeinerung): split originals filtered out, remaining grouped by parent_id ──
     const primarySteps = [];
     const siblingSteps = {};
 
-    steps.forEach(s => {
-      const key = s.parent_id ?? '__root__';
-      if (!seenParents.has(key)) {
-        seenParents.add(key);
-        primarySteps.push(s);
-      } else {
-        if (!siblingSteps[key]) siblingSteps[key] = [];
-        siblingSteps[key].push(s);
-      }
-    });
+    if (currentStage === 1) {
+      // Stage 1: ALL steps form a single chronological chain, no siblings
+      displaySteps.forEach(s => primarySteps.push(s));
+    } else if (currentStage === 2) {
+      // Stage 2 (Split-Prozess): originals are primary, splits group by split_from_id
+      displaySteps.forEach(s => {
+        if (s.split_from_id) {
+          // Split → sibling of its origin (grouped under origin's ID)
+          if (!siblingSteps[s.split_from_id]) siblingSteps[s.split_from_id] = [];
+          siblingSteps[s.split_from_id].push(s);
+        } else {
+          primarySteps.push(s);
+        }
+      });
+    } else {
+      // Stage 2+: group by parent_id — first = primary, rest = siblings
+      const seenParents = new Set();
+      displaySteps.forEach(s => {
+        const key = s.parent_id ?? '__root__';
+        if (!seenParents.has(key)) {
+          seenParents.add(key);
+          primarySteps.push(s);
+        } else {
+          if (!siblingSteps[key]) siblingSteps[key] = [];
+          siblingSteps[key].push(s);
+        }
+      });
+    }
 
     // Create card items
     const items = [];
@@ -637,8 +767,10 @@
       const side = s.position === 'PRO' ? 'L' : 'R';
       const item = { el: card, step: s, side, index: i, height: h, siblings: [] };
 
-      // Siblings for this step's parent
-      const key = s.parent_id ?? '__root__';
+      // Siblings for this step
+      // Stage 2: splits grouped by split_from_id = this item's id
+      // Stage 3+: grouped by parent_id
+      const key = currentStage === 2 ? s.id : (s.parent_id ?? '__root__');
       const sibs = siblingSteps[key] || [];
       sibs.forEach(sib => {
         const sibCard = createCardEl(sib, true);
@@ -692,6 +824,8 @@
         sibItem.x = sibX;
         sibItem.y = sibCurY;
         sibItem.edgeX = sibItem.side === 'L' ? sibX + CARD_W : sibX;
+        sibItem.topY = sibCurY;
+        sibItem.botY = sibCurY + sibItem.height;
 
         sibCurY += sibItem.height + 4;
       });
@@ -716,36 +850,55 @@
       `<rect x="${CX}" y="0" width="${CX}" height="${totalHeight}" fill="${CON_C}" opacity="0.04"/>` +
       `<line x1="${CX}" y1="${topicBottom}" x2="${CX}" y2="${totalHeight - 30}" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>`;
 
-    // Build item-by-id map for connection lookups
+    // Build item-by-id map for connection lookups (primaries only)
     const itemById = {};
     items.forEach(item => { itemById[item.step.id] = item; });
+
+    // Comprehensive lookup including siblings (for Stage 2 split-to-split connections)
+    const allItemById = {};
+    items.forEach(item => {
+      allItemById[item.step.id] = item;
+      item.siblings.forEach(sib => { allItemById[sib.step.id] = sib; });
+    });
 
     items.forEach((item, idx) => {
       const color = item.side === 'L' ? PRO_C : CON_C;
       const toX = item.edgeX;
       const toY = item.topY + 8;
 
-      // Find source: parent_id
+      // Stage 1: connect to PREVIOUS card (simple zigzag chain)
+      // Stage 2+: connect to parent_id (structural reference)
       let srcItem = null;
-      if (item.step.parent_id && itemById[item.step.parent_id]) {
-        srcItem = itemById[item.step.parent_id];
+      if (currentStage === 1) {
+        srcItem = idx > 0 ? items[idx - 1] : null;
+      } else {
+        if (item.step.parent_id && itemById[item.step.parent_id]) {
+          srcItem = itemById[item.step.parent_id];
+        }
       }
       const fromX = srcItem ? srcItem.edgeX : CX;
       const fromY = srcItem ? (srcItem.botY - 4) : topicBottom;
       item.srcItem = srcItem;
+
+      // Stage 2: raw connections (between stage_added=1 items) are thicker and dimmer
+      // to represent proportionally more consolidated information
+      const isRawConn = currentStage === 2 && item.step.stage_added === 1
+        && (!srcItem || srcItem.step.stage_added === 1);
+      const lineWidth = isRawConn ? 4 : 2;
+      const lineOpacity = isRawConn ? 0.18 : 0.4;
 
       // Main line
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('x1', fromX); line.setAttribute('y1', fromY);
       line.setAttribute('x2', toX); line.setAttribute('y2', toY);
       line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', '2');
-      line.setAttribute('stroke-opacity', '0.4');
+      line.setAttribute('stroke-width', String(lineWidth));
+      line.setAttribute('stroke-opacity', String(lineOpacity));
       svg.appendChild(line);
       item.mainLine = line;
 
-      // Edge type marker
-      const et = item.step.edge_type && EDGE_TYPES[item.step.edge_type];
+      // Edge type marker (only stages 3+, clean stages have no edge annotations)
+      const et = currentStage >= 4 && item.step.edge_type && EDGE_TYPES[item.step.edge_type];
       if (et) {
         const eMidX = (fromX + toX) / 2;
         const eMidY = (fromY + toY) / 2;
@@ -761,31 +914,145 @@
         marker.addEventListener('click', (ev) => { ev.stopPropagation(); marker.classList.toggle('collapsed'); });
       }
 
-      // Sibling lines
+      // Sibling lines — branch FROM the primary card's edge, not the connection midpoint.
+      // Splits are attached to their base argument, not to the connection between arguments.
+      // Stage 2: sibling lines become "Ursprungs-Argument" connections (neutral grey),
+      // attaching slightly lower on the origin card to distinguish from parent connections.
       if (item.siblings.length > 0) {
-        const sibColor = item.side === 'L' ? PRO_C : CON_C;
-        const dockX = (fromX + toX) / 2;
-        const dockY = (fromY + toY) / 2;
+        const defaultSibColor = item.side === 'L' ? PRO_C : CON_C;
+        // Dock point = bottom of the primary card (where splits branch off)
+        const dockX = item.edgeX;
+        // Stage 2: attach a bit lower than parent connections (botY instead of botY-4)
+        const dockY = (currentStage === 2) ? item.botY + 2 : item.botY;
 
         item.siblings.forEach((sibItem) => {
           const sibToX = sibItem.edgeX;
           const sibToY = sibItem.y + 8;
-
-          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          dot.setAttribute('cx', dockX); dot.setAttribute('cy', dockY);
-          dot.setAttribute('r', '3'); dot.setAttribute('fill', sibColor); dot.setAttribute('opacity', '0.6');
-          svg.appendChild(dot);
-
-          const sibLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          sibLine.setAttribute('x1', dockX); sibLine.setAttribute('y1', dockY);
-          sibLine.setAttribute('x2', sibToX); sibLine.setAttribute('y2', sibToY);
-          sibLine.setAttribute('stroke', sibColor);
-          sibLine.setAttribute('stroke-width', '2'); sibLine.setAttribute('stroke-opacity', '0.4');
-          svg.appendChild(sibLine);
-          sibItem.line = sibLine;
+          // Stage 2 + split: neutral grey = Ursprungs-Argument connection
+          const sibColor = (currentStage === 2 && sibItem.step.split_from_id)
+            ? '#8b949e'
+            : defaultSibColor;
+          // Curved dashed path: base card → sibling card
+          const cx1 = dockX, cy1 = (dockY + sibToY) / 2;
+          const cx2 = sibToX, cy2 = (dockY + sibToY) / 2;
+          const sibPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          sibPath.setAttribute('d', `M${dockX},${dockY} C${cx1},${cy1} ${cx2},${cy2} ${sibToX},${sibToY}`);
+          sibPath.setAttribute('stroke', sibColor);
+          sibPath.setAttribute('stroke-width', '1.5');
+          sibPath.setAttribute('stroke-opacity', (currentStage === 2 && sibItem.step.split_from_id) ? '0.45' : '0.35');
+          sibPath.setAttribute('stroke-dasharray', '5,3');
+          sibPath.setAttribute('fill', 'none');
+          svg.appendChild(sibPath);
+          sibItem.line = sibPath;
         });
       }
     });
+
+    // ── Stage 2: Blue chronological flow + split-to-split connections ──────────
+    // Four connection types in Stage 2:
+    //   1. Raw chain (thick, dimmed) — handled above in main lines
+    //   2. Ursprungs-Argument (grey dashed) — handled above in sibling lines
+    //   3. Blue chronological flow: curvy path through card CENTERS (not edges)
+    //      Topic → R1 → L2.1 → L2.2 → R3.1 → R3.2 → L4.1 → ...
+    //      Semantically separated from argument connections by running through midpoints.
+    //   4. Split-to-split: bright green/red STRAIGHT lines — specific connections via parent_id
+    // TODO: post-dev — smooth branching from chronological line to source argument in split view
+    const stage2ExtraLines = [];
+    if (currentStage === 2) {
+      // ─ 3. Blue chronological flow (curvy, through card centers) ─
+      // Build the unfolded sequence: for each stage-1 original, substitute with its splits (if any)
+      const originals = items.filter(it => it.step.stage_added === 1);
+      const chronoSequence = []; // array of item refs (from allItemById)
+      originals.forEach(orig => {
+        if (orig.siblings.length > 0 && orig.siblings.some(s => s.step.split_from_id)) {
+          // Has splits → insert splits in order (they are already ordered from API)
+          orig.siblings.forEach(sib => {
+            if (sib.step.split_from_id) chronoSequence.push(sib);
+          });
+        } else {
+          // No splits → keep original in sequence
+          chronoSequence.push(orig);
+        }
+      });
+
+      // Helper: get card center X/Y for the blue flow line
+      function cardMidX(it) {
+        return (it.x != null ? it.x : 0) + CARD_W / 2;
+      }
+      function cardMidY(it) {
+        const top = it.topY != null ? it.topY : it.y;
+        const h = it.height || 40;
+        return top + h / 2;
+      }
+
+      const TOPIC_BLUE = '#1f6feb';
+      for (let i = 0; i < chronoSequence.length; i++) {
+        const target = chronoSequence[i];
+        const tMX = cardMidX(target);
+        const tMY = cardMidY(target);
+        let fMX, fMY;
+        if (i === 0) {
+          fMX = CX;
+          fMY = topicBottom;
+        } else {
+          const src = chronoSequence[i - 1];
+          fMX = cardMidX(src);
+          fMY = cardMidY(src);
+        }
+        // Curvy S-curve through card centers — gives a sense of flow
+        const cpY1 = fMY + (tMY - fMY) * 0.4;
+        const cpY2 = fMY + (tMY - fMY) * 0.6;
+        const bLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        bLine.setAttribute('d', `M${fMX},${fMY} C${fMX},${cpY1} ${tMX},${cpY2} ${tMX},${tMY}`);
+        bLine.setAttribute('stroke', TOPIC_BLUE);
+        bLine.setAttribute('stroke-width', '2.5');
+        bLine.setAttribute('stroke-opacity', '0.45');
+        bLine.setAttribute('fill', 'none');
+        svg.appendChild(bLine);
+        stage2ExtraLines.push({
+          el: bLine, type: 'chrono',
+          srcItem: i > 0 ? chronoSequence[i - 1] : null,
+          tgtItem: target,
+        });
+      }
+
+      // ─ 4. Split-to-split connections (bright green/red, straight) ─
+      // Each split's parent_id points to the specific opponent split it responds to.
+      // Drawn as bright, straight lines — the core argumentative connections.
+      const allSplits = [];
+      items.forEach(it => {
+        it.siblings.forEach(sib => {
+          if (sib.step.stage_added === 2 && sib.step.parent_id) allSplits.push(sib);
+        });
+      });
+
+      allSplits.forEach(splitItem => {
+        const targetItem = allItemById[splitItem.step.parent_id];
+        if (!targetItem) return;
+        // Draw connection to parent_id target — whether it's a split or an unsplit original.
+        // Example: L2.1 responds to R1 (unsplit), R3.1 responds to L2.1 (split).
+
+        const color = splitItem.side === 'L' ? PRO_C : CON_C;
+        const fX = targetItem.edgeX != null ? targetItem.edgeX : (targetItem.side === 'L' ? targetItem.x + CARD_W : targetItem.x);
+        const fY = (targetItem.botY != null ? targetItem.botY : (targetItem.y + (targetItem.height || 40))) - 4;
+        const tX = splitItem.edgeX != null ? splitItem.edgeX : (splitItem.side === 'L' ? splitItem.x + CARD_W : splitItem.x);
+        const tY = (splitItem.topY != null ? splitItem.topY : splitItem.y) + 8;
+
+        // Straight line — bright, clear argumentative connection
+        const sLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        sLine.setAttribute('x1', fX); sLine.setAttribute('y1', fY);
+        sLine.setAttribute('x2', tX); sLine.setAttribute('y2', tY);
+        sLine.setAttribute('stroke', color);
+        sLine.setAttribute('stroke-width', '2');
+        sLine.setAttribute('stroke-opacity', '0.6');
+        svg.appendChild(sLine);
+        stage2ExtraLines.push({
+          el: sLine, type: 'split',
+          srcItem: targetItem,
+          tgtItem: splitItem,
+        });
+      });
+    }
 
     // Dead end pill
     const deY = currentY + 6;
@@ -802,7 +1069,7 @@
     svg.setAttribute('height', finalH);
     svg.setAttribute('viewBox', `0 0 ${W} ${finalH}`);
 
-    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono' };
+    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, stage2ExtraLines };
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1136,6 +1403,9 @@
         const sibH = sibItem.el.getBoundingClientRect().height;
         sibItem.el.style.top = sibCurY + 'px';
         sibItem.y = sibCurY;
+        sibItem.topY = sibCurY;
+        sibItem.botY = sibCurY + sibH;
+        sibItem.height = sibH;
         sibCurY += sibH + 4;
       });
 
@@ -1170,12 +1440,10 @@
 
   function updateDragLines() {
     if (!renderState || renderState.mode !== 'chrono') return;
-    const { items, CX, topicBottom, CARD_W } = renderState;
-    const itemById = {};
-    items.forEach(item => { itemById[item.step.id] = item; });
+    const { items, CX, topicBottom, CARD_W, stage2ExtraLines } = renderState;
 
+    // Recalculate positions for ALL items (primary + siblings)
     items.forEach((item) => {
-      // Recalculate positions from current DOM
       const curLeft = parseFloat(item.el.style.left);
       const curTop = parseFloat(item.el.style.top);
       const curH = item.el.getBoundingClientRect().height;
@@ -1183,9 +1451,24 @@
       item.y = curTop;
       item.topY = curTop;
       item.botY = curTop + curH;
+      item.height = curH;
       item.edgeX = item.side === 'L' ? curLeft + CARD_W : curLeft;
 
-      // Update main line end point (this card is the target)
+      item.siblings.forEach((sibItem) => {
+        const sibLeft = parseFloat(sibItem.el.style.left);
+        const sibTop = parseFloat(sibItem.el.style.top);
+        const sibH = sibItem.el.getBoundingClientRect().height;
+        sibItem.x = sibLeft;
+        sibItem.y = sibTop;
+        sibItem.topY = sibTop;
+        sibItem.botY = sibTop + sibH;
+        sibItem.height = sibH;
+        sibItem.edgeX = sibItem.side === 'L' ? sibLeft + CARD_W : sibLeft;
+      });
+    });
+
+    // Update main lines (primary → srcItem or Topic)
+    items.forEach((item) => {
       const srcItem = item.srcItem;
       const fromX = srcItem ? srcItem.edgeX : CX;
       const fromY = srcItem ? (srcItem.botY - 4) : topicBottom;
@@ -1199,33 +1482,63 @@
         item.mainLine.setAttribute('y2', toY);
       }
 
-      // Update marker position
       if (item.markerEl) {
         item.markerEl.style.left = ((fromX + toX) / 2) + 'px';
         item.markerEl.style.top = ((fromY + toY) / 2) + 'px';
       }
 
-      // Update sibling lines
+      // Update sibling lines — dock at card bottom (Ursprungs-Argument connections)
       if (item.siblings.length > 0) {
-        const dockX = (fromX + toX) / 2;
-        const dockY = (fromY + toY) / 2;
+        const dockX = item.edgeX;
+        const dockY = (currentStage === 2) ? item.botY + 2 : item.botY;
 
         item.siblings.forEach((sibItem) => {
-          const sibLeft = parseFloat(sibItem.el.style.left);
-          const sibTop = parseFloat(sibItem.el.style.top);
-          sibItem.x = sibLeft;
-          sibItem.y = sibTop;
-          sibItem.edgeX = sibItem.side === 'L' ? sibLeft + CARD_W : sibLeft;
-
           if (sibItem.line) {
-            sibItem.line.setAttribute('x1', dockX);
-            sibItem.line.setAttribute('y1', dockY);
-            sibItem.line.setAttribute('x2', sibItem.edgeX);
-            sibItem.line.setAttribute('y2', sibTop + 8);
+            const sibToX = sibItem.edgeX;
+            const sibToY = sibItem.topY + 8;
+            const cx1 = dockX, cy1 = (dockY + sibToY) / 2;
+            const cx2 = sibToX, cy2 = (dockY + sibToY) / 2;
+            sibItem.line.setAttribute('d', `M${dockX},${dockY} C${cx1},${cy1} ${cx2},${cy2} ${sibToX},${sibToY}`);
           }
         });
       }
     });
+
+    // Update Stage 2 extra lines (chronological flow + split-to-split)
+    if (stage2ExtraLines && stage2ExtraLines.length > 0) {
+      stage2ExtraLines.forEach(conn => {
+        const src = conn.srcItem;
+        const tgt = conn.tgtItem;
+        if (!tgt) return;
+
+        if (conn.type === 'chrono') {
+          // Blue flow: curvy path through card centers
+          const tMX = tgt.x + CARD_W / 2;
+          const tMY = tgt.topY + (tgt.height || 40) / 2;
+          let fMX, fMY;
+          if (!src) {
+            fMX = CX;
+            fMY = topicBottom;
+          } else {
+            fMX = src.x + CARD_W / 2;
+            fMY = src.topY + (src.height || 40) / 2;
+          }
+          const cpY1 = fMY + (tMY - fMY) * 0.4;
+          const cpY2 = fMY + (tMY - fMY) * 0.6;
+          conn.el.setAttribute('d', `M${fMX},${fMY} C${fMX},${cpY1} ${tMX},${cpY2} ${tMX},${tMY}`);
+        } else if (conn.type === 'split') {
+          // Split-to-split: straight line
+          const fX = src.edgeX;
+          const fY = src.botY - 4;
+          const tX = tgt.edgeX;
+          const tY = tgt.topY + 8;
+          conn.el.setAttribute('x1', fX);
+          conn.el.setAttribute('y1', fY);
+          conn.el.setAttribute('x2', tX);
+          conn.el.setAttribute('y2', tY);
+        }
+      });
+    }
   }
 
   if (DRAG_ENABLED) {
@@ -1263,6 +1576,7 @@
 
   // ── Init ───────────────────────────────────────
   (async () => {
+    updateStageDescription();
     await loadUsers();
     await loadTopics();
   })();

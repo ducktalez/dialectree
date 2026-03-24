@@ -140,6 +140,23 @@ with a count badge ("12 discussions hit this point").
 
 ---
 
+## Stage 3: Dual Connection Types
+
+In Stage 3 (Verfeinerung), two distinct connection types coexist. They serve different purposes and must be visually distinguishable:
+
+| Connection type | Purpose | Visual style | Dock position |
+|-----------------|---------|--------------|---------------|
+| **Chronological flow** | Traces the temporal sequence of the discussion — "who spoke when" | Dashed, flowing curve, colored by discussion topic | Center of card (top/bottom) |
+| **Logical reference** | Shows which (sub-)argument addresses which other — "what responds to what" | Solid, straight line, green (PRO) / red (CONTRA) | Side of card (left/right) |
+
+This separation allows the reader to independently follow:
+1. The **discussion timeline** (how the conversation actually unfolded)
+2. The **logical structure** (which argument refutes or supports which)
+
+Central docking for chronological connections and side docking for logical references is the recommended approach to maximize visual distinction.
+
+---
+
 ## Design Principles for Visualization
 
 1. **Greyed-out alternatives** show what arguments were *available* but not

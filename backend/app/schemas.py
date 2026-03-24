@@ -368,9 +368,14 @@ class ZigzagResponse(BaseModel):
 
 
 class TranscriptResponse(BaseModel):
-    """Response for GET /api/topics/{id}/transcript (Stage 0)."""
+    """Response for GET and PUT /api/topics/{id}/transcript (Stage 0)."""
     topic_id: int
     topic_title: str
     transcript_yaml: Optional[str]
+
+
+class TranscriptUpdate(BaseModel):
+    """Request body for PUT /api/topics/{id}/transcript (Stage 0)."""
+    transcript_yaml: Optional[str] = None
 
 
