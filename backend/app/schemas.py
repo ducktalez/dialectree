@@ -131,6 +131,11 @@ class ArgumentGroupUpdate(BaseModel):
     description: Optional[str] = None
 
 
+class ArgumentGroupMerge(BaseModel):
+    """Request body for POST /api/argument-groups/{id}/merge."""
+    argument_node_ids: list[int]
+
+
 # ── Vote ───────────────────────────────────────────────────────────────
 
 class VoteCreate(BaseModel):

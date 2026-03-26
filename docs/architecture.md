@@ -12,7 +12,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **models.py** – all SQLAlchemy models and enums (single file).
 - **schemas.py** – all Pydantic request/response schemas (single file).
 - **seed.py** – example data: two topics ("Sind Quotenregelungen rassistisch?" + "🔧 Blueprint: Quotenrassismus-Diskussion"), runnable via `python -m app.seed`. Both topics demonstrate full zigzag features: branching, edge attacks, sibling alternatives, conflict zones.
-- **routers/** – one file per resource: `users`, `topics`, `arguments`, `votes`, `tags`, `comments`, `evidence`, `labels`.
+- **routers/** – one file per resource: `users`, `topics`, `arguments`, `votes`, `tags`, `comments`, `evidence`, `labels`, `argument_groups` (incl. merge/unmerge), `definition_forks`, `multi_node_patterns`.
 
 ## Static UI (`backend/app/static/`)
 - **zickzack.html** – API-backed zig-zag view with chronological layout, interactive input (add arguments, vote, comment), served at `/` and `/zickzack`. Fan/Fächer mode is implemented but commented out (`# TODO: post-dev`).
@@ -23,9 +23,18 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **rauchen.html** – archived snapshot (route removed).
 
 ## Frontend (`frontend/src/`)
-- **App.tsx** – topic list, tree view selection.
-- **components/ArgumentTree.tsx** – React Flow visualisation of the nested tree.
+- **App.tsx** – topic list, tree view selection, dark theme.
+- **components/ArgumentTree.tsx** – React Flow tree visualisation with all Phase 0.1–0.8 features:
+  - Gradient border colour from `position_score` (red → grey → green)
+  - Ⓕ/Ⓥ/Ⓜ badges for `statement_type`
+  - Argument anatomy display (💬 claim, 📐 reason, 📋 example, ➡ implication)
+  - Tags grouped by `category` with origin icon (👤/🛡️/🤖)
+  - Label badges (⚠ FALLACY, SPAM, etc.)
+  - Evidence & comment counts
+  - Hidden nodes: greyed-out, half-opacity, with "Show hidden" toggle
+  - `opens_conflict` badges for sub-discussion markers
 - **api.ts** – fetch wrappers for `/api` endpoints.
+- **types.ts** – full TypeScript types matching backend schemas (anatomy, statement_type, position_score, visibility, tags, labels).
 - Vite proxies `/api` → `http://localhost:8000`.
 
 ## Data flow

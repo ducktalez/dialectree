@@ -101,3 +101,107 @@ class TestArgumentGroups:
         assert resp.status_code == 200
         assert resp.json()["argument_group_id"] is None
 
+    def test_merge_arguments(self, client, sample_user, sample_topic):
+        """Merge two arguments into a group."""
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Merge group",
+        }).json()
+        a1 = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": sample_topic["id"], "title": "Arg1", "position": "PRO",
+        }).json()
+        a2 = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": sample_topic["id"], "title": "Arg2", "position": "PRO",
+        }).json()
+        resp = client.post(f"/api/argument-groups/{group['id']}/merge", json={
+            "argument_node_ids": [a1["id"], a2["id"]],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["merged"] == 2
+        assert data["group_id"] == group["id"]
+        # Verify both arguments are in the group
+        assert client.get(f"/api/arguments/{a1['id']}").json()["argument_group_id"] == group["id"]
+        assert client.get(f"/api/arguments/{a2['id']}").json()["argument_group_id"] == group["id"]
+
+    def test_merge_group_not_found(self, client):
+        resp = client.post("/api/argument-groups/9999/merge", json={
+            "argument_node_ids": [1],
+        })
+        assert resp.status_code == 404
+
+    def test_merge_node_not_found(self, client, sample_topic):
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Group",
+        }).json()
+        resp = client.post(f"/api/argument-groups/{group['id']}/merge", json={
+            "argument_node_ids": [9999],
+        })
+        assert resp.status_code == 404
+
+    def test_merge_node_wrong_topic(self, client, sample_user, sample_topic):
+        """Nodes must belong to the same topic as the group."""
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Group",
+        }).json()
+        other_topic = client.post(f"/api/topics/?user_id={sample_user['id']}", json={
+            "title": "Other topic",
+        }).json()
+        arg = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": other_topic["id"], "title": "Wrong topic", "position": "PRO",
+        }).json()
+        resp = client.post(f"/api/argument-groups/{group['id']}/merge", json={
+            "argument_node_ids": [arg["id"]],
+        })
+        assert resp.status_code == 400
+
+    def test_unmerge_argument(self, client, sample_user, sample_topic):
+        """Unmerge an argument from a group."""
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Unmerge group",
+        }).json()
+        arg = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": sample_topic["id"], "title": "Grouped", "position": "PRO",
+            "argument_group_id": group["id"],
+        }).json()
+        resp = client.post(f"/api/argument-groups/{group['id']}/unmerge/{arg['id']}")
+        assert resp.status_code == 200
+        assert resp.json()["unmerged"] == arg["id"]
+        # Verify argument is no longer in the group
+        assert client.get(f"/api/arguments/{arg['id']}").json()["argument_group_id"] is None
+
+    def test_unmerge_group_not_found(self, client):
+        resp = client.post("/api/argument-groups/9999/unmerge/1")
+        assert resp.status_code == 404
+
+    def test_unmerge_node_not_found(self, client, sample_topic):
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Group",
+        }).json()
+        resp = client.post(f"/api/argument-groups/{group['id']}/unmerge/9999")
+        assert resp.status_code == 404
+
+    def test_unmerge_node_not_in_group(self, client, sample_user, sample_topic):
+        """Cannot unmerge a node that isn't in this group."""
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Group",
+        }).json()
+        arg = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": sample_topic["id"], "title": "Not grouped", "position": "PRO",
+        }).json()
+        resp = client.post(f"/api/argument-groups/{group['id']}/unmerge/{arg['id']}")
+        assert resp.status_code == 400
+
+    def test_merge_then_verify_in_tree(self, client, sample_user, sample_topic):
+        """Merged arguments should show argument_group_id in the tree response."""
+        group = client.post("/api/argument-groups/", json={
+            "topic_id": sample_topic["id"], "canonical_title": "Tree group",
+        }).json()
+        a1 = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": sample_topic["id"], "title": "Grouped arg", "position": "PRO",
+        }).json()
+        client.post(f"/api/argument-groups/{group['id']}/merge", json={
+            "argument_node_ids": [a1["id"]],
+        })
+        tree = client.get(f"/api/topics/{sample_topic['id']}/tree").json()
+        assert any(node["argument_group_id"] == group["id"] for node in tree)
+

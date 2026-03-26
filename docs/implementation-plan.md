@@ -35,6 +35,9 @@ not yet locked in. Each is listed with the current default and the trade-off.
 
 ### Completion Status
 
+> **Phase 0 is complete.** All core features are implemented, tested, and documented.
+> Next steps: Phase 1 (security/infrastructure) or Phase 2 (advanced features).
+
 | Step | Feature | Status |
 |------|---------|--------|
 | 0.1 | Argument Anatomy | ✅ Done |
@@ -45,8 +48,8 @@ not yet locked in. Each is listed with the current default and the trade-off.
 | 0.6 | Statement Type | ✅ Done |
 | 0.7 | Continuous Position Score | ✅ Done |
 | 0.8 | Migration Seed Topic | ✅ Done |
-| 0.9 | Frontend Rich Tree View | ⬜ Next |
-| 0.10 | ArgumentGroup Workflow | ⬜ Pending |
+| 0.9 | Frontend Rich Tree View | ✅ Done |
+| 0.10 | ArgumentGroup Workflow | ✅ Done |
 
 The features below are ordered so each step **builds on the previous one**. Each step
 follows a two-stage approach:
