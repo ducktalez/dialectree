@@ -475,11 +475,268 @@ def seed():
         created_by=alice.id,
     ))
 
+    # ══════════════════════════════════════════════════════════════════
+    #  TOPIC 3: Migration – "Deutschland sollte mehr Migranten aufnehmen"
+    #
+    #  Demonstriert das volle Phase-0-Feature-Set:
+    #   - Argument-Anatomie (claim/reason/example/implication) auf allen Nodes
+    #   - statement_type (POSITIVE / NORMATIVE) auf jedem Argument
+    #   - Tags mit verschiedenen Kategorien und Ursprüngen (USER/AI/MODERATOR)
+    #   - Evidence: STUDY, LAW, ANECDOTE, EXPERT_OPINION
+    #   - Labels: FALLACY, MISSING_EVIDENCE, OFF_TOPIC
+    #   - Ein Argument versteckt (visibility=VOTED_DOWN)
+    #   - Ein ArgumentGroup (wirtschaftliche Argumente gebündelt)
+    # ══════════════════════════════════════════════════════════════════
+
+    topic3 = Topic(
+        title="Deutschland sollte mehr Migranten aufnehmen",
+        description="Soll Deutschland die Zuwanderung erhöhen? "
+                    "Wirtschaftliche, humanitäre und gesellschaftliche Argumente im Vergleich.",
+        created_by=alice.id,
+    )
+    db.add(topic3)
+    db.flush()
+
+    # ArgumentGroup: wirtschaftliche Argumente gebündelt
+    eco_group = ArgumentGroup(
+        topic_id=topic3.id,
+        canonical_title="Wirtschaftliche Argumente",
+        description="Argumente rund um den wirtschaftlichen Effekt von Migration "
+                    "(Fachkräftemangel, Lohndruck, Sozialleistungen, BIP).",
+    )
+    db.add(eco_group)
+    db.flush()
+
+    # ── PRO 1: Fachkräftemangel ───────────────────────────────────
+    m_pro1 = ArgumentNode(
+        topic_id=topic3.id,
+        title="Fachkräftemangel – Deutschland braucht qualifizierte Zuwanderung",
+        description="Ohne Zuwanderung schrumpft die Erwerbsbevölkerung. "
+                    "Der Fachkräftemangel kostet Wachstum und gefährdet die Sozialsysteme.",
+        position=Position.PRO,
+        statement_type=StatementType.POSITIVE,
+        claim="Deutschland hat einen strukturellen Fachkräftemangel, der ohne Zuwanderung nicht lösbar ist.",
+        reason="Die Bevölkerung altert; bis 2035 fehlen laut Bundesagentur für Arbeit über 7 Millionen Arbeitskräfte.",
+        example="Pflegebranche, IT-Sektor und Handwerk sind bereits heute kaum besetzbar.",
+        implication="Gezielte Zuwanderung von Fachkräften ist wirtschaftlich notwendig.",
+        argument_group_id=eco_group.id,
+        created_by=alice.id,
+    )
+    db.add(m_pro1)
+    db.flush()
+
+    # ── PRO 2: Humanitäre Pflicht / Asylrecht ────────────────────
+    m_pro2 = ArgumentNode(
+        topic_id=topic3.id, parent_id=m_pro1.id,
+        title="Asylrecht – Deutschland hat eine humanitäre Aufnahmepflicht",
+        description="Art. 16a GG garantiert das Recht auf Asyl. "
+                    "Flucht vor Krieg und Verfolgung begründet eine Aufnahmepflicht.",
+        position=Position.PRO,
+        statement_type=StatementType.NORMATIVE,
+        claim="Deutschland hat eine rechtliche und moralische Pflicht, schutzbedürftige Menschen aufzunehmen.",
+        reason="Art. 16a GG und die Genfer Flüchtlingskonvention begründen diese Pflicht völkerrechtlich.",
+        example="2015/16 wurden über 1 Mio. Schutzsuchende aufgenommen — die Gesellschaft hat funktioniert.",
+        implication="Abschottungspolitik verstößt gegen Völkerrecht und Grundgesetz.",
+        created_by=alice.id,
+    )
+    db.add(m_pro2)
+    db.flush()
+
+    # ── CONTRA 1: Lohndruck im Niedriglohnsektor ──────────────────
+    m_con1 = ArgumentNode(
+        topic_id=topic3.id, parent_id=m_pro1.id,
+        title="Zuwanderung erhöht Konkurrenz und Lohndruck im Niedriglohnsektor",
+        description="Mehr Arbeitskräfte drücken Löhne im Niedriglohnbereich "
+                    "und verdrängen einheimische Geringverdiener.",
+        position=Position.CONTRA,
+        statement_type=StatementType.POSITIVE,
+        claim="Massenhafte Zuwanderung schadet Geringverdienern durch sinkende Löhne.",
+        reason="Angebot und Nachfrage: Mehr Arbeitskräfte → niedrigere Löhne im Wettbewerbssegment.",
+        example="Im Baugewerbe sind Reallöhne seit den 1990ern gesunken, parallel zur Zuwanderung aus Osteuropa.",
+        implication="Zuwanderung sollte auf nachgewiesenen Qualifikationsbedarf beschränkt werden.",
+        argument_group_id=eco_group.id,
+        created_by=bob.id,
+    )
+    db.add(m_con1)
+    db.flush()
+
+    # ── CONTRA 2: Sozialleistungsbelastung ────────────────────────
+    m_con2 = ArgumentNode(
+        topic_id=topic3.id, parent_id=m_pro2.id,
+        title="Zuwanderung belastet das Sozialleistungssystem überproportional",
+        description="Viele Zuwanderer beziehen Transferleistungen über Jahre, "
+                    "was die Sozialkassen strukturell überfordert.",
+        position=Position.CONTRA,
+        statement_type=StatementType.POSITIVE,
+        claim="Mehr Zuwanderer bedeuten dauerhaft mehr Ausgaben für Sozialleistungen.",
+        reason="Ein Großteil der Asylbewerber hat keinen sofortigen Zugang zum Arbeitsmarkt.",
+        example="Laut IAB-Studie 2023 sind 5 Jahre nach Einreise noch ca. 40 % der Geflüchteten nicht erwerbstätig.",
+        implication="Unkontrollierte Zuwanderung ist fiskalisch nicht nachhaltig.",
+        argument_group_id=eco_group.id,
+        created_by=bob.id,
+    )
+    db.add(m_con2)
+    db.flush()
+
+    # ── NEUTRAL: Metadiskussion – Integration als eigentliche Frage
+    m_neu = ArgumentNode(
+        topic_id=topic3.id, parent_id=m_con2.id,
+        title="Die eigentliche Frage ist Integration, nicht Zuwanderungsmenge",
+        description="Die quantitative Zuwanderungsdebatte lenkt vom eigentlichen Problem ab: "
+                    "fehlende Integrationspolitik.",
+        position=Position.NEUTRAL,
+        statement_type=StatementType.NORMATIVE,
+        claim="Die Debatte über Zuwanderungszahlen verfehlt das Kernproblem.",
+        reason="Selbst geringe Zuwanderung ist problematisch ohne Sprach- und Bildungsprogramme.",
+        implication="Vor einem Mehr oder Weniger müssen Integrationsinstitutionen gestärkt werden.",
+        edge_type=EdgeType.REFRAME,
+        created_by=charlie.id,
+    )
+    db.add(m_neu)
+    db.flush()
+
+    # ── HIDDEN: Xenophober Slogan (community downvoted) ───────────
+    # Demonstriert visibility=VOTED_DOWN: Argument ist vorhanden aber ausgeblendet.
+    m_hidden = ArgumentNode(
+        topic_id=topic3.id, parent_id=m_con1.id,
+        title="Ausländer raus!",
+        description="Alle Ausländer sollen Deutschland verlassen.",
+        position=Position.CONTRA,
+        statement_type=StatementType.NORMATIVE,
+        visibility=Visibility.VOTED_DOWN,
+        hidden_reason="Community downvoted: kein sachlicher Beitrag, xenophober Slogan ohne Argumentation.",
+        created_by=bob.id,
+    )
+    db.add(m_hidden)
+    db.flush()
+
+    # ── Evidence ──────────────────────────────────────────────────
+    db.add_all([
+        Evidence(
+            argument_node_id=m_pro1.id,
+            evidence_type=EvidenceType.STUDY,
+            title="Bundesagentur für Arbeit: Engpassanalyse Fachkräftemangel 2023",
+            url="https://www.arbeitsagentur.de/datei/engpassanalyse_ba014195.pdf",
+            quality_score=0.9,
+            created_by=alice.id,
+        ),
+        Evidence(
+            argument_node_id=m_pro2.id,
+            evidence_type=EvidenceType.LAW,
+            title="Artikel 16a Grundgesetz – Recht auf politisches Asyl",
+            url="https://www.gesetze-im-internet.de/gg/art_16a.html",
+            quality_score=0.95,
+            created_by=alice.id,
+        ),
+        Evidence(
+            argument_node_id=m_con2.id,
+            evidence_type=EvidenceType.STUDY,
+            title="IAB-Kurzbericht: Geflüchtete auf dem Arbeitsmarkt 2023",
+            url="https://www.iab.de/",
+            quality_score=0.88,
+            created_by=bob.id,
+        ),
+        Evidence(
+            argument_node_id=m_con1.id,
+            evidence_type=EvidenceType.EXPERT_OPINION,
+            title="Hans-Werner Sinn: Zuwanderung und Lohneffekte im Niedriglohnsektor",
+            description="Ökonom Sinn argumentiert, dass niedrig-qualifizierte Zuwanderung "
+                        "Reallöhne im Wettbewerbssegment drückt.",
+            quality_score=0.65,
+            created_by=bob.id,
+        ),
+        Evidence(
+            argument_node_id=m_neu.id,
+            evidence_type=EvidenceType.ANECDOTE,
+            title="Erfahrungsbericht: Integrationskurs-Wartelisten 2022",
+            description="Viele Kommunen berichten von monatelangen Wartelisten für Deutschkurse — "
+                        "selbst bei voller Integrationsbereitschaft.",
+            quality_score=0.3,
+            created_by=charlie.id,
+        ),
+    ])
+
+    # ── Tags ──────────────────────────────────────────────────────
+    tag_economy = Tag(name="Wirtschaft", category=TagCategory.DOMAIN)
+    tag_human_rights = Tag(name="Menschenrechte", category=TagCategory.MORAL_FOUNDATION,
+                           moral_foundation=MoralFoundation.CARE)
+    tag_integration = Tag(name="Integration", category=TagCategory.DOMAIN)
+    tag_labor_market = Tag(name="Arbeitsmarkt", category=TagCategory.DOMAIN)
+    tag_law = Tag(name="Recht & Gesetz", category=TagCategory.MORAL_FOUNDATION,
+                  moral_foundation=MoralFoundation.AUTHORITY)
+    db.add_all([tag_economy, tag_human_rights, tag_integration, tag_labor_market, tag_law])
+    db.flush()
+
+    db.add_all([
+        ArgumentNodeTag(argument_node_id=m_pro1.id, tag_id=tag_economy.id, origin=TagOrigin.USER),
+        ArgumentNodeTag(argument_node_id=m_pro1.id, tag_id=tag_labor_market.id, origin=TagOrigin.AI),
+        ArgumentNodeTag(argument_node_id=m_pro2.id, tag_id=tag_human_rights.id, origin=TagOrigin.USER),
+        ArgumentNodeTag(argument_node_id=m_pro2.id, tag_id=tag_law.id, origin=TagOrigin.MODERATOR),
+        ArgumentNodeTag(argument_node_id=m_con1.id, tag_id=tag_labor_market.id, origin=TagOrigin.USER),
+        ArgumentNodeTag(argument_node_id=m_con1.id, tag_id=tag_economy.id, origin=TagOrigin.AI),
+        ArgumentNodeTag(argument_node_id=m_con2.id, tag_id=tag_economy.id, origin=TagOrigin.AI),
+        ArgumentNodeTag(argument_node_id=m_neu.id, tag_id=tag_integration.id, origin=TagOrigin.USER),
+    ])
+
+    # ── Labels ────────────────────────────────────────────────────
+    db.add_all([
+        # FALLACY: Korrelation ≠ Kausalität auf m_con2
+        NodeLabel(
+            argument_node_id=m_con2.id,
+            label_type=LabelType.FALLACY,
+            justification="Korrelation ist keine Kausalität: Nicht-Erwerbstätigkeit kann viele "
+                          "Ursachen haben (Sprachbarriere, Anerkennung, bürokratische Hürden).",
+            created_by=alice.id,
+        ),
+        # MISSING_EVIDENCE: Kausaler Beleg für Lohndruck fehlt bei m_con1
+        NodeLabel(
+            argument_node_id=m_con1.id,
+            label_type=LabelType.MISSING_EVIDENCE,
+            justification="Kausaler Zusammenhang zwischen Zuwanderung und Lohndrückung "
+                          "im deutschen Baugewerbe nicht direkt belegt.",
+            created_by=charlie.id,
+        ),
+        # OFF_TOPIC: Xenophober Slogan trägt nichts zur Diskussion bei
+        NodeLabel(
+            argument_node_id=m_hidden.id,
+            label_type=LabelType.OFF_TOPIC,
+            justification="Kein sachlicher Beitrag zur Diskussionsfrage.",
+            created_by=alice.id,
+        ),
+    ])
+
+    # ── Votes ─────────────────────────────────────────────────────
+    db.add_all([
+        Vote(user_id=alice.id, argument_node_id=m_pro1.id, value=1),
+        Vote(user_id=charlie.id, argument_node_id=m_pro1.id, value=1),
+        Vote(user_id=alice.id, argument_node_id=m_pro2.id, value=1),
+        Vote(user_id=bob.id, argument_node_id=m_con1.id, value=1),
+        Vote(user_id=charlie.id, argument_node_id=m_con1.id, value=-1),
+        Vote(user_id=bob.id, argument_node_id=m_con2.id, value=1),
+        Vote(user_id=alice.id, argument_node_id=m_con2.id, value=-1),
+        Vote(user_id=charlie.id, argument_node_id=m_neu.id, value=1),
+        Vote(user_id=alice.id, argument_node_id=m_hidden.id, value=-1),
+        Vote(user_id=charlie.id, argument_node_id=m_hidden.id, value=-1),
+    ])
+
+    # ── Comments ──────────────────────────────────────────────────
+    db.add_all([
+        Comment(argument_node_id=m_pro1.id, user_id=bob.id,
+                text="Gilt primär für hochqualifizierte Zuwanderung. Asylmigration folgt anderen Regeln."),
+        Comment(argument_node_id=m_pro2.id, user_id=bob.id,
+                text="Art. 16a GG ist durch den sicherer-Drittstaaten-Passus (§ 26a AsylG) stark eingeschränkt."),
+        Comment(argument_node_id=m_neu.id, user_id=alice.id,
+                text="Reframing-Argument: Verschiebt die Debatte auf die Meta-Ebene. Berechtigt, "
+                     "aber vermeidet die eigentliche Frage nicht."),
+    ])
+
     db.commit()
     t1_title = topic1.title
     t2_title = topic2.title
+    t3_title = topic3.title
     q_count = db.query(ArgumentNode).filter(ArgumentNode.topic_id == topic1.id).count()
     b_count = db.query(ArgumentNode).filter(ArgumentNode.topic_id == topic2.id).count()
+    m_count = db.query(ArgumentNode).filter(ArgumentNode.topic_id == topic3.id).count()
     b1_count = db.query(ArgumentNode).filter(
         ArgumentNode.topic_id == topic2.id, ArgumentNode.stage_added == 1
     ).count()
@@ -491,6 +748,8 @@ def seed():
     print(f"   Topic 1: '{t1_title}' with {q_count} argument nodes")
     print(f"   Topic 2: '{t2_title}' with {b_count} argument nodes "
           f"({b1_count} stage-1 basis, {b2_count} stage-2 splits)")
+    print(f"   Topic 3: '{t3_title}' with {m_count} argument nodes "
+          f"(Phase-0 full-feature demo: anatomy, visibility, labels, evidence, group)")
 
 
 if __name__ == "__main__":

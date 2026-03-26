@@ -236,43 +236,60 @@
 
     .stage-topbar { margin-bottom: 8px; }
     .stage-topbar .stage-description { margin-bottom: 0; }
-    .zz-frame {
-      background: #0d1117;
-      border-radius: 10px;
-      border: 1px solid #30363d;
-      overflow: hidden;
-    }
-    .legend-panel {
-      background: #161b22;
-      border-top: 1px solid #30363d;
-      padding: 7px 10px; font-size: 0.66rem; color: #8b949e;
-    }
+      .zz-frame {
+        position: relative;
+        background: #0d1117;
+        border-radius: 10px;
+        border: 1px solid #30363d;
+        overflow: hidden;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .legend-panel {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(22, 27, 34, 0.92);
+        border: 1px solid #30363d;
+        border-radius: 5px;
+        padding: 4px 8px;
+        font-size: 0.62rem;
+        color: #8b949e;
+        max-width: 280px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      }
     .legend-panel.hidden { display: none; }
-    .legend-title { font-size: 0.72rem; font-weight: 600; color: #c9d1d9; margin-bottom: 6px; }
-    .legend-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .legend-title { font-size: 0.62rem; font-weight: 600; color: #c9d1d9; margin-bottom: 3px; }
+    .legend-divider { font-size: 0.55rem; font-weight: 600; color: #484f58; margin-top: 5px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .legend-list { display: flex; flex-direction: column; gap: 2px; }
     .legend-item {
-      display: flex; align-items: flex-start; gap: 8px;
-      flex: 1 1 220px;
-      min-width: 0;
-      padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.04);
+      display: flex; align-items: center; gap: 6px;
+      padding: 1px 3px; border-radius: 3px; border: 1px solid rgba(255,255,255,.04);
+      transition: all .12s;
     }
     .legend-item.inactive { opacity: 0.45; }
     .legend-item.toggleable {
       cursor: pointer; background: #161b22; border-color: #30363d; transition: all .12s;
     }
     .legend-item.toggleable:hover { border-color: #58a6ff; color: #c9d1d9; }
-    .legend-item.toggleable.off { opacity: 0.65; }
-    .legend-item-main { flex: 1; }
-    .legend-item-label { display: block; font-weight: 600; color: #c9d1d9; }
-    .legend-item-desc { display: block; line-height: 1.35; }
-    .legend-toggle-label { font-size: 0.6rem; color: #58a6ff; white-space: nowrap; }
+    .legend-item.toggleable.off { opacity: 0.6; border-color: #30363d; color: #484f58; }
+    .legend-item.toggleable.off .legend-line { border-top-color: #484f58; }
+    .legend-item-main { flex: 1; display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+    .legend-item-label { font-weight: 600; color: #c9d1d9; white-space: nowrap; flex-shrink: 0; }
+    .legend-item-desc { display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #8b949e; flex: 1; min-width: 0; }
+    .legend-toggle-label { font-size: 0.55rem; color: #8b949e; white-space: nowrap; flex-shrink: 0; }
     .legend-line {
-      width: 28px; height: 0; margin-top: 8px; border-top: 2px solid #8b949e; flex-shrink: 0;
+      width: 20px; height: 0; border-top: 2px solid #8b949e; flex-shrink: 0;
     }
     .legend-line.raw { border-top-width: 4px; border-top-color: rgba(88,166,255,0.35); }
     .legend-line.origin { border-top: 2px dashed #8b949e; }
     .legend-line.chrono { border-top: 2px dashed #1f6feb; }
-    .legend-line.logical { border-top-color: #3fb950; box-shadow: 14px 0 0 0 #f85149; width: 14px; }
+    .legend-line.logical {
+      border: none;
+      height: 2px;
+      background: linear-gradient(to right, #3fb950 0%, #3fb950 50%, #f85149 50%, #f85149 100%);
+    }
 
     /* ── Transcript viewer / editor (Stage 0) ── */
     .transcript-edit {
@@ -321,11 +338,10 @@
   </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>⚡ Zickzack-Dialog</h1>
-    <p>Jedes Argument antwortet auf das vorherige — klick auf die Kante, um den Zusammenhang anzuzweifeln</p>
-  </div>
+  <header>
+    <div>
+      <h1>⚡ Zickzack-Dialog</h1>
+    </div>
   <nav>
     <div class="user-selector">
       <label for="user-select">👤</label>
@@ -400,6 +416,7 @@
   let currentData = null;
   let renderState = null;
   let showBlueChronoFlow = true;
+  let showOriginLines = true;
 
   // ── Stage descriptions: what THIS stage adds vs the previous ──
   const STAGE_DESCRIPTIONS = {
@@ -427,55 +444,76 @@
       return;
     }
 
-    const items = [
-      {
-        key: 'raw',
-        label: 'Roh-Kette',
-        desc: 'Reihenfolge der ursprünglichen Basisargumente.',
-        active: currentStage === 2,
-        lineClass: 'raw',
-      },
-      {
-        key: 'origin',
-        label: 'Ursprungs-Argument',
-        desc: 'Welchem Original ein Split entstammt.',
-        active: currentStage === 2,
-        lineClass: 'origin',
-      },
-      {
-        key: 'chrono',
-        label: 'Chronologischer Fluss',
-        desc: 'Gesprächsverlauf.',
-        active: true,
-        lineClass: 'chrono',
-        toggleable: true,
-      },
-      {
-        key: 'logical',
-        label: 'Logische Referenz',
-        desc: 'Worauf ein Argument inhaltlich antwortet.',
-        active: true,
-        lineClass: 'logical',
-      },
-    ];
+      const items = [
+        {
+          key: 'raw',
+          label: 'Roh-Kette',
+          desc: 'Ursprüngliche Reihenfolge',
+          active: currentStage === 2,
+          lineClass: 'raw',
+        },
+        {
+          key: 'logical',
+          label: 'Logische Referenz',
+          desc: 'Inhaltliche Antwort',
+          active: true,
+          lineClass: 'logical',
+        },
+      ];
 
-    panel.innerHTML = `
-      <div class="legend-title">Verbindungen</div>
-      <div class="legend-list">
-        ${items.map(item => `
-          <div class="legend-item ${item.active ? '' : 'inactive'} ${item.toggleable ? 'toggleable' : ''} ${item.key === 'chrono' && !showBlueChronoFlow ? 'off' : ''}" ${item.toggleable ? `data-legend-toggle="${item.key}"` : ''}>
-            <span class="legend-line ${item.lineClass}"></span>
-            <div class="legend-item-main">
-              <span class="legend-item-label">${item.label}</span>
-              <span class="legend-item-desc">${item.desc}</span>
+      const toggleItems = [
+        {
+          key: 'origin',
+          label: 'Ursprungs-Argument',
+          desc: 'Gehört zu Original',
+          active: currentStage === 2,
+          lineClass: 'origin',
+          toggleable: true,
+        },
+        {
+          key: 'chrono',
+          label: 'Chronologischer Fluss',
+          desc: 'Ablauf',
+          active: true,
+          lineClass: 'chrono',
+          toggleable: true,
+        },
+      ];
+
+      panel.innerHTML = `
+        <div class="legend-title">Verbindungen</div>
+        <div class="legend-list">
+          ${items.filter(i => i.active).map(item => `
+            <div style="cursor: default" class="legend-item">
+              <span class="legend-line ${item.lineClass}"></span>
+              <div class="legend-item-main">
+                <span class="legend-item-label">${item.label}</span>
+                <span class="legend-item-desc">- ${item.desc}</span>
+              </div>
             </div>
-            ${item.toggleable ? `<span class="legend-toggle-label">${showBlueChronoFlow ? 'aktiv' : 'aus'}</span>` : ''}
-          </div>
-        `).join('')}
-      </div>`;
+          `).join('')}
+        </div>
+        <div class="legend-divider">Abwählbar</div>
+        <div class="legend-list">
+          ${toggleItems.filter(i => i.active).map(item => `
+            <div style="cursor: pointer" class="legend-item toggleable ${(item.key === 'chrono' && !showBlueChronoFlow) || (item.key === 'origin' && !showOriginLines) ? 'off' : ''}" data-legend-toggle="${item.key}">
+              <span class="legend-line ${item.lineClass}"></span>
+              <div class="legend-item-main">
+                <span class="legend-item-label">${item.label}</span>
+                <span class="legend-item-desc">- ${item.desc}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
 
     panel.querySelector('[data-legend-toggle="chrono"]')?.addEventListener('click', () => {
       showBlueChronoFlow = !showBlueChronoFlow;
+      renderLegendPanel();
+      if (currentData && currentStage > 0 && currentStage < 4) render();
+    });
+
+    panel.querySelector('[data-legend-toggle="origin"]')?.addEventListener('click', () => {
+      showOriginLines = !showOriginLines;
       renderLegendPanel();
       if (currentData && currentStage > 0 && currentStage < 4) render();
     });
@@ -1117,7 +1155,8 @@
           sibPath.setAttribute('stroke-opacity', (currentStage === 2 && sibItem.step.split_from_id) ? '0.45' : '0.35');
           sibPath.setAttribute('stroke-dasharray', '5,3');
           sibPath.setAttribute('fill', 'none');
-          svg.appendChild(sibPath);
+          // Only add to SVG if showOriginLines is enabled
+          if (showOriginLines) svg.appendChild(sibPath);
           sibItem.line = sibPath;
         });
       }

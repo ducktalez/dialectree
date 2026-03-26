@@ -12,6 +12,13 @@ Similar arguments (same point, different wording) are grouped into a single bubb
 
 Unprocessed ideas parked here until they have a clear home in the docs.
 
+- Führe auch Video-Memes ein (Nützlich für Videoproduktion)
+  - Diese sind nicht so passend auf Stilmittel wie Memes. Sie machen aber Sachen lustiger wenn sie passen. Hier der Start einer Liste. 
+    - Haben wir noch Peps dabei? 
+    - "Das ist A richtig und B falsch" - Drachenlord (wenn )
+    - "Das ist wie das Schreddern von Küken" (Passt bei Berufsempörung)
+    - "Herr Wiiiiinkler, sind sie am arbeitnö?"
+- Form des Split-Kommentars, wo man einen Bereich im Text markiert. Dieser wird dann auch entsprechend eingefärbt auf den man verweisen kann. 
 - Ist diese Architektur auch für ein großes Paper-Netzwerk möglich? 
   - Also nicht nur für Diskussionen, sondern auch für die Analyse von Argumentationssträngen in wissenschaftlichen Papern, politischen Reden, etc.
   - Zumindest schon mal für die Darstellung als Baum. 

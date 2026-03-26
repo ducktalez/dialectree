@@ -44,8 +44,8 @@ not yet locked in. Each is listed with the current default and the trade-off.
 | 0.5 | Tag Origin & Meta-Categories | ✅ Done |
 | 0.6 | Statement Type | ✅ Done |
 | 0.7 | Continuous Position Score | ✅ Done |
-| 0.8 | Migration Seed Topic | ⬜ Next |
-| 0.9 | Frontend Rich Tree View | ⬜ Pending |
+| 0.8 | Migration Seed Topic | ✅ Done |
+| 0.9 | Frontend Rich Tree View | ⬜ Next |
 | 0.10 | ArgumentGroup Workflow | ⬜ Pending |
 
 The features below are ordered so each step **builds on the previous one**. Each step
@@ -648,19 +648,21 @@ The zigzag view uses one additive data model (`ArgumentNode`) across seven stage
 - Transcript/notepad visual style, no votes/comments/labels
 - Pure chronological chain: each card links to the previous one
 
-**Stage 2 — Split-Prozess**
-- Exception to the minimal-information rule: originals and splits are shown together
-- Stage-1 cards stay in raw/notepad style
-- Stage-1/original cards stay expanded by default
-- Split cards also stay expanded by default, but they show only their title at this stage; the body/description is intentionally deferred
-- A small legend/control panel sits below the canvas inside the visualization frame and explains the four connection types
-- The dashed blue chronology line can be toggled on/off directly from that panel
-- Four connection types:
-  1. raw chain between originals (thick, dimmed)
-  2. origin connection `split_from_id` → original (grey dashed)
-  3. blue chronological flow through unfolded sequence (curved, card-center docked)
-  4. bright green/red logical references via `parent_id`
-- Cards are draggable; all connection types follow during drag
+  **Stage 2 — Split-Prozess**
+  - Exception to the minimal-information rule: originals and splits are shown together
+  - Stage-1 cards stay in raw/notepad style
+  - Stage-1/original cards stay expanded by default
+  - Split cards also stay expanded by default, but they show only their title at this stage; the body/description is intentionally deferred
+  - A small legend/control panel sits below the canvas inside the visualization frame and explains the four connection types
+  - The dashed blue chronology line can be toggled on/off directly from that panel
+  - Four connection types:
+    1. raw chain between originals (thick, dimmed)
+    2. origin connection `split_from_id` → original (grey dashed)
+    3. blue chronological flow through unfolded sequence (curved, card-center docked)
+    4. bright green/red logical references via `parent_id`
+  - Cards are draggable; all connection types follow during drag
+  - **Planned GUI:** Interactive splitting UI ("split"-set erstellen / Verbindungen per Drag-and-Drop ziehen).
+  - **Planned UI Feature:** Advanced Split-Visualization: A button on a split-argument to temporarily switch the visual to the main/original argument. This hides other split-arguments from the same set to adhere to the rule of not showing duplicate information.
 
 **Stage 3 — Verfeinerung**
 - Any original referenced by `split_from_id` is hidden
