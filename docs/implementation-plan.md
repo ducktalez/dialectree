@@ -596,6 +596,47 @@ Interactive split creation and connection editing in Stage 2 (Split-Prozess):
 | Two connection types: chronological (dashed blue center-flow) + logical reference (solid, colored) | Frontend |
 | API contract remains `?stage=2` data for the frontend; backend accepts `stage=3..6` and currently returns the same node set as stage 2 | API + Frontend |
 
+### Z.3a — Polygon-Overlay (Argumentative Bereiche) ✅
+
+Subtile Polygon-Überlagerungen markieren argumentative Äste / Sub-Diskussionen.
+
+**Konzept:**
+- Ein Polygon umschließt alle Argumente eines Astes (convex hull mit Padding und gerundeten Ecken)
+- Sehr dezent: ~10% Füll-Opacity, ~30% Rand-Opacity — wie ein Textmarker
+- **Individuelle Gruppen-Toggles** im Legenden-Panel unter "Bereiche": jede Gruppe einzeln ein-/ausblendbar
+- Polygone folgen Karten während Drag-and-Drop
+
+**Auto-Gruppen-Logik:**
+- **Stage 2 (Split-Prozess):** Gruppen via `split_from_id` — alle Splits desselben Originals + das Original bilden eine Gruppe
+- **Stage 3 (Verfeinerung):** Gruppen via `parent_id`-Verzweigung — jeder Elternknoten mit 2+ Kindern erzeugt pro Kind einen eigenen Subtree-Polygon
+- Minimum 2 Knoten pro Gruppe (sonst kein Polygon)
+- Auto-Gruppen erhalten automatisch lesbare Namen aus dem ersten Argument-Titel
+
+**Benutzerdefinierte Gruppen:**
+- "＋ Neuer Bereich"-Button im Legenden-Panel startet den Auswahl-Modus
+- Im Auswahl-Modus: Karten anklicken um sie zur Gruppe hinzuzufügen/zu entfernen (visuelles Feedback: blauer Rahmen)
+- Floating Toolbar am unteren Bildschirmrand zeigt Auswahl-Zähler, Namenseingabe, "Erstellen" und "Abbrechen"
+- Benutzerdefinierte Gruppen können per "✕"-Button in der Legende gelöscht werden
+- Beim Topic-Wechsel werden Custom-Gruppen zurückgesetzt (Node-IDs sind topic-spezifisch)
+- Gruppen werden aktuell nur im Frontend-Speicher gehalten (kein Backend-Persistence)
+
+**Beispiel (Topic 1, Stage 3):**
+- Auto-Ast 1: L2.1 → R3.1 (blau)
+- Auto-Ast 2: L2.2 → R3.2 → L4.1/L4.2/L4.3 (amber)
+- Custom: Nutzer kann beliebige Karten zu eigenen Bereichen zusammenfassen
+
+| Task | Type |
+|------|------|
+| Convex-Hull-Algorithmus (Andrew's monotone chain) | Frontend |
+| Padded Hull: 18px Padding um jede Karte, gerundete Ecken via Quadratic Bézier | Frontend |
+| Auto-Gruppen automatisch aus Datenstruktur berechnet (Stage 2: split_from_id, Stage 3: parent_id-Branching) | Frontend |
+| 5-Farben-Palette: blau, amber, violett, grün, orange | Frontend |
+| Individuelle Gruppen-Toggles in "Bereiche"-Sektion der Legende | Frontend |
+| "＋ Neuer Bereich"-Button → Karten-Auswahl-Modus → Custom-Gruppe erstellen | Frontend |
+| Custom-Gruppen löschbar (✕), Auto-Gruppen nicht | Frontend |
+| Polygone aktualisieren sich während Drag | Frontend |
+| ⬜ Deferred: Backend-Persistence für Custom-Gruppen (eigenes Modell) | Backend |
+
 ### Z.4 — Zickzack Einordnung ⚙️ TODO: post-dev
 
 Bewertungen und argumentative Verfeinerungen hinzufügen. Nur auf **Argumente**, nicht auf Verbindungen (Edge-Kommentieren bleibt deferred — zu einem späteren Zeitpunkt diskutieren).

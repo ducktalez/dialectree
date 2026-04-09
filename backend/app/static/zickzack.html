@@ -290,6 +290,62 @@
       height: 2px;
       background: linear-gradient(to right, #3fb950 0%, #3fb950 50%, #f85149 50%, #f85149 100%);
     }
+    .legend-swatch {
+      width: 14px; height: 10px; border-radius: 3px; flex-shrink: 0;
+      opacity: 0.5; border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    /* ── Polygon group items in legend ── */
+    .legend-group-item {
+      display: flex; align-items: center; gap: 5px;
+      padding: 2px 4px; border-radius: 3px;
+      cursor: pointer; transition: all .12s;
+    }
+    .legend-group-item:hover { background: rgba(255,255,255,.06); }
+    .legend-group-item.off .legend-swatch { opacity: 0.2; }
+    .legend-group-item.off .legend-group-name { opacity: 0.4; text-decoration: line-through; }
+    .legend-group-name {
+      font-size: 0.55rem; color: #c9d1d9; flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .legend-group-delete {
+      font-size: 0.6rem; color: #484f58; cursor: pointer; padding: 0 2px;
+      line-height: 1; flex-shrink: 0;
+    }
+    .legend-group-delete:hover { color: #f85149; }
+    .legend-add-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 4px; border: 1px dashed #30363d;
+      background: transparent; color: #8b949e; cursor: pointer;
+      font-size: 0.55rem; transition: all .12s; margin-top: 2px;
+    }
+    .legend-add-btn:hover { border-color: #58a6ff; color: #c9d1d9; }
+
+    /* ── Polygon selection mode ── */
+    .zz-card.polygon-selectable { cursor: crosshair !important; }
+    .zz-card.polygon-selectable:hover { box-shadow: 0 0 0 2px rgba(88,166,255,0.35) !important; }
+    .zz-card.polygon-selected { box-shadow: 0 0 0 3px #58a6ff !important; }
+    .polygon-select-toolbar {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #1c2128; border: 2px solid #58a6ff; border-radius: 10px;
+      padding: 8px 16px; display: none; align-items: center; gap: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5); z-index: 100;
+      font-size: 0.75rem; color: #c9d1d9;
+    }
+    .polygon-select-toolbar.visible { display: flex; }
+    .polygon-select-toolbar button {
+      padding: 4px 12px; border-radius: 6px; border: none;
+      cursor: pointer; font-size: 0.72rem;
+    }
+    .polygon-select-toolbar .btn-create { background: #1f6feb; color: #fff; }
+    .polygon-select-toolbar .btn-create:hover { background: #388bfd; }
+    .polygon-select-toolbar .btn-create:disabled { opacity: 0.4; cursor: not-allowed; }
+    .polygon-select-toolbar .btn-cancel { background: #30363d; color: #c9d1d9; }
+    .polygon-select-toolbar .btn-cancel:hover { background: #484f58; }
+    .polygon-select-toolbar input {
+      padding: 3px 8px; border-radius: 4px; border: 1px solid #30363d;
+      background: #0d1117; color: #c9d1d9; font-size: 0.72rem; width: 130px;
+    }
 
     /* ── Transcript viewer / editor (Stage 0) ── */
     .transcript-edit {
@@ -386,6 +442,14 @@
   </div>
 </div>
 
+<!-- Polygon selection toolbar (fixed at bottom during selection mode) -->
+<div class="polygon-select-toolbar" id="polygon-select-toolbar">
+  <span id="polygon-select-count">🔷 <strong>0</strong> Argumente</span>
+  <input type="text" id="polygon-group-name" placeholder="Bereichsname…" />
+  <button class="btn-create" id="polygon-btn-create" disabled>✓ Erstellen</button>
+  <button class="btn-cancel" id="polygon-btn-cancel">✗ Abbrechen</button>
+</div>
+
 <script>
   // ── Constants ──────────────────────────────────
   const API = '/api';
@@ -418,6 +482,16 @@
   let showBlueChronoFlow = true;
   let showOriginLines = true;
 
+  // ── Polygon group state ──
+  let customPolygonGroups = [];     // User-created groups: { key, name, nodeIds, color }
+  let polygonGroupVisibility = {};  // groupKey → boolean (default true)
+  let activePolygonGroups = [];     // All groups (auto + custom) from last render
+  let isSelectingPolygon = false;
+  let pendingPolygonSelection = new Set();
+  let nextCustomGroupId = 1;
+
+  const POLYGON_COLORS = ['#58a6ff', '#d29922', '#a371f7', '#3fb950', '#f0883e'];
+
   // ── Stage descriptions: what THIS stage adds vs the previous ──
   const STAGE_DESCRIPTIONS = {
     0: '<strong>Rohdaten</strong> — Die Diskussion als lesbarer Text. Kein Canvas, keine Visualisierung.',
@@ -444,47 +518,41 @@
       return;
     }
 
-      const items = [
-        {
-          key: 'raw',
-          label: 'Roh-Kette',
-          desc: 'Ursprüngliche Reihenfolge',
-          active: currentStage === 2,
-          lineClass: 'raw',
-        },
-        {
-          key: 'logical',
-          label: 'Logische Referenz',
-          desc: 'Inhaltliche Antwort',
-          active: true,
-          lineClass: 'logical',
-        },
+      // ── Connection types (non-toggleable) ──
+      const connItems = [
+        { label: 'Roh-Kette', desc: 'Ursprüngliche Reihenfolge', active: currentStage === 2, lineClass: 'raw' },
+        { label: 'Logische Referenz', desc: 'Inhaltliche Antwort', active: true, lineClass: 'logical' },
       ];
 
+      // ── Polygon groups (individual toggles) ──
+      const groupsHtml = activePolygonGroups.map(g => {
+        const isOff = polygonGroupVisibility[g.key] === false;
+        const deleteBtn = !g.isAuto
+          ? `<span class="legend-group-delete" data-delete-group="${g.key}" title="Löschen">✕</span>`
+          : '';
+        return `
+          <div class="legend-group-item ${isOff ? 'off' : ''}" data-toggle-group="${g.key}">
+            <span class="legend-swatch" style="background:${g.color}"></span>
+            <span class="legend-group-name" title="${esc(g.name)}">${esc(g.name)}</span>
+            ${deleteBtn}
+          </div>`;
+      }).join('');
+
+      const addBtnHtml = isSelectingPolygon
+        ? `<span style="font-size:0.55rem;color:#58a6ff;font-style:italic">Argumente wählen…</span>`
+        : `<button class="legend-add-btn" id="legend-add-polygon">＋ Neuer Bereich</button>`;
+
+      // ── Toggleable connections ──
       const toggleItems = [
-        {
-          key: 'origin',
-          label: 'Ursprungs-Argument',
-          desc: 'Gehört zu Original',
-          active: currentStage === 2,
-          lineClass: 'origin',
-          toggleable: true,
-        },
-        {
-          key: 'chrono',
-          label: 'Chronologischer Fluss',
-          desc: 'Ablauf',
-          active: true,
-          lineClass: 'chrono',
-          toggleable: true,
-        },
+        { key: 'origin', label: 'Ursprungs-Argument', desc: 'Gehört zu Original', active: currentStage === 2, lineClass: 'origin' },
+        { key: 'chrono', label: 'Chronologischer Fluss', desc: 'Ablauf', active: true, lineClass: 'chrono' },
       ];
 
       panel.innerHTML = `
         <div class="legend-title">Verbindungen</div>
         <div class="legend-list">
-          ${items.filter(i => i.active).map(item => `
-            <div style="cursor: default" class="legend-item">
+          ${connItems.filter(i => i.active).map(item => `
+            <div style="cursor:default" class="legend-item">
               <span class="legend-line ${item.lineClass}"></span>
               <div class="legend-item-main">
                 <span class="legend-item-label">${item.label}</span>
@@ -493,19 +561,27 @@
             </div>
           `).join('')}
         </div>
+        <div class="legend-divider">Bereiche</div>
+        <div class="legend-list">
+          ${groupsHtml || '<span style="font-size:0.52rem;color:#484f58;font-style:italic">Keine Bereiche</span>'}
+          ${addBtnHtml}
+        </div>
         <div class="legend-divider">Abwählbar</div>
         <div class="legend-list">
-          ${toggleItems.filter(i => i.active).map(item => `
-            <div style="cursor: pointer" class="legend-item toggleable ${(item.key === 'chrono' && !showBlueChronoFlow) || (item.key === 'origin' && !showOriginLines) ? 'off' : ''}" data-legend-toggle="${item.key}">
+          ${toggleItems.filter(i => i.active).map(item => {
+            const isOff = (item.key === 'chrono' && !showBlueChronoFlow) || (item.key === 'origin' && !showOriginLines);
+            return `
+            <div style="cursor:pointer" class="legend-item toggleable ${isOff ? 'off' : ''}" data-legend-toggle="${item.key}">
               <span class="legend-line ${item.lineClass}"></span>
               <div class="legend-item-main">
                 <span class="legend-item-label">${item.label}</span>
                 <span class="legend-item-desc">- ${item.desc}</span>
               </div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>`;
 
+    // ── Event: toggle connection types ──
     panel.querySelector('[data-legend-toggle="chrono"]')?.addEventListener('click', () => {
       showBlueChronoFlow = !showBlueChronoFlow;
       renderLegendPanel();
@@ -516,6 +592,31 @@
       showOriginLines = !showOriginLines;
       renderLegendPanel();
       if (currentData && currentStage > 0 && currentStage < 4) render();
+    });
+
+    // ── Event: toggle individual polygon groups ──
+    panel.querySelectorAll('[data-toggle-group]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.legend-group-delete')) return; // don't toggle on delete click
+        const key = el.dataset.toggleGroup;
+        polygonGroupVisibility[key] = !(polygonGroupVisibility[key] ?? true);
+        if (currentData && currentStage > 0 && currentStage < 4) render();
+      });
+    });
+
+    // ── Event: delete custom polygon group ──
+    panel.querySelectorAll('[data-delete-group]').forEach(el => {
+      el.addEventListener('click', () => {
+        const key = el.dataset.deleteGroup;
+        customPolygonGroups = customPolygonGroups.filter(g => g.key !== key);
+        delete polygonGroupVisibility[key];
+        if (currentData && currentStage > 0 && currentStage < 4) render();
+      });
+    });
+
+    // ── Event: start polygon selection ──
+    panel.querySelector('#legend-add-polygon')?.addEventListener('click', () => {
+      startPolygonSelection();
     });
   }
 
@@ -611,6 +712,11 @@
     document.querySelectorAll('.topic-tab').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     currentTopicId = topicId;
+    // Reset polygon groups when switching topics (node IDs are topic-specific)
+    customPolygonGroups = [];
+    polygonGroupVisibility = {};
+    activePolygonGroups = [];
+    if (isSelectingPolygon) exitPolygonSelection();
     if (currentStage === 0) {
       await loadTranscript();
     } else if (currentStage >= 4) {
@@ -714,6 +820,7 @@
     const canvas = document.getElementById('canvas');
     if (!canvas) return;
     renderChrono(currentData);
+    renderLegendPanel(); // Update legend with computed polygon groups
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -724,6 +831,7 @@
     const side = step.position === 'PRO' ? 'L' : (step.position === 'CONTRA' ? 'R' : 'L');
     const card = document.createElement('div');
     card.className = `zz-card ${side}`;
+    card.dataset.stepId = step.id;
     if (isSibling) card.classList.add('sibling-card');
     if (step.is_edge_attack && currentStage >= 4) card.classList.add('edge-attack');
     // Stage 1: all cards raw. Stage 2 (Split-Prozess): stage_added=1 cards stay raw.
@@ -865,6 +973,134 @@
     lineEl.setAttribute('y1', sourceAnchor.y);
     lineEl.setAttribute('x2', targetAnchor.x);
     lineEl.setAttribute('y2', targetAnchor.y);
+  }
+
+  // ── Polygon overlay helpers ─────────────────────
+  // DESIGN: Polygon overlays highlight argumentative branches/sub-discussions.
+  // Stage 2: groups are split-sets (same split_from_id + origin).
+  // Stage 3: groups are subtrees from branching points (parent with 2+ children).
+  // Visual: very subtle convex hull with rounded corners — like a highlighter pen.
+
+  function cross2D(O, A, B) {
+    return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+  }
+
+  function convexHull(points) {
+    if (points.length < 3) return points.slice();
+    points.sort((a, b) => a.x - b.x || a.y - b.y);
+    const lower = [];
+    for (const p of points) {
+      while (lower.length >= 2 && cross2D(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+      lower.push(p);
+    }
+    const upper = [];
+    for (let i = points.length - 1; i >= 0; i--) {
+      const p = points[i];
+      while (upper.length >= 2 && cross2D(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+      upper.push(p);
+    }
+    lower.pop(); upper.pop();
+    return lower.concat(upper);
+  }
+
+  function computePaddedHull(itemList, cardW, padding) {
+    const pts = [];
+    itemList.forEach(it => {
+      const x = it.x, y = it.topY, h = it.height || 40, w = cardW;
+      pts.push(
+        { x: x - padding, y: y - padding },
+        { x: x + w + padding, y: y - padding },
+        { x: x - padding, y: y + h + padding },
+        { x: x + w + padding, y: y + h + padding },
+      );
+    });
+    return convexHull(pts);
+  }
+
+  function smoothHullPath(hull, r = 14) {
+    if (hull.length < 3) return '';
+    const n = hull.length;
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const prev = hull[(i - 1 + n) % n], curr = hull[i], next = hull[(i + 1) % n];
+      const dxP = prev.x - curr.x, dyP = prev.y - curr.y, lenP = Math.hypot(dxP, dyP);
+      const dxN = next.x - curr.x, dyN = next.y - curr.y, lenN = Math.hypot(dxN, dyN);
+      const cr = Math.min(r, lenP / 3, lenN / 3);
+      const p1x = curr.x + dxP / lenP * cr, p1y = curr.y + dyP / lenP * cr;
+      const p2x = curr.x + dxN / lenN * cr, p2y = curr.y + dyN / lenN * cr;
+      d += i === 0 ? `M${p1x.toFixed(1)},${p1y.toFixed(1)}` : ` L${p1x.toFixed(1)},${p1y.toFixed(1)}`;
+      d += ` Q${curr.x.toFixed(1)},${curr.y.toFixed(1)} ${p2x.toFixed(1)},${p2y.toFixed(1)}`;
+    }
+    return d + ' Z';
+  }
+
+  function computePolygonGroups(displaySteps, allItemById, stage) {
+    if (stage < 2) return [];
+    const groups = [];
+    let ci = 0;
+
+    // Helper: readable short name from a node ID
+    function nodeName(id) {
+      const it = allItemById[id];
+      if (!it) return '?';
+      const t = it.step.title || '';
+      return t.length > 28 ? t.substring(0, 25) + '…' : t;
+    }
+
+    if (stage === 2) {
+      // Stage 2: group by split_from_id (split-sets + their origin)
+      const splitGroups = {};
+      displaySteps.forEach(s => {
+        if (s.split_from_id) {
+          if (!splitGroups[s.split_from_id]) splitGroups[s.split_from_id] = [];
+          splitGroups[s.split_from_id].push(s.id);
+        }
+      });
+      Object.entries(splitGroups).forEach(([oid, sids]) => {
+        if (sids.length < 2) return;
+        const nids = [...sids];
+        const oidNum = parseInt(oid);
+        if (allItemById[oidNum]) nids.push(oidNum);
+        const originName = nodeName(oidNum);
+        groups.push({
+          key: `auto_s2_${oidNum}`,
+          name: `Splits: ${originName}`,
+          nodeIds: nids,
+          color: POLYGON_COLORS[ci++ % POLYGON_COLORS.length],
+          isAuto: true,
+        });
+      });
+    } else {
+      // Stage 3+: group by parent_id branching (subtrees from branch points)
+      const displayedIds = new Set(Object.keys(allItemById).map(Number));
+      const childrenOf = {};
+      displaySteps.forEach(s => {
+        if (s.parent_id && displayedIds.has(s.parent_id)) {
+          if (!childrenOf[s.parent_id]) childrenOf[s.parent_id] = [];
+          childrenOf[s.parent_id].push(s.id);
+        }
+      });
+      function subtree(id) {
+        const res = [id];
+        (childrenOf[id] || []).forEach(c => res.push(...subtree(c)));
+        return res;
+      }
+      Object.values(childrenOf).forEach(children => {
+        if (children.length < 2) return;
+        children.forEach(cid => {
+          const ids = subtree(cid);
+          if (ids.length < 2) return;
+          groups.push({
+            key: `auto_s3_${cid}`,
+            name: nodeName(cid),
+            nodeIds: ids,
+            color: POLYGON_COLORS[ci++ % POLYGON_COLORS.length],
+            isAuto: true,
+          });
+        });
+      });
+    }
+    return groups;
   }
 
   function renderChrono(data) {
@@ -1068,6 +1304,40 @@
     items.forEach(item => {
       allItemById[item.step.id] = item;
       item.siblings.forEach(sib => { allItemById[sib.step.id] = sib; });
+    });
+
+    // ── Polygon overlays (argumentative branches) ────────────────────
+    // Merge auto-computed groups with user-created custom groups.
+    // Each group has per-group visibility via polygonGroupVisibility.
+    const autoGroups = computePolygonGroups(displaySteps, allItemById, currentStage);
+    const allGroups = [
+      ...autoGroups,
+      ...customPolygonGroups.map((g, i) => ({
+        ...g,
+        color: g.color || POLYGON_COLORS[(autoGroups.length + i) % POLYGON_COLORS.length],
+        isAuto: false,
+      })),
+    ];
+    activePolygonGroups = allGroups;
+
+    const polygonState = [];
+    allGroups.forEach(g => {
+      const isVisible = polygonGroupVisibility[g.key] ?? true;
+      if (!isVisible) return;
+      const gItems = g.nodeIds.map(id => allItemById[id]).filter(Boolean);
+      if (gItems.length < 2) return;
+      const hull = computePaddedHull(gItems, CARD_W, 18);
+      if (hull.length < 3) return;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', smoothHullPath(hull));
+      path.setAttribute('fill', g.color);
+      path.setAttribute('fill-opacity', '0.10');
+      path.setAttribute('stroke', g.color);
+      path.setAttribute('stroke-opacity', '0.30');
+      path.setAttribute('stroke-width', '2');
+      path.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(path);
+      polygonState.push({ el: path, nodeIds: g.nodeIds, color: g.color });
     });
 
     items.forEach((item, idx) => {
@@ -1316,7 +1586,7 @@
     svg.setAttribute('height', finalH);
     svg.setAttribute('viewBox', `0 0 ${W} ${finalH}`);
 
-    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, extraLines };
+    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, extraLines, polygonState };
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1671,6 +1941,74 @@
     updateDragLines();
   }
 
+  // ── Polygon selection mode ──────────────────────
+  function startPolygonSelection() {
+    isSelectingPolygon = true;
+    pendingPolygonSelection.clear();
+    document.querySelectorAll('.zz-card').forEach(c => c.classList.add('polygon-selectable'));
+    const toolbar = document.getElementById('polygon-select-toolbar');
+    toolbar.classList.add('visible');
+    updateSelectionToolbar();
+    renderLegendPanel();
+  }
+
+  function toggleCardSelection(cardEl) {
+    const stepId = parseInt(cardEl.dataset.stepId);
+    if (!stepId) return;
+    if (pendingPolygonSelection.has(stepId)) {
+      pendingPolygonSelection.delete(stepId);
+      cardEl.classList.remove('polygon-selected');
+    } else {
+      pendingPolygonSelection.add(stepId);
+      cardEl.classList.add('polygon-selected');
+    }
+    updateSelectionToolbar();
+  }
+
+  function updateSelectionToolbar() {
+    const count = pendingPolygonSelection.size;
+    const countEl = document.getElementById('polygon-select-count');
+    const createBtn = document.getElementById('polygon-btn-create');
+    if (countEl) countEl.innerHTML = `🔷 <strong>${count}</strong> Argument${count !== 1 ? 'e' : ''}`;
+    if (createBtn) createBtn.disabled = count < 2;
+  }
+
+  function createCustomPolygonGroup() {
+    if (pendingPolygonSelection.size < 2) return;
+    const nameInput = document.getElementById('polygon-group-name');
+    const name = nameInput?.value?.trim() || `Bereich ${nextCustomGroupId}`;
+    const colorIdx = (activePolygonGroups.length) % POLYGON_COLORS.length;
+    customPolygonGroups.push({
+      key: `custom_${nextCustomGroupId}`,
+      name,
+      nodeIds: [...pendingPolygonSelection],
+      color: POLYGON_COLORS[colorIdx],
+    });
+    nextCustomGroupId++;
+    exitPolygonSelection();
+    render();
+  }
+
+  function cancelPolygonSelection() {
+    exitPolygonSelection();
+  }
+
+  function exitPolygonSelection() {
+    isSelectingPolygon = false;
+    pendingPolygonSelection.clear();
+    document.querySelectorAll('.zz-card.polygon-selected').forEach(c => c.classList.remove('polygon-selected'));
+    document.querySelectorAll('.zz-card.polygon-selectable').forEach(c => c.classList.remove('polygon-selectable'));
+    const toolbar = document.getElementById('polygon-select-toolbar');
+    if (toolbar) toolbar.classList.remove('visible');
+    const nameInput = document.getElementById('polygon-group-name');
+    if (nameInput) nameInput.value = '';
+    renderLegendPanel();
+  }
+
+  // Wire up toolbar buttons
+  document.getElementById('polygon-btn-create')?.addEventListener('click', createCustomPolygonGroup);
+  document.getElementById('polygon-btn-cancel')?.addEventListener('click', cancelPolygonSelection);
+
   // ── Drag system with live SVG line updates ──
   let dragInfo = null;
 
@@ -1773,12 +2111,32 @@
         }
       });
     }
+
+    // Update polygon overlays during drag
+    const { polygonState, allItemById: aidMap } = renderState;
+    if (polygonState && polygonState.length > 0 && aidMap) {
+      polygonState.forEach(pg => {
+        const gItems = pg.nodeIds.map(id => aidMap[id]).filter(Boolean);
+        if (gItems.length < 2) return;
+        const hull = computePaddedHull(gItems, CARD_W, 18);
+        if (hull.length < 3) return;
+        pg.el.setAttribute('d', smoothHullPath(hull));
+      });
+    }
   }
 
   if (DRAG_ENABLED) {
     document.getElementById('canvas').addEventListener('mousedown', (e) => {
       const card = e.target.closest('.zz-card');
       if (!card || e.target.closest('.collapse-toggle') || e.target.closest('button') || e.target.closest('.inline-form')) return;
+
+      // Polygon selection mode: toggle card instead of drag
+      if (isSelectingPolygon) {
+        e.preventDefault();
+        toggleCardSelection(card);
+        return;
+      }
+
       dragInfo = {
         card,
         startX: e.clientX, startY: e.clientY,
