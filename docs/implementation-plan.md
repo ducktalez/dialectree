@@ -28,6 +28,7 @@ not yet locked in. Each is listed with the current default and the trade-off.
 | **CSS / Design System** | Inline styles | Tailwind CSS or Radix UI | Current inline styles are unmaintainable |
 | **Migrations** | None (in-memory recreate) | Alembic | Required as soon as data must survive restarts |
 | **Deployment** | `uvicorn` local | Docker Compose (FastAPI + PostgreSQL + Redis) | Not needed during dev, required for any shared instance |
+| **SRT Parsing** | `srt` library (3.5.x) | — | Lightweight (~200 LOC, zero dependencies), handles BOM/CR-LF/empty subtitles. `pysrt` unmaintained; manual regex unnecessary |
 
 ---
 
@@ -314,6 +315,25 @@ arguments into a group from the UI, and grouped arguments aren't visually collap
 - [ ] State management (Zustand or React Query)
 
 ## Phase 2 – Advanced Features
+
+### SRT Import Pipeline (YouTube → Stage 0)
+- [x] `srt_parser.py`: Parse SRT files → clean flowing text (strips timestamps, HTML tags, deduplicates overlapping ASR fragments)
+- [x] `POST /api/topics/{id}/import-srt` endpoint stores parsed text as `transcript_yaml` in Stage-0 YAML format
+- [x] Tests: 14 unit + integration tests (`test_srt_parser.py`)
+- [x] Dependency: `srt>=3.5.0` (lightweight, zero-dependency SRT parser)
+
+#### Speaker Diarization (Schritt 2 — deferred)
+Assigning spoken text to speakers. Three options evaluated:
+
+| Option | Approach | Accuracy | Complexity | When |
+|--------|----------|----------|------------|------|
+| **A — LLM Prompt** (recommended) | Send flowing text to Claude/GPT: *"Identify speakers, output YAML with speaker labels"* | ~95% for clear speaker changes | Low (manual copy-paste or API call) | Now (manual), later as endpoint |
+| **B — Audio Diarization** | `pyannote.audio` or `WhisperX` on downloaded audio (`yt-dlp`) | High (uses audio features) | High (audio download, GPU optional) | Phase 2+ |
+| **C — Heuristic** | Regex patterns (name prefixes like `R:`, `L:`) | Low (only pre-formatted transcripts) | Minimal | Only if input is already semi-structured |
+
+**Current workflow:** User runs SRT import → gets flowing text in Stage 0 → manually copies to LLM for speaker segmentation → pastes result back via `PUT /api/topics/{id}/transcript`.
+
+**Future:** `POST /api/topics/{id}/diarize` endpoint with LLM API integration (requires API key management).
 
 ### Twitter/X Import
 - [ ] N8N workflow for importing Twitter threads (see `n8n/` for sketch)

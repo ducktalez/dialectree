@@ -384,3 +384,10 @@ class TranscriptUpdate(BaseModel):
     transcript_yaml: Optional[str] = None
 
 
+class SrtImportRequest(BaseModel):
+    """Request body for POST /api/topics/{id}/import-srt."""
+    srt_content: str
+    source_url: Optional[str] = None
+    title: Optional[str] = None
+
+

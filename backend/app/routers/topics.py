@@ -10,7 +10,9 @@ from ..models import Topic, ArgumentNode, ArgumentNodeTag, Vote, Visibility
 from ..schemas import (
     TopicCreate, TopicOut, ArgumentTreeNode, TagOnNode,
     ZigzagStepOut, ZigzagTopicInfo, ZigzagResponse, TranscriptResponse, TranscriptUpdate,
+    SrtImportRequest,
 )
+from ..srt_parser import parse_srt_to_yaml
 
 router = APIRouter(prefix="/topics", tags=["topics"])
 
@@ -160,6 +162,34 @@ def update_transcript(topic_id: int, payload: TranscriptUpdate, db: Session = De
     topic.transcript_yaml = payload.transcript_yaml
     db.commit()
     db.refresh(topic)
+    return TranscriptResponse(
+        topic_id=topic.id,
+        topic_title=topic.title,
+        transcript_yaml=topic.transcript_yaml,
+    )
+
+
+@router.post("/{topic_id}/import-srt", response_model=TranscriptResponse)
+def import_srt(topic_id: int, payload: SrtImportRequest, db: Session = Depends(get_db)):
+    """Import an SRT subtitle file as Stage 0 transcript.
+
+    Parses the SRT content, strips timestamps and formatting, deduplicates
+    overlapping fragments, and stores the result as transcript_yaml.
+    # TODO: security — user_id from auth token
+    """
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(404, "Topic not found")
+
+    yaml_content = parse_srt_to_yaml(
+        payload.srt_content,
+        source_url=payload.source_url,
+        title=payload.title or topic.title,
+    )
+    topic.transcript_yaml = yaml_content
+    db.commit()
+    db.refresh(topic)
+
     return TranscriptResponse(
         topic_id=topic.id,
         topic_title=topic.title,

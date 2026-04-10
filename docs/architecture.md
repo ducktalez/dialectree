@@ -12,6 +12,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **models.py** – all SQLAlchemy models and enums (single file).
 - **schemas.py** – all Pydantic request/response schemas (single file).
 - **seed.py** – example data: two topics ("Sind Quotenregelungen rassistisch?" + "🔧 Blueprint: Quotenrassismus-Diskussion"), runnable via `python -m app.seed`. Both topics demonstrate full zigzag features: branching, edge attacks, sibling alternatives, conflict zones.
+- **srt_parser.py** – SRT subtitle file parser. `parse_srt()` strips timestamps/tags/overlaps → clean text. `parse_srt_to_yaml()` wraps result in Stage-0 YAML format. Used by `POST /api/topics/{id}/import-srt`.
 - **routers/** – one file per resource: `users`, `topics`, `arguments`, `votes`, `tags`, `comments`, `evidence`, `labels`, `argument_groups` (incl. merge/unmerge), `definition_forks`, `multi_node_patterns`.
 
 ## Static UI (`backend/app/static/`)
@@ -42,6 +43,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 2. Client fetches `GET /api/topics/{id}/zigzag` → flat chronological list with zigzag fields (`conflict_zone`, `edge_type`, `is_edge_attack`, `opens_conflict`, `sibling_ids`).
 3. Client fetches `GET /api/topics/{id}/tree` → nested JSON with vote scores (used by commented-out tree view).
 4. Write operations pass `user_id` as query parameter (no auth yet).
+5. `POST /api/topics/{id}/import-srt` parses SRT content → clean text → Stage-0 YAML stored in `transcript_yaml`. Speaker diarization is a separate manual/LLM step (TODO: post-dev).
 
 ## Data Model (`models.py`)
 
