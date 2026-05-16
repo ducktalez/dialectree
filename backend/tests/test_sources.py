@@ -340,3 +340,42 @@ class TestSourcesQueryExtras:
 
     def test_sort_invalid_rejected(self, client):
         assert client.get("/api/sources/?sort=bogus").status_code == 422
+
+
+class TestSourcesSimilarity:
+    def test_empty_query_returns_empty(self, client):
+        client.post("/api/sources/", data={"title": "Anything", "kind": "TEXT"})
+        assert client.get("/api/sources/similar?title=").json() == []
+
+    def test_finds_obvious_duplicate(self, client):
+        client.post(
+            "/api/sources/",
+            data={"title": "Menapt-Statistik zu IQ-Unterschieden", "kind": "TWEET"},
+        )
+        client.post("/api/sources/", data={"title": "Unrelated PubMed Paper", "kind": "PAPER"})
+        r = client.get("/api/sources/similar?title=Menapt IQ Statistik")
+        body = r.json()
+        assert len(body) == 1
+        assert "Menapt" in body[0]["title"]
+        assert body[0]["similarity"] >= 0.25
+
+    def test_threshold_filters(self, client):
+        client.post("/api/sources/", data={"title": "Klimawandel und Folgen", "kind": "PAPER"})
+        # Only one shared meaningful token would give a low jaccard
+        r = client.get("/api/sources/similar?title=Klimawandel&threshold=0.9")
+        assert r.json() == []
+
+    def test_exclude_id(self, client):
+        sid = client.post("/api/sources/", data={"title": "Same Title Here", "kind": "TEXT"}).json()["id"]
+        r = client.get(f"/api/sources/similar?title=Same Title Here&exclude_id={sid}")
+        assert r.json() == []
+
+    def test_orders_by_similarity_desc(self, client):
+        client.post("/api/sources/", data={"title": "Klima Wandel Folgen", "kind": "PAPER"})
+        client.post("/api/sources/", data={"title": "Klima Wandel jetzt", "kind": "TEXT"})
+        client.post("/api/sources/", data={"title": "Quotenregelung Deutschland", "kind": "QUOTE"})
+        r = client.get("/api/sources/similar?title=Klima Wandel Folgen Studie")
+        body = r.json()
+        assert len(body) == 2
+        assert body[0]["similarity"] >= body[1]["similarity"]
+

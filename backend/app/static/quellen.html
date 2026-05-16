@@ -352,6 +352,19 @@
       background: #3a1c1c; border: 1px solid #6e2828; color: #ffb4b4;
       padding: 6px 10px; border-radius: 4px; font-size: 0.78rem; margin-top: 10px;
     }
+    /* Duplicate-detection hint inside the create modal.
+       Shown only when /api/sources/similar returns matches above threshold. */
+    .ns-similar {
+      margin-top: 6px; padding: 8px 10px; background: #2a1f0a;
+      border: 1px solid #5a4612; border-radius: 4px;
+      font-size: 0.72rem; color: #e3b341;
+    }
+    .ns-similar .ns-similar-title { font-weight: 600; margin-bottom: 4px; }
+    .ns-similar ul { list-style: none; margin: 0; padding: 0; }
+    .ns-similar li { margin: 2px 0; }
+    .ns-similar a { color: #ffd166; text-decoration: none; }
+    .ns-similar a:hover { text-decoration: underline; }
+    .ns-similar .ns-sim-score { color: #8b949e; font-variant-numeric: tabular-nums; }
 
     .deferred-note {
       margin-top: 24px; padding: 10px 12px; background: #1c2128;
@@ -418,6 +431,9 @@
     <form id="new-source-form">
       <label for="ns-title">Titel *</label>
       <input id="ns-title" name="title" required />
+      <!-- Duplicate-detection suggestions, populated via /api/sources/similar.
+           Lightweight token Jaccard (no embeddings) — see backend router. -->
+      <div id="ns-similar" class="ns-similar" hidden></div>
 
       <label for="ns-kind">Typ *</label>
       <select id="ns-kind" name="kind" required>
@@ -1034,11 +1050,49 @@
   const nsTitle = modal.querySelector('h2');
   let editingId = null;
 
+  // ── Duplicate detection (lightweight) ─────────
+  // Calls /api/sources/similar with the current title+description and lists
+  // matches. Debounced. Stand-in for embedding-based dedup (post-dev).
+  const nsSimilarBox = document.getElementById('ns-similar');
+  let _simTimer = null;
+  let _simReqId = 0;
+  function clearSimilarHints() {
+    nsSimilarBox.hidden = true;
+    nsSimilarBox.innerHTML = '';
+  }
+  async function checkSimilar() {
+    const title = (nsForm.elements.title?.value || '').trim();
+    const desc = (nsForm.elements.description?.value || '').trim();
+    if (title.length < 3) { clearSimilarHints(); return; }
+    const params = new URLSearchParams({ title, description: desc, limit: '5' });
+    if (editingId != null) params.set('exclude_id', String(editingId));
+    const reqId = ++_simReqId;
+    try {
+      const items = await fetchJSON(`${API}/sources/similar?${params}`);
+      if (reqId !== _simReqId) return; // stale response
+      if (!items.length) { clearSimilarHints(); return; }
+      nsSimilarBox.hidden = false;
+      nsSimilarBox.innerHTML =
+        '<div class="ns-similar-title">⚠ Möglicherweise existieren ähnliche Quellen:</div><ul>' +
+        items.map(it => {
+          const pct = Math.round((it.similarity || 0) * 100);
+          const href = `#id=${it.id}`;
+          return `<li><a href="${href}" target="_blank" rel="noopener">${escapeHtml(it.title || '(ohne Titel)')}</a> `
+               + `<span class="ns-sim-score">${pct}%</span></li>`;
+        }).join('') + '</ul>';
+    } catch { /* silent — duplicate hints are best-effort */ }
+  }
+  function scheduleSimilarCheck() {
+    clearTimeout(_simTimer);
+    _simTimer = setTimeout(checkSimilar, 300);
+  }
+
   function openCreateModal() {
     editingId = null;
     nsTitle.textContent = '＋ Neue Quelle hinzufügen';
     nsError.innerHTML = '';
     nsForm.reset();
+    clearSimilarHints();
     // Re-show thumbnail field for create mode (hidden in edit mode).
     nsForm.querySelector('[name="thumbnail"]').closest('label, div')?.classList.remove('hidden');
     nsForm.querySelector('#ns-thumbnail').style.display = '';
@@ -1049,6 +1103,7 @@
     editingId = id;
     nsTitle.textContent = '✏️ Quelle bearbeiten';
     nsError.innerHTML = '';
+    clearSimilarHints();
     // Pre-fill from API.
     try {
       const s = await fetchJSON(`${API}/sources/${id}`);
@@ -1073,6 +1128,9 @@
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.style.display = 'none';
   });
+  // Live duplicate hints while typing the title/description.
+  document.getElementById('ns-title').addEventListener('input', scheduleSimilarCheck);
+  document.getElementById('ns-description').addEventListener('input', scheduleSimilarCheck);
   nsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     nsError.innerHTML = '';

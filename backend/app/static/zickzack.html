@@ -521,6 +521,10 @@
   let currentTopicId = null;
   let currentMode = 'chrono';
   let currentStage = 1;
+  // Z.2b — Split-Toggle: in Stage 3, IDs of split-origin nodes the user has
+  // chosen to reveal. While an origin is revealed, its splits are hidden, so
+  // the "never show original + splits simultaneously" rule still holds.
+  let revealedSplitOrigins = new Set();
 
   // ── URL deep-linking (hash-based) ──────────────
   // The page state (selected topic + stage) is reflected in location.hash so that
@@ -875,6 +879,7 @@
     customPolygonGroups = [];
     polygonGroupVisibility = {};
     activePolygonGroups = [];
+    revealedSplitOrigins.clear();
     if (isSelectingPolygon) exitPolygonSelection();
     if (currentStage === 0) {
       await loadTranscript();
@@ -932,6 +937,7 @@
     document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentStage = stage;
+    revealedSplitOrigins.clear();
     updateHash();
     updateStageDescription();
     renderLegendPanel();
@@ -1033,7 +1039,10 @@
     const isStage2Raw = currentStage === 2 && step.stage_added === 1;
     const isStage2Split = currentStage === 2 && step.stage_added === 2;
     const shouldHaveToggle = currentStage >= 3;
-    const shouldStartCollapsed = currentStage === 3 || (isSibling && currentStage >= 4);
+    // Z.2b: a split-origin revealed by the user in Stage 3 should start
+    // expanded — they explicitly asked to see its content.
+    const isRevealedOrigin = currentStage === 3 && revealedSplitOrigins.has(step.id);
+    const shouldStartCollapsed = (currentStage === 3 && !isRevealedOrigin) || (isSibling && currentStage >= 4);
     const collapseIcon = shouldStartCollapsed ? '▸' : '▾';
 
     // Stage 1: single merged text block — no title/body distinction, no interactive features.
@@ -1069,6 +1078,22 @@
       // Stage 3+: split badge
       if (step.stage_added === 2 && currentStage >= 3) {
         html += `<span style="display:inline-block;margin-top:3px;padding:0 5px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1e2a1e;color:#3fb950" title="Stufe-2-Split">✂ Split</span>`;
+      }
+
+      // Z.2b — Split-Toggle (Stage 3 only):
+      // - On a split card: button "🔄 Original" reveals the origin and hides
+      //   all sibling splits of the same set.
+      // - On a revealed-origin card: button "↩ Splits" restores the split view.
+      // The toggle button is also rendered when the card is collapsed because
+      // it sits in the card header area (added to .card-header below — but for
+      // simplicity we append after badges; clicks stop propagation).
+      if (currentStage === 3) {
+        if (step.split_from_id) {
+          html += `<button class="split-toggle" data-origin-id="${step.split_from_id}" title="Original-Argument anzeigen" style="display:inline-block;margin:3px 0 0 4px;padding:1px 6px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1f2937;color:#93c5fd;border:1px solid #374151;cursor:pointer">🔄 Original</button>`;
+        } else if (currentData && currentData.steps && currentData.steps.some(s => s.split_from_id === step.id)) {
+          // This is a split-origin currently being shown (i.e. revealed by user)
+          html += `<button class="split-toggle" data-origin-id="${step.id}" data-mode="restore" title="Splits zurückholen" style="display:inline-block;margin:3px 0 0 4px;padding:1px 6px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1f2937;color:#fcd34d;border:1px solid #374151;cursor:pointer">↩ Splits</button>`;
+        }
       }
 
       // Stage 4+: conflict zone, opens_conflict (TODO: post-dev)
@@ -1117,6 +1142,16 @@
     card.querySelector('.btn-vote-down')?.addEventListener('click', (e) => { e.stopPropagation(); vote(step.id, -1); });
     card.querySelector('.btn-reply')?.addEventListener('click', (e) => { e.stopPropagation(); showReplyForm(step.id, card); });
     card.querySelector('.btn-comment')?.addEventListener('click', (e) => { e.stopPropagation(); showCommentForm(step.id, card); });
+
+    // Z.2b — Split toggle click handler
+    card.querySelector('.split-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const originId = parseInt(e.currentTarget.dataset.originId);
+      if (!Number.isFinite(originId)) return;
+      if (revealedSplitOrigins.has(originId)) revealedSplitOrigins.delete(originId);
+      else revealedSplitOrigins.add(originId);
+      render();
+    });
 
     return card;
   }
@@ -1345,8 +1380,21 @@
     }
 
     // Filter steps for display
+    // Z.2b: a split-origin can be temporarily revealed by the user. While
+    // revealed, the origin is shown and its splits are hidden — preserving the
+    // "never show original + splits simultaneously" rule from the design doc.
     const displaySteps = currentStage === 3
-      ? steps.filter(s => !splitOriginIds.has(s.id))  // hide originals that were split
+      ? steps.filter(s => {
+          if (splitOriginIds.has(s.id)) {
+            // It's a split-origin: show only if user revealed it
+            return revealedSplitOrigins.has(s.id);
+          }
+          if (s.split_from_id && revealedSplitOrigins.has(s.split_from_id)) {
+            // It's a split whose origin is currently revealed → hide
+            return false;
+          }
+          return true;
+        })
       : steps;
 
     // ── Stage 1: simple linear chain — every step is primary, no siblings ──

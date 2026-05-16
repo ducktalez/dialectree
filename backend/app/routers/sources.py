@@ -95,6 +95,35 @@ def _generate_placeholder_svg(path: Path, title: str, kind: str) -> None:
     path.write_text(svg, encoding="utf-8")
 
 
+# ── Similarity helpers (lightweight, no embeddings) ──────────────────────────
+
+import re as _re
+
+# Common German + English stop words. The list is intentionally small;
+# the goal is rough deduplication, not search-engine quality.
+_STOP = frozenset({
+    "der", "die", "das", "und", "oder", "ist", "im", "in", "ein", "eine",
+    "den", "dem", "des", "zu", "zur", "zum", "auf", "von", "vom", "mit",
+    "für", "fur", "nicht", "nur", "auch", "aber", "als", "an", "am", "bei",
+    "the", "and", "or", "is", "a", "an", "of", "to", "for", "on", "in",
+    "with", "by", "at", "as",
+})
+
+def _tokens(text: str) -> set[str]:
+    if not text:
+        return set()
+    # Lowercase, split on non-letters/digits, drop short + stop words.
+    parts = _re.split(r"[^\wäöüß]+", text.lower())
+    return {p for p in parts if len(p) >= 3 and p not in _STOP}
+
+def _jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    inter = len(a & b)
+    union = len(a | b)
+    return inter / union if union else 0.0
+
+
 # ── GET endpoints ────────────────────────────────────────────────────────────
 
 
@@ -111,6 +140,44 @@ def list_tags() -> list[dict]:
         is_topic = 1 if tag.startswith("TOPIC:") else 0
         return (is_topic, -cnt, tag)
     return [{"tag": t, "count": c} for t, c in sorted(counts.items(), key=key)]
+
+
+@router.get("/similar")
+def find_similar(
+    title: str = Query(default="", description="Candidate title to compare against existing sources"),
+    description: str = Query(default=""),
+    threshold: float = Query(default=0.25, ge=0.0, le=1.0),
+    limit: int = Query(default=5, ge=1, le=50),
+    exclude_id: int | None = Query(default=None, description="Skip this source id (used by edit dialogs)"),
+) -> list[dict]:
+    """Lightweight duplicate suggestions for the 'new source' modal.
+
+    Uses normalized token-set Jaccard similarity over title + description.
+    Stand-in for embedding-based dedup (post-dev: replace with vector search).
+    Returns at most `limit` items above `threshold`, ordered by similarity.
+    """
+    candidate = _tokens(title) | _tokens(description)
+    if not candidate:
+        return []
+    scored: list[tuple[float, dict]] = []
+    for s in _all_sources():
+        if exclude_id is not None and s.get("id") == exclude_id:
+            continue
+        their = _tokens(s.get("title") or "") | _tokens(s.get("description") or "")
+        score = _jaccard(candidate, their)
+        if score >= threshold:
+            scored.append((score, s))
+    scored.sort(key=lambda x: (-x[0], x[1].get("id", 0)))
+    return [
+        {
+            "id": s["id"],
+            "title": s.get("title"),
+            "kind": s.get("kind"),
+            "thumbnail": s.get("thumbnail"),
+            "similarity": round(score, 3),
+        }
+        for score, s in scored[:limit]
+    ]
 
 
 @router.get("/")
