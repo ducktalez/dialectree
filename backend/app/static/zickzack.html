@@ -9,18 +9,19 @@
     body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; }
 
     header {
-      background: #161b22; color: #e6edf3; padding: 12px 24px;
-      display: flex; align-items: center; justify-content: space-between;
+      background: #161b22; color: #e6edf3; padding: 10px 20px;
+      display: flex; align-items: center; gap: 16px;
       border-bottom: 1px solid #30363d;
     }
-    header h1 { font-size: 1.15rem; }
-    header p  { font-size: 0.72rem; opacity: 0.7; }
-    header nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    header h1 { font-size: 1.05rem; margin: 0; white-space: nowrap; }
+    header nav { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
     header a {
       color: #58a6ff; font-size: 0.72rem; text-decoration: none;
       padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15);
     }
     header a:hover { background: rgba(255,255,255,.08); }
+    header a.active { background: rgba(88,166,255,.18); color: #e6edf3; border-color: #58a6ff; }
+    header .user-selector { margin-left: auto; }
 
     .page { margin: 0 auto; padding: 12px 16px; }
 
@@ -365,7 +366,50 @@
       background: #1f6feb; color: #fff; cursor: pointer; font-size: 0.78rem;
     }
     .transcript-actions button:hover { background: #388bfd; }
+    .transcript-actions button.btn-secondary {
+      background: #30363d; color: #c9d1d9;
+    }
+    .transcript-actions button.btn-secondary:hover { background: #484f58; }
     .save-status { font-size: 0.72rem; color: #8b949e; }
+
+    /* ── SRT Import Modal ── */
+    .srt-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .srt-modal {
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+      padding: 20px 24px; width: 560px; max-width: 92vw; max-height: 85vh;
+      overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .srt-modal h3 { font-size: 0.95rem; color: #e6edf3; margin-bottom: 12px; }
+    .srt-modal label { display: block; font-size: 0.72rem; color: #8b949e; margin: 8px 0 3px; }
+    .srt-modal textarea {
+      width: 100%; min-height: 180px; resize: vertical;
+      font-family: 'Courier New', monospace; font-size: 0.68rem; line-height: 1.5;
+      color: #c9d1d9; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+      padding: 10px 12px; box-sizing: border-box;
+    }
+    .srt-modal textarea:focus { outline: none; border-color: #58a6ff; }
+    .srt-modal input[type="text"] {
+      width: 100%; padding: 5px 10px; border-radius: 6px;
+      border: 1px solid #30363d; background: #0d1117; color: #c9d1d9;
+      font-size: 0.72rem; box-sizing: border-box;
+    }
+    .srt-modal input[type="text"]:focus { outline: none; border-color: #58a6ff; }
+    .srt-modal-actions {
+      display: flex; gap: 8px; margin-top: 14px; align-items: center;
+    }
+    .srt-modal-actions button {
+      padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.78rem;
+    }
+    .srt-modal-actions .btn-import { background: #1f6feb; color: #fff; }
+    .srt-modal-actions .btn-import:hover { background: #388bfd; }
+    .srt-modal-actions .btn-import:disabled { opacity: 0.4; cursor: not-allowed; }
+    .srt-modal-actions .btn-close { background: #30363d; color: #c9d1d9; }
+    .srt-modal-actions .btn-close:hover { background: #484f58; }
+    .srt-modal-status { font-size: 0.72rem; color: #8b949e; margin-left: 8px; }
+
     .transcript-info {
       font-size: 0.75rem; color: #8b949e; margin-bottom: 8px; padding: 6px 10px;
       background: #1c2128; border-radius: 6px; border: 1px solid #30363d;
@@ -395,20 +439,20 @@
 </head>
 <body>
   <header>
-    <div>
-      <h1>⚡ Zickzack-Dialog</h1>
-    </div>
-  <nav>
+    <h1>⚡ Zickzack-Dialog</h1>
+    <nav>
+      <a href="/" class="active">⚡ Zickzack</a>
+      <a href="/baum">🌳 Baum</a>
+      <a href="/entscheidung">⚖️ Waage</a>
+      <a href="/dialog">💬 Dialog</a>
+      <a href="/konflikt">🔍 Konflikt</a>
+      <a href="/quellen">📚 Quellen</a>
+    </nav>
     <div class="user-selector">
       <label for="user-select">👤</label>
       <select id="user-select"><option value="1">alice</option></select>
     </div>
-    <a href="/baum">🌳 Baum</a>
-    <a href="/entscheidung">⚖️ Waage</a>
-    <a href="/dialog">💬 Dialog</a>
-    <a href="/konflikt">🔍 Konflikt</a>
-  </nav>
-</header>
+  </header>
 
 <div class="page">
   <div class="topic-tabs" id="tabs"></div>
@@ -477,6 +521,33 @@
   let currentTopicId = null;
   let currentMode = 'chrono';
   let currentStage = 1;
+
+  // ── URL deep-linking (hash-based) ──────────────
+  // The page state (selected topic + stage) is reflected in location.hash so that
+  // reload and back/forward restore the view. Format: #topic=<id>&stage=<n>
+  // Hash is used (not query string) to avoid round-trips to the server.
+  let _suppressHashHandler = false;
+  function parseHash() {
+    const h = (location.hash || '').replace(/^#/, '');
+    const out = {};
+    h.split('&').filter(Boolean).forEach(p => {
+      const [k, v] = p.split('=');
+      if (k) out[decodeURIComponent(k)] = decodeURIComponent(v ?? '');
+    });
+    return out;
+  }
+  function updateHash() {
+    const parts = [];
+    if (currentTopicId != null) parts.push(`topic=${currentTopicId}`);
+    parts.push(`stage=${currentStage}`);
+    const newHash = '#' + parts.join('&');
+    if (location.hash !== newHash) {
+      _suppressHashHandler = true;
+      history.replaceState(null, '', newHash);
+      // Microtask reset so genuine user-driven hashchange events still fire.
+      setTimeout(() => { _suppressHashHandler = false; }, 0);
+    }
+  }
   let currentData = null;
   let renderState = null;
   let showBlueChronoFlow = true;
@@ -670,6 +741,7 @@
         <textarea id="transcript-textarea" class="transcript-edit" spellcheck="false">${esc(currentText)}</textarea>
         <div class="transcript-actions">
           <button onclick="saveTranscript()">💾 Speichern</button>
+          <button class="btn-secondary" onclick="openSrtImportModal()">📥 SRT importieren</button>
           <span id="save-status" class="save-status"></span>
         </div>`;
     } catch (e) {
@@ -693,25 +765,112 @@
     }
   }
 
+  // ── SRT Import Modal ──────────────────────────────
+  function openSrtImportModal() {
+    // Remove existing modal if any
+    const existing = document.getElementById('srt-modal-backdrop');
+    if (existing) existing.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'srt-modal-backdrop';
+    backdrop.className = 'srt-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="srt-modal">
+        <h3>📥 SRT-Datei importieren</h3>
+        <label for="srt-textarea">SRT-Inhalt einfügen:</label>
+        <textarea id="srt-textarea" placeholder="1\n00:00:00,080 --> 00:00:03,439\nHello world this is a test\n\n2\n00:00:03,439 --> 00:00:06,960\nof the subtitle parser"></textarea>
+        <label for="srt-source-url">YouTube-URL (optional):</label>
+        <input type="text" id="srt-source-url" placeholder="https://www.youtube.com/watch?v=..." />
+        <label for="srt-title">Titel (optional, sonst Topic-Titel):</label>
+        <input type="text" id="srt-title" placeholder="z.B. Diskussion über Quotenregelungen" />
+        <div class="srt-modal-actions">
+          <button class="btn-import" id="srt-btn-import" onclick="doSrtImport()">📥 Importieren</button>
+          <button class="btn-close" onclick="closeSrtImportModal()">Abbrechen</button>
+          <span class="srt-modal-status" id="srt-import-status"></span>
+        </div>
+      </div>`;
+    // Close on backdrop click (not on modal body)
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeSrtImportModal();
+    });
+    document.body.appendChild(backdrop);
+    document.getElementById('srt-textarea').focus();
+  }
+
+  function closeSrtImportModal() {
+    const backdrop = document.getElementById('srt-modal-backdrop');
+    if (backdrop) backdrop.remove();
+  }
+
+  async function doSrtImport() {
+    const textarea = document.getElementById('srt-textarea');
+    const statusEl = document.getElementById('srt-import-status');
+    const importBtn = document.getElementById('srt-btn-import');
+    const srtContent = textarea?.value?.trim();
+
+    if (!srtContent) {
+      statusEl.textContent = '⚠️ Bitte SRT-Inhalt einfügen';
+      return;
+    }
+    if (!currentTopicId) return;
+
+    importBtn.disabled = true;
+    statusEl.textContent = '⏳ Importiere…';
+
+    try {
+      const body = { srt_content: srtContent };
+      const sourceUrl = document.getElementById('srt-source-url')?.value?.trim();
+      const title = document.getElementById('srt-title')?.value?.trim();
+      if (sourceUrl) body.source_url = sourceUrl;
+      if (title) body.title = title;
+
+      await postJSON(`${API}/topics/${currentTopicId}/import-srt`, body);
+      closeSrtImportModal();
+      // Reload transcript to show imported content
+      await loadTranscript();
+    } catch (e) {
+      statusEl.textContent = `❌ ${esc(e.message)}`;
+      importBtn.disabled = false;
+    }
+  }
+
 
   async function loadTopics() {
     const topics = await fetchJSON(`${API}/topics/`);
     const tabs = document.getElementById('tabs');
     tabs.innerHTML = '';
+    const hashState = parseHash();
+    const wantedTopicId = hashState.topic ? parseInt(hashState.topic) : null;
+    let selectedBtn = null;
+    let selectedTopicId = null;
     topics.forEach((t, i) => {
       const btn = document.createElement('button');
       btn.className = 'topic-tab';
+      btn.dataset.topicId = String(t.id);
       btn.textContent = t.title;
       btn.onclick = () => selectTopic(t.id, btn);
       tabs.appendChild(btn);
-      if (i === 0) { btn.classList.add('active'); selectTopic(t.id, btn); }
+      if (wantedTopicId != null ? t.id === wantedTopicId : i === 0) {
+        selectedBtn = btn;
+        selectedTopicId = t.id;
+      }
     });
+    // Fallback if hash references a topic that no longer exists.
+    if (!selectedBtn && topics.length) {
+      selectedBtn = tabs.firstChild;
+      selectedTopicId = topics[0].id;
+    }
+    if (selectedBtn) {
+      selectedBtn.classList.add('active');
+      await selectTopic(selectedTopicId, selectedBtn);
+    }
   }
 
   async function selectTopic(topicId, btn) {
     document.querySelectorAll('.topic-tab').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     currentTopicId = topicId;
+    updateHash();
     // Reset polygon groups when switching topics (node IDs are topic-specific)
     customPolygonGroups = [];
     polygonGroupVisibility = {};
@@ -767,26 +926,60 @@
   }
 
   // ── Stage selector ─────────────────────────────
+  function applyStage(stage, { skipLoad = false } = {}) {
+    const btn = document.querySelector(`.stage-btn[data-stage="${stage}"]`);
+    if (!btn || btn.classList.contains('deferred')) return false;
+    document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStage = stage;
+    updateHash();
+    updateStageDescription();
+    renderLegendPanel();
+    document.getElementById('mode-toggle').style.display = currentStage >= 4 ? 'flex' : 'none';
+    if (skipLoad) return true;
+    if (currentStage === 0) return loadTranscript();
+    if (currentStage >= 4) { showStagePlaceholder(currentStage); return true; }
+    return loadZigzag();
+  }
+
   document.querySelectorAll('.stage-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (btn.classList.contains('deferred')) return;
-      document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentStage = parseInt(btn.dataset.stage);
-      updateStageDescription();
-      renderLegendPanel();
-
-      // Hide mode toggle for clean stages (0-3 are always chronological)
-      document.getElementById('mode-toggle').style.display = currentStage >= 4 ? 'flex' : 'none';
-
-      if (currentStage === 0) {
-        await loadTranscript();
-      } else if (currentStage >= 4) {
-        showStagePlaceholder(currentStage);
-      } else {
-        await loadZigzag();
-      }
+      await applyStage(parseInt(btn.dataset.stage));
     });
+  });
+
+  // Apply initial stage from hash before topics load (so the first selectTopic
+  // call already uses the correct stage).
+  (function initStageFromHash() {
+    const hashState = parseHash();
+    const wanted = hashState.stage ? parseInt(hashState.stage) : NaN;
+    if (!Number.isNaN(wanted)) {
+      const btn = document.querySelector(`.stage-btn[data-stage="${wanted}"]`);
+      if (btn && !btn.classList.contains('deferred')) {
+        document.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentStage = wanted;
+      }
+    }
+  })();
+
+  // Back/forward navigation between deep-linked states.
+  window.addEventListener('hashchange', async () => {
+    if (_suppressHashHandler) return;
+    const s = parseHash();
+    const wantedStage = s.stage ? parseInt(s.stage) : currentStage;
+    const wantedTopic = s.topic ? parseInt(s.topic) : currentTopicId;
+    if (wantedStage !== currentStage) applyStage(wantedStage, { skipLoad: true });
+    if (wantedTopic !== currentTopicId) {
+      const btn = document.querySelector(`.topic-tab[data-topic-id="${wantedTopic}"]`);
+      if (btn) await selectTopic(wantedTopic, btn);
+    } else {
+      // Stage changed but topic didn't: trigger reload of current stage view.
+      if (currentStage === 0) await loadTranscript();
+      else if (currentStage >= 4) showStagePlaceholder(currentStage);
+      else await loadZigzag();
+    }
   });
 
   // ── Load users for selector ────────────────────

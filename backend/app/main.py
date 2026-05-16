@@ -100,6 +100,12 @@ def zickzack_view():
     return FileResponse(_STATIC_DIR / "zickzack.html")
 
 
+@app.get("/quellen", response_class=FileResponse)
+def quellen_view():
+    """Quellensammlung – central evidence/source collection (placeholder page)."""
+    return FileResponse(_STATIC_DIR / "quellen.html")
+
+
 @app.get("/sw.js", response_class=FileResponse)
 def service_worker():
     """Dummy service worker to prevent 404."""

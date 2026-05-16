@@ -16,12 +16,13 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **routers/** – one file per resource: `users`, `topics`, `arguments`, `votes`, `tags`, `comments`, `evidence`, `labels`, `argument_groups` (incl. merge/unmerge), `definition_forks`, `multi_node_patterns`.
 
 ## Static UI (`backend/app/static/`)
-- **zickzack.html** – API-backed zig-zag view with chronological layout, interactive input (add arguments, vote, comment), served at `/` and `/zickzack`. Fan/Fächer mode is implemented but commented out (`# TODO: post-dev`).
+- **zickzack.html** – API-backed zig-zag view with chronological layout, interactive input (add arguments, vote, comment), served at `/` and `/zickzack`. Stage 0 includes SRT import modal (paste .srt → parse → store as transcript). Fan/Fächer mode is implemented but commented out (`# TODO: post-dev`). View state (selected topic + stage) is reflected in `location.hash` (`#topic=<id>&stage=<n>`) so reload and back/forward restore the view.
 - **dialog.html** – zig-zag dialectical dialogue visualisation (step 1 of three-step analysis), served at `/dialog`. Contains Quotenrassismus discussion example; Rauchen/Klima dialogues are commented out.
 - **index.html** – layered argument tree visualisation with SVG connectors, served at `/baum`.
 - **entscheidung.html** – weighted balance/scale visualisation, served at `/entscheidung`.
 - **konflikt.html** – conflict zone analysis, served at `/konflikt`.
 - **rauchen.html** – archived snapshot (route removed).
+- **quellen.html** – placeholder for upcoming "Quellensammlung" (central source/evidence collection), served at `/quellen`. Linked from every page header. Implementation tracked in `implementation-plan.md`.
 
 ## Frontend (`frontend/src/`)
 - **App.tsx** – topic list, tree view selection, dark theme.

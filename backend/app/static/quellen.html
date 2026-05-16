@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📚 Dialectree – Quellensammlung</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #fafafa; color: #222; }
+
+    header {
+      background: #1a237e; color: #fff; padding: 10px 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    header h1 { font-size: 1.05rem; margin: 0; white-space: nowrap; }
+    header nav { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+    header a {
+      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    }
+    header a:hover { background: rgba(255,255,255,.12); }
+    header a.active { background: rgba(255,255,255,.2); color: #fff; border-color: #fff; }
+
+    #app { max-width: 960px; margin: 0 auto; padding: 20px; }
+
+    .placeholder {
+      background: #fff; border-radius: 10px; padding: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .placeholder h2 { font-size: 1.05rem; margin-bottom: 10px; color: #1a237e; }
+    .placeholder p  { font-size: 0.85rem; color: #555; line-height: 1.55; margin-bottom: 8px; }
+    .placeholder ul { margin: 8px 0 8px 22px; font-size: 0.82rem; color: #555; line-height: 1.55; }
+    .badge {
+      display: inline-block; background: #fff3cd; color: #8a6d3b;
+      border: 1px solid #f0d877; border-radius: 6px; padding: 2px 8px;
+      font-size: 0.7rem; margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+<!-- DESIGN: Placeholder page for the upcoming "Quellensammlung" feature.
+     A central, searchable collection of evidence sources (studies, articles, videos)
+     that can be referenced from ArgumentNodes via the existing Evidence model.
+     Implementation tracked in docs/implementation-plan.md. -->
+<header>
+  <h1>📚 Quellensammlung</h1>
+  <nav>
+    <a href="/">⚡ Zickzack</a>
+    <a href="/baum">🌳 Baum</a>
+    <a href="/entscheidung">⚖️ Waage</a>
+    <a href="/dialog">💬 Dialog</a>
+    <a href="/konflikt">🔍 Konflikt</a>
+    <a href="/quellen" class="active">📚 Quellen</a>
+  </nav>
+</header>
+
+<div id="app">
+  <div class="placeholder">
+    <h2>In Vorbereitung <span class="badge">Platzhalter</span></h2>
+    <p>
+      Die Quellensammlung wird zentrale Anlaufstelle für alle in Diskussionen
+      verwendeten Belege (Studien, Artikel, Videos, Statistiken). Argumente können
+      auf Quellen verweisen, statt sie inline zu duplizieren.
+    </p>
+    <p>Geplante Funktionen:</p>
+    <ul>
+      <li>Übersicht aller <code>Evidence</code>-Einträge (Tier S/A/B/C/D)</li>
+      <li>Suche &amp; Filter nach Typ, Tier, Topic</li>
+      <li>Verknüpfung einer Quelle mit beliebig vielen Argumenten</li>
+      <li>Deduplizierung: dieselbe Quelle nur einmal pflegen</li>
+    </ul>
+    <p style="margin-top:10px;font-size:0.76rem;color:#888">
+      Fortschritt &amp; Designentscheidungen siehe <code>docs/implementation-plan.md</code>.
+    </p>
+  </div>
+</div>
+</body>
+</html>
+
+
+

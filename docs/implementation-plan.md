@@ -316,6 +316,17 @@ arguments into a group from the UI, and grouped arguments aren't visually collap
 
 ## Phase 2 – Advanced Features
 
+### Quellensammlung (Source Collection)
+Central, deduplicated registry for evidence sources referenced by arguments.
+Currently a placeholder page at `/quellen` (`backend/app/static/quellen.html`),
+linked from every page header.
+
+- [x] Placeholder page + route + nav link in all static views
+- [ ] Backend: list/search endpoint over existing `Evidence` rows (group by `url` + `title`)
+- [ ] Frontend: filterable list (by tier S/A/B/C/D, type, topic), detail view showing all arguments referencing a source
+- [ ] Authoring flow: create a source once, then attach to multiple arguments instead of duplicating evidence rows
+- [ ] Open question: separate `Source` model vs. derive from `Evidence`? Decide once usage volume is clearer (Design Discussions).
+
 ### SRT Import Pipeline (YouTube → Stage 0)
 - [x] `srt_parser.py`: Parse SRT files → clean flowing text (strips timestamps, HTML tags, deduplicates overlapping ASR fragments)
 - [x] `POST /api/topics/{id}/import-srt` endpoint stores parsed text as `transcript_yaml` in Stage-0 YAML format

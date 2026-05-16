@@ -57,6 +57,12 @@ Every change follows this cycle:
 
 When modifying existing code, reverse the check: *"Does this change affect the architecture or any documented decision?"* If yes, update docs in the same change.
 
+## Working Behaviour
+- **Proactive code review**: When working on a task, report any **bugs**, **code smells**, or **questionable patterns** discovered along the way — even if unrelated to the current task. Include a brief suggestion for each finding.
+- **Don't silently fix ambiguous findings**: Only fix a discovered issue directly if it is **unambiguously wrong** (missing import, typo, off-by-one). If the intent is unclear, or a comment/print suggests ongoing work — **ask first** or add a `# TODO` instead of removing/rewriting it. Debug prints or markers like `# discuss` are investigation aids, not dead code.
+- **Open tasks → implementation plan**: Add new TODOs to `docs/implementation-plan.md` instead of writing `# TODO` in source code.
+- **Design discussions → implementation plan**: Open architectural questions and trade-off decisions go into the **Design Discussions** section of `docs/implementation-plan.md`. Do not embed them inline in source code.
+- **Raise concerns**: If an approach seems risky, fragile, or architecturally problematic, voice the concern explicitly before or alongside the implementation.
 ## Maintaining These Docs
 
 ### `docs/architecture.md` — the architectural overview
@@ -81,4 +87,5 @@ The **comprehensive overview** of how the system is built. It must always reflec
 | `docs/meme-catalog.md` | Maps meme templates to argumentative concepts | New meme mapping (must reference corresponding taxonomy section) |
 | `.github/copilot-instructions.md` | Global coding & process rules (this file) | New conventions, pitfalls, or process changes |
 | `.github/instructions/*.instructions.md` | Layer-specific rules (backend, frontend) | Layer-specific convention changes |
+
 
