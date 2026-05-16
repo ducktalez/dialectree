@@ -336,6 +336,8 @@
     <select id="sort" class="sort-select">
       <option value="neu">Neu zuerst</option>
       <option value="alt">Alt zuerst</option>
+      <option value="top">Top bewertet</option>
+      <option value="kontrovers">Kontrovers</option>
       <option value="titel">Alphabetisch</option>
     </select>
     <button class="new-source-btn" id="open-new-source">＋ Neue Quelle</button>
@@ -404,6 +406,22 @@
 
   function isTopicTag(t) { return t.startsWith('TOPIC:'); }
   function tagDisplay(t) { return isTopicTag(t) ? t.slice(6) : t; }
+
+  // ── Vote tracking (per browser, no auth) ─────
+  // localStorage: { "<id>": 1 | -1 }. Server has no idea who voted.
+  // TODO: post-dev — replace with server-side per-user votes.
+  function loadVotes() {
+    try { return JSON.parse(localStorage.getItem('quellen.votes') || '{}'); }
+    catch { return {}; }
+  }
+  function getMyVote(id) { return loadVotes()[String(id)] || 0; }
+  function setMyVote(id, v) {
+    const all = loadVotes();
+    if (v === 0) delete all[String(id)]; else all[String(id)] = v;
+    localStorage.setItem('quellen.votes', JSON.stringify(all));
+  }
+  function scoreClass(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : ''; }
+  function fmtScore(n) { return n > 0 ? `+${n}` : String(n); }
 
   // ── Hash sync ─────────────────────────────────
   let _suppressHash = false;
@@ -603,11 +621,16 @@
     const counts = [];
     if (s.comment_count) counts.push(`💬 ${s.comment_count}`);
     if (s.usage_count) counts.push(`🔗 ${s.usage_count}`);
+    const score = s.score ?? ((s.up || 0) - (s.down || 0));
+    const voteBadge = (s.up || s.down)
+      ? `<div class="tile-vote">▲<span class="score ${scoreClass(score)}">${fmtScore(score)}</span>▼</div>`
+      : '';
     return `
       <div class="tile" data-id="${s.id}">
         ${s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="" loading="lazy" />` : ''}
         <span class="tile-kind">${escapeHtml(kind)}</span>
         <div class="tile-tags">${tags}</div>
+        ${voteBadge}
         <div class="tile-overlay">
           <div class="tile-title">${escapeHtml(s.title)}</div>
           <div class="tile-meta">${counts.join(' · ')}</div>
@@ -616,6 +639,17 @@
   }
 
   // ── Render: detail (HTML for inline expansion) ──
+  function voteWidgetHtml(s) {
+    const my = getMyVote(s.id);
+    const score = (s.up || 0) - (s.down || 0);
+    return `
+      <span class="vote-widget" data-vote-widget data-source-id="${s.id}">
+        <button data-vote="1" class="${my === 1 ? 'active up' : ''}" title="Upvote">▲</button>
+        <span class="score ${scoreClass(score)}">${fmtScore(score)}</span>
+        <button data-vote="-1" class="${my === -1 ? 'active down' : ''}" title="Downvote">▼</button>
+      </span>`;
+  }
+
   function detailInnerHtml(s) {
     const tagsHtml = (s.tags || []).map(t => {
       const cls = isTopicTag(t) ? 'tag-pill topic' : 'tag-pill';
@@ -655,6 +689,7 @@
           ${s.created_at ? `<span>📅 ${escapeHtml(s.created_at)}</span>` : ''}
           ${(s.comments || []).length ? `<span>💬 ${s.comments.length}</span>` : ''}
           ${(s.usages || []).length ? `<span>🔗 ${s.usages.length}</span>` : ''}
+          ${voteWidgetHtml(s)}
         </div>
         ${tagsHtml ? `<div class="detail-tags">${tagsHtml}</div>` : ''}
         <div class="detail-info">
@@ -726,6 +761,36 @@
         const r = await fetch(`${API}/sources/${sid}/usages/${b.dataset.delUsage}`, { method: 'DELETE' });
         if (!r.ok) { alert('Fehler: ' + await r.text()); return; }
         await expandInline(sid);
+      });
+    });
+    // Vote buttons (toggle off if same value clicked again)
+    root.querySelectorAll('[data-vote-widget]').forEach(w => {
+      const srcId = parseInt(w.dataset.sourceId);
+      w.querySelectorAll('button[data-vote]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const clicked = parseInt(b.dataset.vote);
+          const previous = getMyVote(srcId);
+          const value = previous === clicked ? 0 : clicked; // toggle off
+          const r = await fetch(`${API}/sources/${srcId}/vote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value, previous }),
+          });
+          if (!r.ok) { alert('Fehler: ' + await r.text()); return; }
+          const data = await r.json();
+          setMyVote(srcId, value);
+          // Update widget in place
+          const scoreEl = w.querySelector('.score');
+          scoreEl.textContent = fmtScore(data.score);
+          scoreEl.className = 'score ' + scoreClass(data.score);
+          w.querySelectorAll('button').forEach(bb => {
+            bb.classList.remove('active', 'up', 'down');
+            const v = parseInt(bb.dataset.vote);
+            if (v === value && value !== 0) {
+              bb.classList.add('active', v === 1 ? 'up' : 'down');
+            }
+          });
+        });
       });
     });
     // Tag pills → filter (collapses detail, applies tag).

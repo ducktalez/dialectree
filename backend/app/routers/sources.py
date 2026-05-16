@@ -112,7 +112,7 @@ def list_sources(
     tag: list[str] | None = Query(default=None, description="Filter by tag (repeatable, AND-combined)"),
     kind: str | None = None,
     q: str | None = Query(default=None, description="Full-text search over title + description"),
-    sort: str = Query(default="neu", pattern="^(neu|alt|titel)$"),
+    sort: str = Query(default="neu", pattern="^(neu|alt|titel|top|kontrovers)$"),
 ) -> list[dict]:
     items = _all_sources()
 
@@ -135,6 +135,17 @@ def list_sources(
         items.sort(key=lambda s: (s.get("created_at", ""), s.get("id", 0)))
     elif sort == "titel":
         items.sort(key=lambda s: (s.get("title") or "").lower())
+    elif sort == "top":
+        items.sort(key=lambda s: (s.get("up", 0) - s.get("down", 0), s.get("id", 0)), reverse=True)
+    elif sort == "kontrovers":
+        # Highest total engagement, score near zero ranks higher within equal totals.
+        items.sort(
+            key=lambda s: (
+                s.get("up", 0) + s.get("down", 0),
+                -abs(s.get("up", 0) - s.get("down", 0)),
+            ),
+            reverse=True,
+        )
 
     # List view: omit heavy fields. Detail endpoint returns everything.
     return [
@@ -147,6 +158,9 @@ def list_sources(
             "created_at": s.get("created_at"),
             "comment_count": len(s.get("comments", [])),
             "usage_count": len(s.get("usages", [])),
+            "up": s.get("up", 0),
+            "down": s.get("down", 0),
+            "score": s.get("up", 0) - s.get("down", 0),
         }
         for s in items
     ]
@@ -154,7 +168,11 @@ def list_sources(
 
 @router.get("/{source_id}")
 def get_source(source_id: int) -> dict:
-    return _find_source(source_id)
+    src = _find_source(source_id)
+    # Ensure vote fields are always present for the frontend.
+    up = int(src.get("up", 0))
+    down = int(src.get("down", 0))
+    return {**src, "up": up, "down": down, "score": up - down}
 
 
 # ── POST endpoints ───────────────────────────────────────────────────────────
@@ -256,6 +274,40 @@ def add_usage(source_id: int, payload: UsageIn) -> dict:
 
 
 # ── PATCH / DELETE ───────────────────────────────────────────────────────────
+
+
+class VoteIn(BaseModel):
+    """Vote transition. Client passes the previous vote so the server can adjust
+    the counters correctly without per-user tracking (deferred — see Phase 2)."""
+    value: int  # 1, -1, or 0 (clear)
+    previous: int = 0  # 1, -1, or 0
+
+
+@router.post("/{source_id}/vote")
+def cast_vote(source_id: int, payload: VoteIn) -> dict:
+    # TODO: post-dev — replace with per-user vote tracking (auth required)
+    if payload.value not in (-1, 0, 1) or payload.previous not in (-1, 0, 1):
+        raise HTTPException(400, "value/previous must be -1, 0, or 1")
+    data = _load()
+    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
+    if not src:
+        raise HTTPException(404, f"Source {source_id} not found")
+    up = int(src.get("up", 0))
+    down = int(src.get("down", 0))
+    # Undo previous vote
+    if payload.previous == 1:
+        up = max(0, up - 1)
+    elif payload.previous == -1:
+        down = max(0, down - 1)
+    # Apply new vote
+    if payload.value == 1:
+        up += 1
+    elif payload.value == -1:
+        down += 1
+    src["up"] = up
+    src["down"] = down
+    _persist(data)
+    return {"id": source_id, "up": up, "down": down, "score": up - down}
 
 
 class SourcePatch(BaseModel):

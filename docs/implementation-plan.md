@@ -326,14 +326,15 @@ Served at `/quellen`. pr0gramm-style grid → detail view.
 - [x] `POST /api/sources/` create with optional thumbnail upload (multipart) — auto-generates placeholder SVG if no file given
 - [x] `POST /api/sources/{id}/comments` and `POST /api/sources/{id}/usages`
 - [x] `PATCH /api/sources/{id}`, `DELETE /api/sources/{id}` (also removes managed thumbnail file), `DELETE …/comments/{idx}`, `DELETE …/usages/{idx}`
-- [x] Tests (`tests/test_sources.py`): 26 unit + integration tests for CRUD, filters, comments, usages, patch/delete
+- [x] `POST /api/sources/{id}/vote` — `{value, previous}` transition (no per-user tracking yet; client uses localStorage to remember own vote). Sort options `top` and `kontrovers` added.
+- [x] Tests (`tests/test_sources.py`): 34 tests for CRUD, filters, comments, usages, patch/delete, voting
 - [x] Static thumbnails under `backend/app/static/sources/<id>.{svg,png,jpg,…}`
 - [x] Frontend `quellen.html`: pr0gramm-style fixed 8-col grid (responsive 6/4/3), click expands detail inline at end of row, filter chips (kinds / tags / topics) + search + sort, hash-based deep-linking (`#id=<n>&tag=…&q=…`), "Neue Quelle" modal with file upload, inline comment + usage forms
 - [x] Tag conventions: `QUELLE`, `GEGENSEITE`, `SOUNDBOARD`, `WISSENSCHAFT`, `MEME`, plus `TOPIC:<SLUG>` namespace for topic association
 - [x] Dependency: `python-multipart>=0.0.9` for `Form`/`File` support
 
 **Deferred (Phase 2 next):**
-- [ ] Voting / "neu vs. top" ordering (needs vote model)
+- [ ] Per-user vote tracking on the server (requires auth) — currently uses client-side localStorage and trusts the `previous` value sent by the client.
 - [ ] Promote JSON → SQLAlchemy `Source` model with n:m link to `ArgumentNode` (replaces ad-hoc `usages` array). Decision deferred until usage volume is clearer.
 - [ ] Video/audio upload + inline player
 - [ ] Edit / delete sources (currently only create)

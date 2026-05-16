@@ -215,3 +215,53 @@ class TestSourcePatchDelete:
     def test_delete_source_404(self, client):
         assert client.delete("/api/sources/999").status_code == 404
 
+
+class TestSourcesVoting:
+    def _create(self, client, title="V"):
+        return client.post("/api/sources/", data={"title": title, "kind": "TEXT"}).json()["id"]
+
+    def test_initial_score_zero(self, client):
+        sid = self._create(client)
+        body = client.get(f"/api/sources/{sid}").json()
+        assert body["up"] == 0 and body["down"] == 0 and body["score"] == 0
+
+    def test_upvote_increments(self, client):
+        sid = self._create(client)
+        r = client.post(f"/api/sources/{sid}/vote", json={"value": 1, "previous": 0})
+        assert r.status_code == 200
+        assert r.json() == {"id": sid, "up": 1, "down": 0, "score": 1}
+
+    def test_downvote_increments(self, client):
+        sid = self._create(client)
+        r = client.post(f"/api/sources/{sid}/vote", json={"value": -1, "previous": 0})
+        assert r.json() == {"id": sid, "up": 0, "down": 1, "score": -1}
+
+    def test_toggle_off_clears(self, client):
+        sid = self._create(client)
+        client.post(f"/api/sources/{sid}/vote", json={"value": 1, "previous": 0})
+        r = client.post(f"/api/sources/{sid}/vote", json={"value": 0, "previous": 1})
+        assert r.json() == {"id": sid, "up": 0, "down": 0, "score": 0}
+
+    def test_switch_from_up_to_down(self, client):
+        sid = self._create(client)
+        client.post(f"/api/sources/{sid}/vote", json={"value": 1, "previous": 0})
+        r = client.post(f"/api/sources/{sid}/vote", json={"value": -1, "previous": 1})
+        assert r.json() == {"id": sid, "up": 0, "down": 1, "score": -1}
+
+    def test_invalid_value(self, client):
+        sid = self._create(client)
+        assert client.post(f"/api/sources/{sid}/vote", json={"value": 2, "previous": 0}).status_code == 400
+
+    def test_vote_404(self, client):
+        assert client.post("/api/sources/999/vote", json={"value": 1, "previous": 0}).status_code == 404
+
+    def test_list_includes_score_and_sort_top(self, client):
+        a = self._create(client, "A")
+        b = self._create(client, "B")
+        c = self._create(client, "C")
+        client.post(f"/api/sources/{a}/vote", json={"value": 1, "previous": 0})
+        client.post(f"/api/sources/{b}/vote", json={"value": -1, "previous": 0})
+        # c stays at 0
+        items = client.get("/api/sources/?sort=top").json()
+        assert [s["id"] for s in items] == [a, c, b]
+        assert items[0]["score"] == 1 and items[2]["score"] == -1
