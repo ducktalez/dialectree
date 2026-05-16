@@ -170,11 +170,11 @@
   <h1>⚖️ Entscheidungswaage</h1>
   <nav>
     <a href="/">⚡ Zickzack</a>
-    <a href="/baum">🌳 Baum</a>
+    <a href="/baum"> Baum</a>
     <a href="/entscheidung" class="active">⚖️ Waage</a>
-    <a href="/dialog">💬 Dialog</a>
-    <a href="/konflikt">🔍 Konflikt</a>
-    <a href="/quellen">📚 Quellen</a>
+    <a href="/dialog"> Dialog</a>
+    <a href="/konflikt"> Konflikt</a>
+    <a href="/quellen"> Quellen</a>
   </nav>
 </header>
 
@@ -250,8 +250,8 @@
       `<span class="label-pill">${esc(l)}</span>`
     ).join('') || '';
     const fallacyH = hasFallacy ? `<span class="label-pill">⚠️ FALLACY</span>` : '';
-    const evH = node.evidence_count ? `<span>📄${node.evidence_count}</span>` : '';
-    const cmH = node.comment_count ? `<span>💬${node.comment_count}</span>` : '';
+    const evH = node.evidence_count ? `<span>${node.evidence_count}</span>` : '';
+    const cmH = node.comment_count ? `<span>${node.comment_count}</span>` : '';
 
     const card = document.createElement('div');
     card.className = `arg-card ${node.position}${hasFallacy ? ' fallacy' : ''}`;
@@ -349,8 +349,8 @@
         `<div class="split-contra" style="flex:${conPct}">${conPct}% CONTRA</div>` +
       `</div>` +
       `<div class="summary-stats">` +
-        `<span>✅ ${proArgs.length} Argumente · Gewicht ${proTotal.toFixed(1)} · 📄${proEvidence}</span>` +
-        `<span>❌ ${conArgs.length} Argumente · Gewicht ${conTotal.toFixed(1)} · 📄${conEvidence}</span>` +
+        `<span>✅ ${proArgs.length} Argumente · Gewicht ${proTotal.toFixed(1)} · ${proEvidence}</span>` +
+        `<span>❌ ${conArgs.length} Argumente · Gewicht ${conTotal.toFixed(1)} · ${conEvidence}</span>` +
       `</div>` +
       `<div class="summary-verdict">${verdict}</div>`;
     container.appendChild(summary);
@@ -398,7 +398,7 @@
     if (neutralArgs.length) {
       const ns = document.createElement('div');
       ns.className = 'neutral-section';
-      ns.innerHTML = '<div class="neutral-label">💡 Neutrale Argumente & Kontext</div>';
+      ns.innerHTML = '<div class="neutral-label"> Neutrale Argumente & Kontext</div>';
       const row = document.createElement('div');
       row.className = 'neutral-cards';
       neutralArgs.forEach(n => row.appendChild(renderCard(n, maxWeight)));

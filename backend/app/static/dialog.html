@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>💬 Dialectree – Dialogstrang</title>
+  <title> Dialectree – Dialogstrang</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #fafafa; color: #222; }
@@ -184,21 +184,21 @@
 </head>
 <body>
 <header>
-  <h1>💬 Dialogstrang</h1>
+  <h1> Dialogstrang</h1>
   <nav>
     <a href="/">⚡ Zickzack</a>
-    <a href="/baum">🌳 Baum</a>
+    <a href="/baum"> Baum</a>
     <a href="/entscheidung">⚖️ Waage</a>
-    <a href="/dialog" class="active">💬 Dialog</a>
-    <a href="/konflikt">🔍 Konflikt</a>
-    <a href="/quellen">📚 Quellen</a>
+    <a href="/dialog" class="active"> Dialog</a>
+    <a href="/konflikt"> Konflikt</a>
+    <a href="/quellen"> Quellen</a>
   </nav>
 </header>
 
 <div class="page">
   <!-- Three-step framework -->
   <div class="framework">
-    <h3>📐 Drei-Schritt-Analyse</h3>
+    <h3> Drei-Schritt-Analyse</h3>
     <div class="fw-steps">
       <div class="fw-step active">
         <div class="fw-num">1</div>
@@ -276,7 +276,7 @@
             title: 'DOCH! Was ist überhaupt Rassismus? — Definitionsstreit',
             body: 'Die Verbindung zwischen "historische Korrektur" und "kein Rassismus" setzt eine umstrittene Definition voraus. Das muss erst geklärt werden.',
             zone: 'fact', zoneLabel: 'Faktenebene',
-            move: '🔗 Edge Attack: Greift die Verbindung an, nicht den Inhalt',
+            move: ' Edge Attack: Greift die Verbindung an, nicht den Inhalt',
           },
           alts: [
             'Asiatische Amerikaner werden durch Quoten systematisch benachteiligt',
@@ -317,7 +317,7 @@
       ],
       deadEnd: {
         type: 'consensus',
-        icon: '🤝',
+        icon: '',
         label: 'Teilkonsens erreicht',
         desc: 'Beide Seiten stimmen zu: Diskriminierung ist schlecht. Der verbleibende Dissens ist ein Definitionskonflikt (Was ist Rassismus?) und ein Kausalitätsstreit (Schaffen Quoten mehr Probleme als sie lösen?). Anonymisierte Verfahren als pragmatischer Kompromiss.',
         zoneText: 'Verbleibender Konflikt: Faktenebene (Definition) + Kausalitätsebene (Wirksamkeit)',
@@ -338,7 +338,7 @@
     steps: [
       { side: 'left', main: { title: 'Rauchen verursacht nachweislich Krebs', body: '...', zone: 'fact', zoneLabel: 'Faktenebene', move: '...' }, alts: [] },
     ],
-    deadEnd: { type: 'consensus', icon: '🤝', label: 'Teilkonsens', desc: '...', zoneText: '...', zoneCls: 'value' }
+    deadEnd: { type: 'consensus', icon: '', label: 'Teilkonsens', desc: '...', zoneText: '...', zoneCls: 'value' }
   };
 
   const DIALOGUE_KLIMA = {
@@ -349,7 +349,7 @@
     steps: [
       { side: 'left', main: { title: 'CO₂ erhöht die Temperatur', body: '...', zone: 'fact', zoneLabel: 'Faktenebene', move: '...' }, alts: [] },
     ],
-    deadEnd: { type: 'dissent', icon: '🔀', label: 'Struktureller Dissens', desc: '...', zoneText: '...', zoneCls: 'causal' }
+    deadEnd: { type: 'dissent', icon: '', label: 'Struktureller Dissens', desc: '...', zoneText: '...', zoneCls: 'causal' }
   };
   ── Ende auskommentierte Dialoge ────────────────────────────── */
 

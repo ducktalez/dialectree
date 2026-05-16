@@ -265,3 +265,53 @@ class TestSourcesVoting:
         items = client.get("/api/sources/?sort=top").json()
         assert [s["id"] for s in items] == [a, c, b]
         assert items[0]["score"] == 1 and items[2]["score"] == -1
+
+
+class TestSourcesMedia:
+    def test_create_with_media_upload(self, client, isolated_data):
+        _, thumb_dir = isolated_data
+        mp4 = b"\x00\x00\x00 ftypisom" + b"\x00" * 16
+        r = client.post(
+            "/api/sources/",
+            data={"title": "Clip", "kind": "VIDEO"},
+            files={"media": ("clip.mp4", mp4, "video/mp4")},
+        )
+        assert r.status_code == 201
+        body = r.json()
+        assert body["media_url"] == "/static/sources/media/1.mp4"
+        assert (thumb_dir / "media" / "1.mp4").read_bytes() == mp4
+
+    def test_create_with_audio_upload(self, client, isolated_data):
+        _, thumb_dir = isolated_data
+        r = client.post(
+            "/api/sources/",
+            data={"title": "Snippet", "kind": "AUDIO"},
+            files={"media": ("a.mp3", b"ID3" + b"\x00" * 32, "audio/mpeg")},
+        )
+        assert r.json()["media_url"] == "/static/sources/media/1.mp3"
+
+    def test_create_rejects_unsupported_media(self, client):
+        r = client.post(
+            "/api/sources/",
+            data={"title": "X", "kind": "VIDEO"},
+            files={"media": ("evil.exe", b"\x00", "application/octet-stream")},
+        )
+        assert r.status_code == 400
+
+    def test_delete_removes_media_file(self, client, isolated_data):
+        _, thumb_dir = isolated_data
+        sid = client.post(
+            "/api/sources/",
+            data={"title": "X", "kind": "VIDEO"},
+            files={"media": ("c.mp4", b"x" * 16, "video/mp4")},
+        ).json()["id"]
+        media_file = thumb_dir / "media" / f"{sid}.mp4"
+        assert media_file.exists()
+        client.delete(f"/api/sources/{sid}")
+        assert not media_file.exists()
+
+    def test_list_surfaces_url_and_media(self, client):
+        client.post("/api/sources/", data={"title": "YT", "kind": "VIDEO", "url": "https://youtu.be/abc123"})
+        items = client.get("/api/sources/").json()
+        assert items[0]["url"] == "https://youtu.be/abc123"
+        assert items[0]["media_url"] is None

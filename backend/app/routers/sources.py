@@ -30,11 +30,17 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 _DATA_FILE = Path(__file__).parent.parent / "data" / "sources.json"
 _THUMB_DIR = Path(__file__).parent.parent / "static" / "sources"
 
+def _media_dir() -> Path:
+    # Lazy lookup so tests can monkeypatch _THUMB_DIR.
+    return _THUMB_DIR / "media"
+
 # Simple mtime-based cache so editing the JSON during dev does not require
 # a server restart. Not thread-safe but irrelevant for the dev server.
 _cache: dict[str, Any] = {"mtime": None, "data": None}
 
 _ALLOWED_THUMB_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+_ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".ogg", ".mov", ".m4v"}
+_ALLOWED_AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".oga", ".flac"}
 _ALLOWED_KINDS = {"QUOTE", "VIDEO", "AUDIO", "PAPER", "TWEET", "IMAGE", "TEXT"}
 
 
@@ -161,6 +167,9 @@ def list_sources(
             "up": s.get("up", 0),
             "down": s.get("down", 0),
             "score": s.get("up", 0) - s.get("down", 0),
+            # Surfaced so the tile can show a play icon without an extra request
+            "url": s.get("url"),
+            "media_url": s.get("media_url"),
         }
         for s in items
     ]
@@ -187,6 +196,7 @@ async def create_source(
     # Comma-separated. Topic tags use "TOPIC:<SLUG>" convention.
     tags: str = Form(""),
     thumbnail: UploadFile | None = File(None),
+    media: UploadFile | None = File(None),
 ) -> dict:
     kind = kind.upper()
     if kind not in _ALLOWED_KINDS:
@@ -209,12 +219,27 @@ async def create_source(
         thumb_path = f"/static/sources/{new_id}.svg"
         _generate_placeholder_svg(_THUMB_DIR / f"{new_id}.svg", title, kind)
 
+    # Optional media file (audio/video). Inline-player consumes this on the
+    # detail view. Bigger files belong on a CDN long-term, but for the MVP
+    # we just store them under /static/sources/media/.
+    media_path: str | None = None
+    if media is not None and media.filename:
+        ext = Path(media.filename).suffix.lower()
+        allowed = _ALLOWED_VIDEO_EXT | _ALLOWED_AUDIO_EXT
+        if ext not in allowed:
+            raise HTTPException(400, f"Unsupported media format: {ext}")
+        _media_dir().mkdir(parents=True, exist_ok=True)
+        out = _media_dir() / f"{new_id}{ext}"
+        out.write_bytes(await media.read())
+        media_path = f"/static/sources/media/{new_id}{ext}"
+
     new_source = {
         "id": new_id,
         "title": title.strip(),
         "kind": kind,
         "url": (url or None) and url.strip(),
         "thumbnail": thumb_path,
+        "media_url": media_path,
         "description": (description or None) and description.strip(),
         "tags": [t.strip() for t in tags.split(",") if t.strip()],
         "created_at": date.today().isoformat(),
@@ -356,6 +381,15 @@ def delete_source(source_id: int) -> None:
                 thumb_file.unlink()
             except OSError:
                 pass  # leave dangling file rather than fail the request
+    # Same for an uploaded media file.
+    media_url = src.get("media_url") or ""
+    if media_url.startswith("/static/sources/media/"):
+        media_file = _media_dir() / Path(media_url).name
+        if media_file.exists():
+            try:
+                media_file.unlink()
+            except OSError:
+                pass
     data["sources"] = [s for s in sources if s.get("id") != source_id]
     _persist(data)
 

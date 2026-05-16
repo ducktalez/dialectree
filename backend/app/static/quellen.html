@@ -103,6 +103,40 @@
     }
     .tile-tag.topic { background: rgba(217,153,34,.85); }
 
+    /* ── Vote widget (tile bottom-left + detail strip) ────── */
+    .tile-vote {
+      position: absolute; bottom: 2px; left: 2px;
+      background: rgba(0,0,0,.7); color: #fff;
+      font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;
+      display: flex; align-items: center; gap: 3px; pointer-events: none;
+    }
+    .tile-vote .score { font-weight: 700; }
+    .tile-vote .score.pos { color: #3fb950; }
+    .tile-vote .score.neg { color: #f85149; }
+    .vote-widget {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+      padding: 2px 6px;
+    }
+    .vote-widget button {
+      background: transparent; border: none; color: #8b949e;
+      cursor: pointer; font-size: 0.9rem; line-height: 1; padding: 0 2px;
+    }
+    .vote-widget button:hover { color: #c9d1d9; }
+    .vote-widget button.active.up { color: #3fb950; }
+    .vote-widget button.active.down { color: #f85149; }
+    .vote-widget .score { min-width: 1.5em; text-align: center; font-weight: 700; }
+    .vote-widget .score.pos { color: #3fb950; }
+    .vote-widget .score.neg { color: #f85149; }
+
+    /* Play-icon overlay for tiles that have an inline-playable medium */
+    .tile-play {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; color: #fff; font-size: 2.2rem;
+      text-shadow: 0 0 12px rgba(0,0,0,.8); opacity: 0.85;
+    }
+
     /* ── Inline detail row (spans full grid width) ──────────── */
     .detail-row {
       grid-column: 1 / -1;
@@ -163,6 +197,13 @@
     }
     .detail-media img {
       max-width: 100%; max-height: 55vh; object-fit: contain; display: block;
+    }
+    .detail-media video, .detail-media .embed {
+      width: 100%; max-height: 55vh; aspect-ratio: 16/9;
+      background: #000; border: 0; display: block;
+    }
+    .detail-media audio {
+      width: 100%; padding: 16px; box-sizing: border-box;
     }
 
     /* Compact meta strip directly under the image (pr0gramm-style) */
@@ -382,6 +423,10 @@
       <label for="ns-thumbnail">Thumbnail (Bild)</label>
       <input id="ns-thumbnail" name="thumbnail" type="file" accept="image/*,.svg" />
       <div class="hint">Optional. Ohne Datei wird ein einfacher Platzhalter erzeugt.</div>
+
+      <label for="ns-media">Medien-Datei (Audio / Video, optional)</label>
+      <input id="ns-media" name="media" type="file" accept="video/*,audio/*" />
+      <div class="hint">Für lokale Audio-/Videodateien. Bei YouTube/Vimeo reicht die URL oben.</div>
 
       <div id="ns-error"></div>
       <div class="modal-actions">
@@ -625,9 +670,11 @@
     const voteBadge = (s.up || s.down)
       ? `<div class="tile-vote">▲<span class="score ${scoreClass(score)}">${fmtScore(score)}</span>▼</div>`
       : '';
+    const playIcon = tileHasMedia(s) ? '<div class="tile-play">▶</div>' : '';
     return `
       <div class="tile" data-id="${s.id}">
         ${s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="" loading="lazy" />` : ''}
+        ${playIcon}
         <span class="tile-kind">${escapeHtml(kind)}</span>
         <div class="tile-tags">${tags}</div>
         ${voteBadge}
@@ -636,6 +683,34 @@
           <div class="tile-meta">${counts.join(' · ')}</div>
         </div>
       </div>`;
+  }
+
+  // ── Inline media player: YouTube/Vimeo embed or <video>/<audio> ──
+  // Falls back to the thumbnail image if no playable media is detected.
+  const YT_RE = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/i;
+  const VIMEO_RE = /vimeo\.com\/(?:video\/)?(\d+)/i;
+  function tileHasMedia(s) {
+    if (s.media_url) return true;
+    if ((s.kind === 'VIDEO' || s.kind === 'AUDIO') && s.url && (YT_RE.test(s.url) || VIMEO_RE.test(s.url))) return true;
+    return false;
+  }
+  function mediaHtml(s) {
+    // 1) Uploaded media file wins (takes precedence over external url).
+    if (s.media_url) {
+      const isAudio = /\.(mp3|wav|m4a|oga|ogg|flac)$/i.test(s.media_url);
+      const tag = isAudio ? 'audio' : 'video';
+      const poster = !isAudio && s.thumbnail ? ` poster="${escapeAttr(s.thumbnail)}"` : '';
+      return `<${tag} controls preload="metadata" src="${escapeAttr(s.media_url)}"${poster}></${tag}>`;
+    }
+    // 2) YouTube / Vimeo embed for VIDEO sources with a recognised url.
+    if (s.kind === 'VIDEO' && s.url) {
+      const yt = s.url.match(YT_RE);
+      if (yt) return `<iframe class="embed" src="https://www.youtube-nocookie.com/embed/${yt[1]}" title="${escapeAttr(s.title)}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+      const vm = s.url.match(VIMEO_RE);
+      if (vm) return `<iframe class="embed" src="https://player.vimeo.com/video/${vm[1]}" title="${escapeAttr(s.title)}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
+    }
+    // 3) Fallback to thumbnail image.
+    return s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="${escapeAttr(s.title)}"/>` : '';
   }
 
   // ── Render: detail (HTML for inline expansion) ──
@@ -682,7 +757,7 @@
       </div>
       <div class="detail">
         <div class="detail-media">
-          ${s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="${escapeAttr(s.title)}"/>` : ''}
+          ${mediaHtml(s)}
         </div>
         <div class="detail-strip">
           <span class="kind">${escapeHtml(KIND_LABELS[s.kind] || s.kind || '')}</span>

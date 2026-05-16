@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🌳 Dialectree</title>
+  <title> Dialectree</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
@@ -147,14 +147,14 @@
 </head>
 <body>
 <header>
-  <h1>🌳 Argumentbaum</h1>
+  <h1> Argumentbaum</h1>
   <nav>
     <a href="/">⚡ Zickzack</a>
-    <a href="/baum" class="active">🌳 Baum</a>
+    <a href="/baum" class="active"> Baum</a>
     <a href="/entscheidung">⚖️ Waage</a>
-    <a href="/dialog">💬 Dialog</a>
-    <a href="/konflikt">🔍 Konflikt</a>
-    <a href="/quellen">📚 Quellen</a>
+    <a href="/dialog"> Dialog</a>
+    <a href="/konflikt"> Konflikt</a>
+    <a href="/quellen"> Quellen</a>
   </nav>
 </header>
 
@@ -205,7 +205,7 @@
     if (node.labels && node.labels.includes('FALLACY')) return '⚠️';
     if (node.position === 'PRO')    return '✅';
     if (node.position === 'CONTRA') return '❌';
-    return '💡';
+    return '';
   }
 
   function sortByPosition(arr) {
@@ -298,8 +298,8 @@
       const sc = n.vote_score > 0 ? 'pos' : n.vote_score < 0 ? 'neg' : 'zero';
       const tagH = n.tags.map(t => `<span class="tag-pill">${escHtml(typeof t==='string'?t:t.tag_name||String(t))}</span>`).join('');
       const labH = n.labels.map(l => `<span class="label-pill">${escHtml(l)}</span>`).join('');
-      const evH  = n.evidence_count ? `<span class="meta-icon">📄${n.evidence_count}</span>` : '';
-      const cmH  = n.comment_count  ? `<span class="meta-icon">💬${n.comment_count}</span>`  : '';
+      const evH  = n.evidence_count ? `<span class="meta-icon">${n.evidence_count}</span>` : '';
+      const cmH  = n.comment_count  ? `<span class="meta-icon">${n.comment_count}</span>`  : '';
       const card = document.createElement('div');
       card.className = `node ${n.position}`;
       card.dataset.nodeId = n.id;
@@ -336,7 +336,7 @@
     // Goal layer — highest-level aspiration
     const goalLayer = document.createElement('div');
     goalLayer.className = 'layer';
-    goalLayer.innerHTML = `<div class="layer-label">🌍 Oberstes Ziel</div>`;
+    goalLayer.innerHTML = `<div class="layer-label"> Oberstes Ziel</div>`;
     const goalRow = document.createElement('div');
     goalRow.className = 'layer-row';
     const goalCard = document.createElement('div');
@@ -347,7 +347,7 @@
     goalLayer.appendChild(goalRow);
     stack.appendChild(goalLayer);
 
-    addLayer('🎯 Gesellschaftliche Grundziele', goals.map(g => makeTagCard(g, 'value-node')));
+    addLayer(' Gesellschaftliche Grundziele', goals.map(g => makeTagCard(g, 'value-node')));
 
     // Topic layer (always present)
     const tLayer = document.createElement('div');
@@ -363,9 +363,9 @@
     tLayer.appendChild(tRow);
     stack.appendChild(tLayer);
 
-    addLayer('💬 Hauptargumente', rootArgs.map(makeArgCard));
-    addLayer('🔗 Vertiefungen & Gegenargumente', subArgs.map(makeArgCard));
-    addLayer('📌 Grundannahmen & Belege', premises.map(n => {
+    addLayer(' Hauptargumente', rootArgs.map(makeArgCard));
+    addLayer(' Vertiefungen & Gegenargumente', subArgs.map(makeArgCard));
+    addLayer(' Grundannahmen & Belege', premises.map(n => {
       const card = makeArgCard(n);
       card.classList.add('premise-node');
       return card;

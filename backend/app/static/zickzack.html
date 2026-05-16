@@ -442,14 +442,14 @@
     <h1>⚡ Zickzack-Dialog</h1>
     <nav>
       <a href="/" class="active">⚡ Zickzack</a>
-      <a href="/baum">🌳 Baum</a>
+      <a href="/baum"> Baum</a>
       <a href="/entscheidung">⚖️ Waage</a>
-      <a href="/dialog">💬 Dialog</a>
-      <a href="/konflikt">🔍 Konflikt</a>
-      <a href="/quellen">📚 Quellen</a>
+      <a href="/dialog"> Dialog</a>
+      <a href="/konflikt"> Konflikt</a>
+      <a href="/quellen"> Quellen</a>
     </nav>
     <div class="user-selector">
-      <label for="user-select">👤</label>
+      <label for="user-select"></label>
       <select id="user-select"><option value="1">alice</option></select>
     </div>
   </header>
@@ -458,7 +458,7 @@
   <div class="topic-tabs" id="tabs"></div>
   <div class="stage-selector" id="stage-selector">
     <span class="stage-label">Stufe:</span>
-    <button class="stage-btn" data-stage="0">📄 Transkript</button>
+    <button class="stage-btn" data-stage="0"> Transkript</button>
     <button class="stage-btn active" data-stage="1">1️⃣ Basis</button>
     <button class="stage-btn" data-stage="2">2️⃣ Split-Prozess</button>
     <button class="stage-btn" data-stage="3">3️⃣ Verfeinerung</button>
@@ -471,9 +471,9 @@
     <div class="stage-description" id="stage-description"></div>
   </div>
   <div class="mode-toggle" id="mode-toggle" style="display:none">
-    <button class="mode-btn active" data-mode="chrono">📜 Chronologisch</button>
+    <button class="mode-btn active" data-mode="chrono"> Chronologisch</button>
     <!-- TODO: post-dev – re-enable when fan layout is ready
-    <button class="mode-btn" data-mode="fan">🌳 Fächer</button>
+    <button class="mode-btn" data-mode="fan"> Fächer</button>
     -->
   </div>
   <div id="stage-content">
@@ -488,7 +488,7 @@
 
 <!-- Polygon selection toolbar (fixed at bottom during selection mode) -->
 <div class="polygon-select-toolbar" id="polygon-select-toolbar">
-  <span id="polygon-select-count">🔷 <strong>0</strong> Argumente</span>
+  <span id="polygon-select-count"> <strong>0</strong> Argumente</span>
   <input type="text" id="polygon-group-name" placeholder="Bereichsname…" />
   <button class="btn-create" id="polygon-btn-create" disabled>✓ Erstellen</button>
   <button class="btn-cancel" id="polygon-btn-cancel">✗ Abbrechen</button>
@@ -500,11 +500,11 @@
   const DRAG_ENABLED = true;
 
   const EDGE_TYPES = {
-    COMMUNITY_NOTE: { emoji:'📢', label:'Unwahr!' },
+    COMMUNITY_NOTE: { emoji:'', label:'Unwahr!' },
     CONSEQUENCES:   { emoji:'⚠️', label:'Folgen' },
-    WEAKENING:      { emoji:'🤷', label:'Schwach' },
-    REFRAME:        { emoji:'💡', label:'Reframing' },
-    CONCESSION:     { emoji:'🤝', label:'Konsens' },
+    WEAKENING:      { emoji:'', label:'Schwach' },
+    REFRAME:        { emoji:'', label:'Reframing' },
+    CONCESSION:     { emoji:'', label:'Konsens' },
   };
 
   const ZONE_COLORS = { FACT:'#58a6ff', CAUSAL:'#d29922', VALUE:'#a371f7' };
@@ -736,12 +736,12 @@
       const hint = currentText ? '' : ' — <em>Noch kein Transkript vorhanden. Hier eingeben und speichern.</em>';
       content.innerHTML = `
         <div class="transcript-info">
-          📄 <strong>Stufe 0: Rohdaten / Transkript</strong>${hint}
+           <strong>Stufe 0: Rohdaten / Transkript</strong>${hint}
         </div>
         <textarea id="transcript-textarea" class="transcript-edit" spellcheck="false">${esc(currentText)}</textarea>
         <div class="transcript-actions">
-          <button onclick="saveTranscript()">💾 Speichern</button>
-          <button class="btn-secondary" onclick="openSrtImportModal()">📥 SRT importieren</button>
+          <button onclick="saveTranscript()"> Speichern</button>
+          <button class="btn-secondary" onclick="openSrtImportModal()"> SRT importieren</button>
           <span id="save-status" class="save-status"></span>
         </div>`;
     } catch (e) {
@@ -776,7 +776,7 @@
     backdrop.className = 'srt-modal-backdrop';
     backdrop.innerHTML = `
       <div class="srt-modal">
-        <h3>📥 SRT-Datei importieren</h3>
+        <h3> SRT-Datei importieren</h3>
         <label for="srt-textarea">SRT-Inhalt einfügen:</label>
         <textarea id="srt-textarea" placeholder="1\n00:00:00,080 --> 00:00:03,439\nHello world this is a test\n\n2\n00:00:03,439 --> 00:00:06,960\nof the subtitle parser"></textarea>
         <label for="srt-source-url">YouTube-URL (optional):</label>
@@ -784,7 +784,7 @@
         <label for="srt-title">Titel (optional, sonst Topic-Titel):</label>
         <input type="text" id="srt-title" placeholder="z.B. Diskussion über Quotenregelungen" />
         <div class="srt-modal-actions">
-          <button class="btn-import" id="srt-btn-import" onclick="doSrtImport()">📥 Importieren</button>
+          <button class="btn-import" id="srt-btn-import" onclick="doSrtImport()"> Importieren</button>
           <button class="btn-close" onclick="closeSrtImportModal()">Abbrechen</button>
           <span class="srt-modal-status" id="srt-import-status"></span>
         </div>
@@ -914,7 +914,7 @@
     const configs = {
       4: { icon: '⚙️', title: 'Stufe 4: Einordnung', desc: 'Bewertungen und argumentative Verfeinerungen. Nur auf Argumente (kein Edge-Kommentieren). Noch nicht implementiert.' },
       5: { icon: '⚙️', title: 'Stufe 5: Meta-Einordnung', desc: 'Argumentgruppen markieren, Klassifizierung als Quelle / Grundannahme. Noch nicht implementiert.' },
-      6: { icon: '🔭', title: 'Stufe 6: Diskussionsnetz', desc: 'Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert separate Spezifikation (AbstractArgument-Modell, Cross-Topic-Links).' },
+      6: { icon: '', title: 'Stufe 6: Diskussionsnetz', desc: 'Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert separate Spezifikation (AbstractArgument-Modell, Cross-Topic-Links).' },
     };
     const c = configs[stage] || { icon: '❓', title: `Stufe ${stage}`, desc: 'Unbekannte Stufe.' };
     content.innerHTML = `
@@ -1090,7 +1090,7 @@
         html += `<span class="vote-score">${step.vote_score || 0}</span>`;
         html += `<button class="btn-vote-down" data-id="${step.id}" title="Downvote">▼</button>`;
         html += `<button class="btn-reply" data-id="${step.id}" title="Antworten">＋</button>`;
-        html += `<button class="btn-comment" data-id="${step.id}" title="Kommentar">💬</button>`;
+        html += `<button class="btn-comment" data-id="${step.id}" title="Kommentar"></button>`;
         html += `</div>`;
       }
       if (!isStage2Split) html += `</div>`;
@@ -1769,7 +1769,7 @@
     const de = document.createElement('div');
     de.className = 'zz-deadend';
     de.style.left = CX + 'px'; de.style.top = deY + 'px';
-    de.innerHTML = `<div class="de-icon">🔚</div>
+    de.innerHTML = `<div class="de-icon"></div>
       <div class="de-label">Ende des Strangs</div>
       <div class="de-desc">${steps.length} Argumente</div>`;
     canvas.appendChild(de);
@@ -2007,11 +2007,11 @@
           <label>Kantentyp</label>
           <select id="reply-edge">
             <option value="">—</option>
-            <option value="COMMUNITY_NOTE">📢 Community Note</option>
+            <option value="COMMUNITY_NOTE"> Community Note</option>
             <option value="CONSEQUENCES">⚠️ Folgen</option>
-            <option value="WEAKENING">🤷 Schwächung</option>
-            <option value="REFRAME">💡 Reframing</option>
-            <option value="CONCESSION">🤝 Konsens</option>
+            <option value="WEAKENING"> Schwächung</option>
+            <option value="REFRAME"> Reframing</option>
+            <option value="CONCESSION"> Konsens</option>
           </select>
         </div>
         <div>
@@ -2061,7 +2061,7 @@
     form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
 
     form.innerHTML = `
-      <h4>💬 Kommentar</h4>
+      <h4> Kommentar</h4>
       <textarea id="comment-text" placeholder="Dein Kommentar…"></textarea>
       <div class="form-actions">
         <button class="btn-cancel" onclick="removeInlineForms()">Abbrechen</button>
@@ -2162,7 +2162,7 @@
     const count = pendingPolygonSelection.size;
     const countEl = document.getElementById('polygon-select-count');
     const createBtn = document.getElementById('polygon-btn-create');
-    if (countEl) countEl.innerHTML = `🔷 <strong>${count}</strong> Argument${count !== 1 ? 'e' : ''}`;
+    if (countEl) countEl.innerHTML = ` <strong>${count}</strong> Argument${count !== 1 ? 'e' : ''}`;
     if (createBtn) createBtn.disabled = count < 2;
   }
 

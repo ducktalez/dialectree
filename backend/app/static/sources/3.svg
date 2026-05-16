@@ -16,7 +16,6 @@
     <rect x="60" y="255" width="275" height="6" rx="2"/>
     <rect x="60" y="270" width="180" height="6" rx="2"/>
   </g>
-  <text x="60" y="320" fill="#1d3557" font-family="system-ui,sans-serif" font-size="13" font-weight="600">📄 Paper · 🧪 Peer reviewed</text>
+  <text x="60" y="320" fill="#1d3557" font-family="system-ui,sans-serif" font-size="13" font-weight="600"> Paper ·  Peer reviewed</text>
   <text x="60" y="350" fill="#1d9bf0" font-family="system-ui,sans-serif" font-size="11">pubmed.ncbi.nlm.nih.gov/6872626/</text>
 </svg>
-

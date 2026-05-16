@@ -6,7 +6,7 @@
     </linearGradient>
   </defs>
   <rect width="400" height="400" fill="url(#g1)"/>
-  <text x="200" y="80" text-anchor="middle" fill="#ff8a65" font-family="system-ui,sans-serif" font-size="32" font-weight="700">💬 ZITAT</text>
+  <text x="200" y="80" text-anchor="middle" fill="#ff8a65" font-family="system-ui,sans-serif" font-size="32" font-weight="700"> ZITAT</text>
   <foreignObject x="30" y="110" width="340" height="220">
     <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Georgia,serif;font-size:26px;color:#fff5e6;line-height:1.35;text-align:center;font-style:italic">
       „Das ist wie das Schreddern von Küken"
@@ -14,4 +14,3 @@
   </foreignObject>
   <text x="200" y="365" text-anchor="middle" fill="#ff8a65" font-family="system-ui,sans-serif" font-size="14" opacity="0.8">Berufsempörung · Soundboard</text>
 </svg>
-
