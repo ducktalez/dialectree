@@ -12,22 +12,6 @@ Similar arguments (same point, different wording) are grouped into a single bubb
 
 Unprocessed ideas parked here until they have a clear home in the docs.
 
-- Quellensammlung (auch im pr0gramm-stil, also pictasia-projekt): Es können Quellen hinzugefügt werden. Von jeder Quelle muss mindestens ein Screenshot/Video erstellt werden. Die Quelle kann aber auch ein paper, etc. sein.
-  - Mögliche Quellen sind zB. 
-    - textdokument
-    - audioaufnahme
-    - videoaufnahme (Link zum Video, oder direktes Hochladen)
-  - Haupttags für die Quellen sind zB.
-    - Quelle: eine nützliche Quelle
-    - Ragebait/(besserer tagname): Erzeugnisse der Gegenseite, welches behandelt werden könnte
-    - Soundboard: lustige Ausschnitte oder Politiker-zitate, die praktisch zum einblenden sein könnten
-    - ...
-  - Zusätzlich können auch Verwendungsnachweise hinzugefügt werden, also wo die Quelle in Diskussionen oder als Beleg für Argumente genutzt wurde.
-  - Die Quellen sollen im Stil von pr0gramm.com auf einer Startseite erscheinen - so kann man immer sehen, ob es coole neue Sachen gibt.
-  - Noch muss keine postgres-db oder nutzerverwaltung implementiert werden. Folgende Quellen sollen eingetragen werden: 
-    - "Das ist wie das Schreddern von Küken" (Passt bei Berufsempörung)
-    - "Menapt statistik" https://x.com/a_sator/status/1473193532462714884/photo/1
-    - https://pubmed.ncbi.nlm.nih.gov/6872626/
 
 - Ich will eine Spieltheoretische Metaanalyse über die Zeit hinweg. ZB. "Iran angreifen für/wieder" - ARgumente ändern sich über die Zeit hinweg.
 - Führe auch Video-Memes ein (Nützlich für Videoproduktion)

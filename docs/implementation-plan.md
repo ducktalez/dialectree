@@ -318,14 +318,22 @@ arguments into a group from the UI, and grouped arguments aren't visually collap
 
 ### Quellensammlung (Source Collection)
 Central, deduplicated registry for evidence sources referenced by arguments.
-Currently a placeholder page at `/quellen` (`backend/app/static/quellen.html`),
-linked from every page header.
+Served at `/quellen`. pr0gramm-style grid → detail view.
 
-- [x] Placeholder page + route + nav link in all static views
-- [ ] Backend: list/search endpoint over existing `Evidence` rows (group by `url` + `title`)
-- [ ] Frontend: filterable list (by tier S/A/B/C/D, type, topic), detail view showing all arguments referencing a source
-- [ ] Authoring flow: create a source once, then attach to multiple arguments instead of duplicating evidence rows
-- [ ] Open question: separate `Source` model vs. derive from `Evidence`? Decide once usage volume is clearer (Design Discussions).
+**MVP done:**
+- [x] JSON-backed data store (`backend/app/data/sources.json`) — no DB table yet
+- [x] Backend router `routers/sources.py`: `GET /api/sources/` (filter by `kind`, `tag` (repeatable, AND), `q` full-text, `sort=neu|alt|titel`), `GET /api/sources/tags`, `GET /api/sources/{id}`
+- [x] Static thumbnails under `backend/app/static/sources/<id>.svg` (SVG placeholders)
+- [x] Frontend `quellen.html`: grid + detail + filter chips (kinds / tags / topics) + search + sort, hash-based deep-linking (`#id=<n>&tag=…&q=…`)
+- [x] Tag conventions: `QUELLE`, `GEGENSEITE`, `SOUNDBOARD`, `WISSENSCHAFT`, `MEME`, plus `TOPIC:<SLUG>` namespace for topic association
+
+**Deferred (Phase 2 next):**
+- [ ] `POST /api/sources/` create + image/file upload (currently: edit JSON manually)
+- [ ] `POST /api/sources/{id}/comments` and `…/usages`
+- [ ] Voting / "neu vs. top" ordering (needs vote model)
+- [ ] Promote JSON → SQLAlchemy `Source` model with n:m link to `ArgumentNode` (replaces ad-hoc `usages` array). Decision deferred until usage volume is clearer.
+- [ ] Video/audio upload + inline player
+- [ ] Embedding-based duplicate / similarity detection
 
 ### SRT Import Pipeline (YouTube → Stage 0)
 - [x] `srt_parser.py`: Parse SRT files → clean flowing text (strips timestamps, HTML tags, deduplicates overlapping ASR fragments)

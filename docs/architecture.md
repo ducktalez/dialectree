@@ -13,7 +13,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **schemas.py** – all Pydantic request/response schemas (single file).
 - **seed.py** – example data: two topics ("Sind Quotenregelungen rassistisch?" + "🔧 Blueprint: Quotenrassismus-Diskussion"), runnable via `python -m app.seed`. Both topics demonstrate full zigzag features: branching, edge attacks, sibling alternatives, conflict zones.
 - **srt_parser.py** – SRT subtitle file parser. `parse_srt()` strips timestamps/tags/overlaps → clean text. `parse_srt_to_yaml()` wraps result in Stage-0 YAML format. Used by `POST /api/topics/{id}/import-srt`.
-- **routers/** – one file per resource: `users`, `topics`, `arguments`, `votes`, `tags`, `comments`, `evidence`, `labels`, `argument_groups` (incl. merge/unmerge), `definition_forks`, `multi_node_patterns`.
+- **routers/** – one file per resource: `users`, `topics`, `arguments`, `votes`, `tags`, `comments`, `evidence`, `labels`, `argument_groups` (incl. merge/unmerge), `definition_forks`, `multi_node_patterns`, `sources`.
 
 ## Static UI (`backend/app/static/`)
 - **zickzack.html** – API-backed zig-zag view with chronological layout, interactive input (add arguments, vote, comment), served at `/` and `/zickzack`. Stage 0 includes SRT import modal (paste .srt → parse → store as transcript). Fan/Fächer mode is implemented but commented out (`# TODO: post-dev`). View state (selected topic + stage) is reflected in `location.hash` (`#topic=<id>&stage=<n>`) so reload and back/forward restore the view.
@@ -22,7 +22,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **entscheidung.html** – weighted balance/scale visualisation, served at `/entscheidung`.
 - **konflikt.html** – conflict zone analysis, served at `/konflikt`.
 - **rauchen.html** – archived snapshot (route removed).
-- **quellen.html** – placeholder for upcoming "Quellensammlung" (central source/evidence collection), served at `/quellen`. Linked from every page header. Implementation tracked in `implementation-plan.md`.
+- **quellen.html** – pr0gramm-style "Quellensammlung" served at `/quellen`. Grid of thumbnails, click → detail view with description, tags, source URL, usages, comments. Filterable by kind, tags (incl. `TOPIC:<SLUG>` namespace), full-text search; URL hash carries view state (`#id=<n>&tag=…&q=…`). Backed by `routers/sources.py` reading from `backend/app/data/sources.json` (no DB table yet — Phase 2 promotes to model). Thumbnails live in `backend/app/static/sources/<id>.svg`. Add/edit/upload UI deferred (see implementation plan).
 
 ## Frontend (`frontend/src/`)
 - **App.tsx** – topic list, tree view selection, dark theme.

@@ -6,42 +6,177 @@
   <title>📚 Dialectree – Quellensammlung</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #fafafa; color: #222; }
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
 
     header {
-      background: #1a237e; color: #fff; padding: 10px 20px;
+      background: #161b22; color: #e6edf3; padding: 10px 20px;
       display: flex; align-items: center; gap: 16px;
+      border-bottom: 1px solid #30363d;
     }
     header h1 { font-size: 1.05rem; margin: 0; white-space: nowrap; }
     header nav { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
     header a {
-      color: #bbdefb; font-size: 0.72rem; text-decoration: none;
-      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+      color: #58a6ff; font-size: 0.72rem; text-decoration: none;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15);
     }
-    header a:hover { background: rgba(255,255,255,.12); }
-    header a.active { background: rgba(255,255,255,.2); color: #fff; border-color: #fff; }
+    header a:hover { background: rgba(255,255,255,.08); }
+    header a.active { background: rgba(88,166,255,.18); color: #e6edf3; border-color: #58a6ff; }
 
-    #app { max-width: 960px; margin: 0 auto; padding: 20px; }
-
-    .placeholder {
-      background: #fff; border-radius: 10px; padding: 24px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    /* ── Filter bar ─────────────────────────────── */
+    .filter-bar {
+      background: #161b22; border-bottom: 1px solid #30363d;
+      padding: 10px 20px; display: flex; flex-direction: column; gap: 8px;
     }
-    .placeholder h2 { font-size: 1.05rem; margin-bottom: 10px; color: #1a237e; }
-    .placeholder p  { font-size: 0.85rem; color: #555; line-height: 1.55; margin-bottom: 8px; }
-    .placeholder ul { margin: 8px 0 8px 22px; font-size: 0.82rem; color: #555; line-height: 1.55; }
-    .badge {
-      display: inline-block; background: #fff3cd; color: #8a6d3b;
-      border: 1px solid #f0d877; border-radius: 6px; padding: 2px 8px;
-      font-size: 0.7rem; margin-left: 6px;
+    .filter-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .filter-row .label {
+      font-size: 0.7rem; color: #8b949e; min-width: 56px; text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .filter-chip {
+      font-size: 0.72rem; padding: 3px 10px; border-radius: 12px;
+      background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+      cursor: pointer; transition: all .12s;
+    }
+    .filter-chip:hover { border-color: #58a6ff; }
+    .filter-chip.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .filter-chip .count { opacity: 0.6; margin-left: 4px; font-size: 0.65rem; }
+    .filter-chip.topic { border-style: dashed; }
+
+    .filter-search {
+      flex: 1; min-width: 180px;
+      background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 4px 10px; border-radius: 6px; font-size: 0.78rem;
+    }
+    .filter-search:focus { outline: none; border-color: #58a6ff; }
+
+    .sort-select {
+      background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 3px 6px; border-radius: 6px; font-size: 0.72rem;
+    }
+
+    /* ── Main layout ───────────────────────────── */
+    main { padding: 16px 20px; }
+
+    /* ── Grid (pr0gramm-style) ─────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .tile {
+      position: relative; aspect-ratio: 1;
+      background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+      overflow: hidden; cursor: pointer; transition: all .12s;
+    }
+    .tile:hover { border-color: #58a6ff; transform: translateY(-2px); }
+    .tile img {
+      width: 100%; height: 100%; object-fit: cover; pointer-events: none;
+    }
+    .tile-overlay {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(0deg, rgba(0,0,0,.85), rgba(0,0,0,0));
+      padding: 22px 8px 6px; color: #fff; font-size: 0.7rem;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .tile-title { font-weight: 600; line-height: 1.2;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .tile-meta { font-size: 0.6rem; opacity: 0.75; display: flex; gap: 6px; }
+    .tile-kind {
+      position: absolute; top: 4px; left: 4px;
+      background: rgba(0,0,0,.65); color: #fff;
+      font-size: 0.6rem; padding: 1px 6px; border-radius: 8px;
+    }
+    .tile-tags {
+      position: absolute; top: 4px; right: 4px;
+      display: flex; gap: 3px; flex-wrap: wrap; justify-content: flex-end;
+      max-width: 70%;
+    }
+    .tile-tag {
+      background: rgba(31,111,235,.85); color: #fff;
+      font-size: 0.55rem; padding: 1px 5px; border-radius: 6px;
+    }
+    .tile-tag.topic { background: rgba(217,153,34,.85); }
+
+    .empty {
+      grid-column: 1 / -1; text-align: center; color: #8b949e;
+      padding: 40px 20px; font-style: italic;
+    }
+
+    /* ── Detail view ───────────────────────────── */
+    .detail-back {
+      display: inline-block; margin-bottom: 12px;
+      color: #58a6ff; text-decoration: none; font-size: 0.78rem;
+      padding: 3px 10px; border-radius: 6px; border: 1px solid #30363d;
+    }
+    .detail-back:hover { background: #161b22; }
+
+    .detail {
+      display: grid; grid-template-columns: minmax(280px, 1fr) minmax(280px, 1.5fr);
+      gap: 20px; max-width: 1100px; margin: 0 auto;
+    }
+    @media (max-width: 720px) { .detail { grid-template-columns: 1fr; } }
+    .detail-media {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      overflow: hidden; aspect-ratio: 1;
+    }
+    .detail-media img { width: 100%; height: 100%; object-fit: contain; }
+
+    .detail-info h2 { font-size: 1.2rem; margin-bottom: 8px; color: #e6edf3; }
+    .detail-info .meta { font-size: 0.72rem; color: #8b949e; margin-bottom: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .detail-info .description {
+      font-size: 0.85rem; line-height: 1.5; color: #c9d1d9; margin-bottom: 14px;
+      background: #161b22; padding: 10px 12px; border-radius: 6px;
+      border-left: 3px solid #58a6ff;
+    }
+
+    .detail-section { margin-top: 18px; }
+    .detail-section h3 {
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: #8b949e; margin-bottom: 8px;
+    }
+
+    .tag-pill {
+      display: inline-block; background: #1f6feb; color: #fff;
+      font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+      margin-right: 4px; margin-bottom: 4px;
+      cursor: pointer; text-decoration: none;
+    }
+    .tag-pill.topic { background: #d99922; }
+    .tag-pill:hover { opacity: 0.85; }
+
+    .source-link {
+      display: inline-block; color: #58a6ff; font-size: 0.78rem;
+      word-break: break-all; padding: 6px 10px;
+      border: 1px solid #30363d; border-radius: 6px; text-decoration: none;
+    }
+    .source-link:hover { background: #161b22; }
+
+    .usage-item, .comment-item {
+      background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+      padding: 8px 12px; margin-bottom: 6px; font-size: 0.78rem;
+    }
+    .usage-item .ctx { font-weight: 600; color: #e6edf3; }
+    .usage-item .note { color: #8b949e; margin-top: 2px; font-size: 0.72rem; }
+    .comment-item .author { font-weight: 600; color: #58a6ff; font-size: 0.72rem; }
+    .comment-item .ts { color: #8b949e; font-size: 0.65rem; margin-left: 6px; }
+    .comment-item .text { margin-top: 4px; }
+
+    .empty-section { color: #6e7681; font-style: italic; font-size: 0.78rem; }
+
+    .deferred-note {
+      margin-top: 24px; padding: 10px 12px; background: #1c2128;
+      border: 1px dashed #30363d; border-radius: 6px;
+      color: #8b949e; font-size: 0.72rem;
     }
   </style>
 </head>
 <body>
-<!-- DESIGN: Placeholder page for the upcoming "Quellensammlung" feature.
-     A central, searchable collection of evidence sources (studies, articles, videos)
-     that can be referenced from ArgumentNodes via the existing Evidence model.
-     Implementation tracked in docs/implementation-plan.md. -->
+<!-- DESIGN: pr0gramm-style source collection.
+     Landing = grid of thumbnails. Click → detail view (#id=<n>).
+     Filter chips toggle tags (AND-combined); search box filters title+description.
+     Topic tags use TOPIC:<SLUG> namespace and render dashed/orange. -->
 <header>
   <h1>📚 Quellensammlung</h1>
   <nav>
@@ -54,28 +189,303 @@
   </nav>
 </header>
 
-<div id="app">
-  <div class="placeholder">
-    <h2>In Vorbereitung <span class="badge">Platzhalter</span></h2>
-    <p>
-      Die Quellensammlung wird zentrale Anlaufstelle für alle in Diskussionen
-      verwendeten Belege (Studien, Artikel, Videos, Statistiken). Argumente können
-      auf Quellen verweisen, statt sie inline zu duplizieren.
-    </p>
-    <p>Geplante Funktionen:</p>
-    <ul>
-      <li>Übersicht aller <code>Evidence</code>-Einträge (Tier S/A/B/C/D)</li>
-      <li>Suche &amp; Filter nach Typ, Tier, Topic</li>
-      <li>Verknüpfung einer Quelle mit beliebig vielen Argumenten</li>
-      <li>Deduplizierung: dieselbe Quelle nur einmal pflegen</li>
-    </ul>
-    <p style="margin-top:10px;font-size:0.76rem;color:#888">
-      Fortschritt &amp; Designentscheidungen siehe <code>docs/implementation-plan.md</code>.
-    </p>
+<div class="filter-bar" id="filter-bar">
+  <div class="filter-row">
+    <span class="label">Typen</span>
+    <div id="kind-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+  <div class="filter-row">
+    <span class="label">Tags</span>
+    <div id="tag-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+  <div class="filter-row">
+    <span class="label">Topics</span>
+    <div id="topic-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+  <div class="filter-row">
+    <span class="label">Suche</span>
+    <input id="q" type="search" class="filter-search" placeholder="Titel oder Beschreibung…" />
+    <select id="sort" class="sort-select">
+      <option value="neu">Neu zuerst</option>
+      <option value="alt">Alt zuerst</option>
+      <option value="titel">Alphabetisch</option>
+    </select>
   </div>
 </div>
+
+<main id="main">
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+  const API = '/api';
+
+  // ── State (mirrored in URL hash) ──────────────
+  // Format: #q=…&kind=…&tag=A,B&id=<n>
+  const state = { q: '', kind: '', tags: [], sort: 'neu', id: null };
+  let allTags = [];
+  const KIND_LABELS = {
+    QUOTE: '💬 Zitat', VIDEO: '🎬 Video', AUDIO: '🎧 Audio',
+    PAPER: '📄 Paper', TWEET: '𝕏 Tweet', IMAGE: '🖼️ Bild', TEXT: '📝 Text',
+  };
+
+  function isTopicTag(t) { return t.startsWith('TOPIC:'); }
+  function tagDisplay(t) { return isTopicTag(t) ? t.slice(6) : t; }
+
+  // ── Hash sync ─────────────────────────────────
+  let _suppressHash = false;
+  function parseHash() {
+    const h = (location.hash || '').replace(/^#/, '');
+    const out = {};
+    h.split('&').filter(Boolean).forEach(p => {
+      const [k, v] = p.split('=');
+      if (k) out[decodeURIComponent(k)] = decodeURIComponent(v ?? '');
+    });
+    return out;
+  }
+  function writeHash() {
+    const parts = [];
+    if (state.id != null) parts.push(`id=${state.id}`);
+    if (state.q) parts.push(`q=${encodeURIComponent(state.q)}`);
+    if (state.kind) parts.push(`kind=${state.kind}`);
+    if (state.tags.length) parts.push(`tag=${state.tags.map(encodeURIComponent).join(',')}`);
+    if (state.sort && state.sort !== 'neu') parts.push(`sort=${state.sort}`);
+    const newHash = parts.length ? '#' + parts.join('&') : '';
+    if ((location.hash || '') !== newHash) {
+      _suppressHash = true;
+      history.replaceState(null, '', newHash || location.pathname);
+      setTimeout(() => { _suppressHash = false; }, 0);
+    }
+  }
+  function loadHash() {
+    const h = parseHash();
+    state.q = h.q || '';
+    state.kind = h.kind || '';
+    state.tags = h.tag ? h.tag.split(',').filter(Boolean) : [];
+    state.sort = h.sort || 'neu';
+    state.id = h.id ? parseInt(h.id) : null;
+  }
+
+  // ── API ────────────────────────────────────────
+  async function fetchJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    return r.json();
+  }
+
+  async function loadTags() {
+    allTags = await fetchJSON(`${API}/sources/tags`);
+    renderFilterBar();
+  }
+
+  async function loadList() {
+    const params = new URLSearchParams();
+    if (state.q) params.set('q', state.q);
+    if (state.kind) params.set('kind', state.kind);
+    state.tags.forEach(t => params.append('tag', t));
+    if (state.sort) params.set('sort', state.sort);
+    const url = `${API}/sources/?${params}`;
+    const items = await fetchJSON(url);
+    renderGrid(items);
+  }
+
+  async function loadDetail(id) {
+    try {
+      const src = await fetchJSON(`${API}/sources/${id}`);
+      renderDetail(src);
+    } catch (e) {
+      document.getElementById('main').innerHTML = `<div class="empty">❌ ${e.message}</div>`;
+    }
+  }
+
+  // ── Render: filter bar ─────────────────────────
+  function renderFilterBar() {
+    const kindChips = document.getElementById('kind-chips');
+    const kinds = Object.keys(KIND_LABELS);
+    kindChips.innerHTML = `
+      <button class="filter-chip ${state.kind === '' ? 'active' : ''}" data-kind="">Alle</button>
+      ${kinds.map(k => `<button class="filter-chip ${state.kind === k ? 'active' : ''}" data-kind="${k}">${KIND_LABELS[k]}</button>`).join('')}
+    `;
+    kindChips.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        state.kind = b.dataset.kind;
+        writeHash(); renderFilterBar(); loadList();
+      });
+    });
+
+    const tagChips = document.getElementById('tag-chips');
+    const topicChips = document.getElementById('topic-chips');
+    tagChips.innerHTML = '';
+    topicChips.innerHTML = '';
+    if (!allTags.length) {
+      tagChips.innerHTML = '<span style="font-size:0.7rem;color:#6e7681">—</span>';
+    }
+    allTags.forEach(({ tag, count }) => {
+      const isTopic = isTopicTag(tag);
+      const active = state.tags.includes(tag);
+      const btn = document.createElement('button');
+      btn.className = `filter-chip ${isTopic ? 'topic' : ''} ${active ? 'active' : ''}`;
+      btn.innerHTML = `${escapeHtml(tagDisplay(tag))}<span class="count">${count}</span>`;
+      btn.addEventListener('click', () => {
+        if (active) state.tags = state.tags.filter(t => t !== tag);
+        else state.tags = [...state.tags, tag];
+        writeHash(); renderFilterBar(); loadList();
+      });
+      (isTopic ? topicChips : tagChips).appendChild(btn);
+    });
+
+    document.getElementById('q').value = state.q;
+    document.getElementById('sort').value = state.sort;
+  }
+
+  document.getElementById('q').addEventListener('input', (e) => {
+    state.q = e.target.value;
+    writeHash();
+    clearTimeout(window._qTimer);
+    window._qTimer = setTimeout(loadList, 200);
+  });
+  document.getElementById('sort').addEventListener('change', (e) => {
+    state.sort = e.target.value;
+    writeHash(); loadList();
+  });
+
+  // ── Render: grid ───────────────────────────────
+  function renderGrid(items) {
+    document.getElementById('filter-bar').style.display = '';
+    const main = document.getElementById('main');
+    if (!items.length) {
+      main.innerHTML = '<div class="grid"><div class="empty">Keine Quellen gefunden.</div></div>';
+      return;
+    }
+    main.innerHTML = `<div class="grid">${items.map(tileHtml).join('')}</div>`;
+    main.querySelectorAll('.tile').forEach(t => {
+      t.addEventListener('click', () => {
+        state.id = parseInt(t.dataset.id);
+        writeHash(); render();
+      });
+    });
+  }
+
+  function tileHtml(s) {
+    const kind = KIND_LABELS[s.kind] || s.kind || '';
+    const tags = (s.tags || []).slice(0, 3).map(t =>
+      `<span class="tile-tag ${isTopicTag(t) ? 'topic' : ''}">${escapeHtml(tagDisplay(t))}</span>`
+    ).join('');
+    const counts = [];
+    if (s.comment_count) counts.push(`💬 ${s.comment_count}`);
+    if (s.usage_count) counts.push(`🔗 ${s.usage_count}`);
+    return `
+      <div class="tile" data-id="${s.id}">
+        ${s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="" loading="lazy" />` : ''}
+        <span class="tile-kind">${escapeHtml(kind)}</span>
+        <div class="tile-tags">${tags}</div>
+        <div class="tile-overlay">
+          <div class="tile-title">${escapeHtml(s.title)}</div>
+          <div class="tile-meta">${counts.join(' · ')}</div>
+        </div>
+      </div>`;
+  }
+
+  // ── Render: detail ─────────────────────────────
+  function renderDetail(s) {
+    document.getElementById('filter-bar').style.display = 'none';
+    const tagsHtml = (s.tags || []).map(t => {
+      const cls = isTopicTag(t) ? 'tag-pill topic' : 'tag-pill';
+      return `<a class="${cls}" data-tag="${escapeAttr(t)}" href="#">${escapeHtml(tagDisplay(t))}</a>`;
+    }).join('');
+    const usagesHtml = (s.usages || []).length
+      ? s.usages.map(u => `
+          <div class="usage-item">
+            <div class="ctx">${escapeHtml(u.context || 'Verwendung')}</div>
+            ${u.argument_id ? `<div class="note">Argument #${u.argument_id}</div>` : ''}
+            ${u.note ? `<div class="note">${escapeHtml(u.note)}</div>` : ''}
+          </div>`).join('')
+      : '<div class="empty-section">Noch keine Verwendungsnachweise.</div>';
+    const commentsHtml = (s.comments || []).length
+      ? s.comments.map(c => `
+          <div class="comment-item">
+            <span class="author">${escapeHtml(c.user || 'anonym')}</span>
+            <span class="ts">${escapeHtml(c.created_at || '')}</span>
+            <div class="text">${escapeHtml(c.text)}</div>
+          </div>`).join('')
+      : '<div class="empty-section">Noch keine Kommentare.</div>';
+
+    document.getElementById('main').innerHTML = `
+      <a href="#" class="detail-back" id="back">← Zurück zur Übersicht</a>
+      <div class="detail">
+        <div class="detail-media">
+          ${s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="${escapeAttr(s.title)}"/>` : ''}
+        </div>
+        <div class="detail-info">
+          <h2>${escapeHtml(s.title)}</h2>
+          <div class="meta">
+            <span>${escapeHtml(KIND_LABELS[s.kind] || s.kind || '')}</span>
+            ${s.created_at ? `<span>📅 ${escapeHtml(s.created_at)}</span>` : ''}
+          </div>
+          ${s.description ? `<div class="description">${escapeHtml(s.description)}</div>` : ''}
+          ${tagsHtml ? `<div class="detail-section"><h3>Tags</h3>${tagsHtml}</div>` : ''}
+          ${s.url ? `<div class="detail-section"><h3>Quelle</h3><a class="source-link" href="${escapeAttr(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.url)}</a></div>` : ''}
+          <div class="detail-section">
+            <h3>Verwendung in Diskussionen</h3>
+            ${usagesHtml}
+          </div>
+          <div class="detail-section">
+            <h3>Kommentare</h3>
+            ${commentsHtml}
+          </div>
+          <div class="deferred-note">
+            🛠️ Hinzufügen / Kommentieren / Upload: Phase 2 — siehe <code>docs/implementation-plan.md</code>.
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('back').addEventListener('click', (e) => {
+      e.preventDefault();
+      state.id = null;
+      writeHash(); render();
+    });
+    // Tag pills act as filters: jumping back to grid view with that tag set.
+    document.querySelectorAll('.tag-pill[data-tag]').forEach(p => {
+      p.addEventListener('click', (e) => {
+        e.preventDefault();
+        const t = p.dataset.tag;
+        state.id = null;
+        if (!state.tags.includes(t)) state.tags.push(t);
+        writeHash(); render();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  // ── Router ─────────────────────────────────────
+  async function render() {
+    if (state.id != null) {
+      await loadDetail(state.id);
+    } else {
+      renderFilterBar();
+      await loadList();
+    }
+  }
+
+  window.addEventListener('hashchange', () => {
+    if (_suppressHash) return;
+    loadHash(); render();
+  });
+
+  // ── Init ───────────────────────────────────────
+  (async () => {
+    loadHash();
+    await loadTags();
+    await render();
+  })();
+</script>
 </body>
 </html>
-
-
 

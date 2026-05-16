@@ -1,0 +1,62 @@
+{
+  "_comment": "MVP source collection. Manually edited JSON file. Will be promoted to a DB table once schema stabilises (see docs/implementation-plan.md → Phase 2 → Quellensammlung).",
+  "_tag_glossary": {
+    "QUELLE": "Nützliche Quelle, Beleg, Studie",
+    "GEGENSEITE": "Erzeugnis der Gegenseite, das behandelt werden kann (Outrage-Content, Talking Points, …)",
+    "SOUNDBOARD": "Kurzer Clip / Zitat / Politiker-Aussage zum Einblenden",
+    "WISSENSCHAFT": "Peer-reviewed / akademisch",
+    "MEME": "Memetisch verwertbar",
+    "TOPIC:<SLUG>": "Topic-Zuordnung. Beliebig viele möglich. Beispiele: TOPIC:QUOTEN, TOPIC:KLIMA, TOPIC:BERUFSEMPÖRUNG"
+  },
+  "sources": [
+    {
+      "id": 1,
+      "title": "„Das ist wie das Schreddern von Küken\"",
+      "kind": "QUOTE",
+      "url": null,
+      "thumbnail": "/static/sources/1.svg",
+      "description": "Berufsempörungs-Klassiker. Beliebige Praxis wird mit dem moralischen Gewicht des Kükenschredderns gleichgesetzt, um Diskussion abzuwürgen. Einsetzbar als Beispiel für Verhältnisblindheit / falsche Analogie.",
+      "tags": ["GEGENSEITE", "SOUNDBOARD", "TOPIC:BERUFSEMPÖRUNG"],
+      "created_at": "2026-05-16",
+      "usages": [
+        {
+          "context": "Generisches Beispiel für falsche moralische Analogie",
+          "argument_id": null,
+          "note": "Noch nicht in einer konkreten Diskussion verlinkt."
+        }
+      ],
+      "comments": [
+        {
+          "user": "alice",
+          "created_at": "2026-05-16",
+          "text": "Perfektes Beispiel für moralische Aufblähung (false equivalence)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Menapt-Statistik (Tweet von @a_sator)",
+      "kind": "TWEET",
+      "url": "https://x.com/a_sator/status/1473193532462714884/photo/1",
+      "thumbnail": "/static/sources/2.svg",
+      "description": "Statistik-Grafik aus einem Tweet. Quellenlage und Methodik unklar — muss vor Verwendung verifiziert werden.",
+      "tags": ["QUELLE"],
+      "created_at": "2026-05-16",
+      "usages": [],
+      "comments": []
+    },
+    {
+      "id": 3,
+      "title": "PubMed 6872626",
+      "kind": "PAPER",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/6872626/",
+      "thumbnail": "/static/sources/3.svg",
+      "description": "Wissenschaftlicher Artikel via PubMed. Abstract bzw. relevante Grafik als Thumbnail empfohlen.",
+      "tags": ["QUELLE", "WISSENSCHAFT"],
+      "created_at": "2026-05-16",
+      "usages": [],
+      "comments": []
+    }
+  ]
+}
+

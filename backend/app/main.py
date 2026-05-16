@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
 from .routers import (
     users, topics, arguments, votes, tags, comments, evidence, labels,
-    argument_groups, definition_forks, multi_node_patterns,
+    argument_groups, definition_forks, multi_node_patterns, sources,
 )
 
 # Create tables
@@ -60,8 +60,13 @@ app.include_router(labels.router, prefix="/api")
 app.include_router(argument_groups.router, prefix="/api")
 app.include_router(definition_forks.router, prefix="/api")
 app.include_router(multi_node_patterns.router, prefix="/api")
+app.include_router(sources.router, prefix="/api")
 
 _STATIC_DIR = Path(__file__).parent / "static"
+
+# Serve thumbnails / source assets under /static/sources/<file>.
+# Other static pages are mapped via explicit FileResponse routes below.
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 @app.get("/", response_class=FileResponse)
