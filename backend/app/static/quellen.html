@@ -120,6 +120,22 @@
       cursor: pointer;
     }
     .detail-row .detail-close:hover { background: #161b22; border-color: #58a6ff; }
+    .detail-row .detail-actions {
+      position: absolute; top: 6px; right: 50px;
+      display: flex; gap: 4px;
+    }
+    .detail-row .detail-actions button {
+      background: transparent; border: 1px solid #30363d; color: #8b949e;
+      padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; cursor: pointer;
+    }
+    .detail-row .detail-actions button:hover { color: #c9d1d9; border-color: #58a6ff; }
+    .detail-row .detail-actions button.danger:hover { color: #ff7b72; border-color: #ff7b72; }
+    .item-del {
+      background: transparent; border: none; color: #6e7681;
+      cursor: pointer; font-size: 0.78rem; padding: 0 4px; margin-left: 6px;
+      float: right;
+    }
+    .item-del:hover { color: #ff7b72; }
     .detail-row .detail-loading {
       color: #8b949e; font-style: italic; padding: 20px; text-align: center;
     }
@@ -606,16 +622,18 @@
       return `<a class="${cls}" data-tag="${escapeAttr(t)}" href="#">${escapeHtml(tagDisplay(t))}</a>`;
     }).join('');
     const usagesHtml = (s.usages || []).length
-      ? s.usages.map(u => `
+      ? s.usages.map((u, i) => `
           <div class="usage-item">
+            <button class="item-del" data-del-usage="${i}" title="Löschen">✕</button>
             <div class="ctx">${escapeHtml(u.context || 'Verwendung')}</div>
             ${u.argument_id ? `<div class="note">Argument #${u.argument_id}</div>` : ''}
             ${u.note ? `<div class="note">${escapeHtml(u.note)}</div>` : ''}
           </div>`).join('')
       : '<div class="empty-section">Noch keine Verwendungsnachweise.</div>';
     const commentsHtml = (s.comments || []).length
-      ? s.comments.map(c => `
+      ? s.comments.map((c, i) => `
           <div class="comment-item">
+            <button class="item-del" data-del-comment="${i}" title="Löschen">✕</button>
             <span class="author">${escapeHtml(c.user || 'anonym')}</span>
             <span class="ts">${escapeHtml(c.created_at || '')}</span>
             <div class="text">${escapeHtml(c.text)}</div>
@@ -624,6 +642,10 @@
 
     return `
       <button class="detail-close" id="detail-close" title="Schließen">✕</button>
+      <div class="detail-actions">
+        <button data-edit-id="${s.id}" title="Bearbeiten">✏️ Bearbeiten</button>
+        <button class="danger" data-delete-id="${s.id}" title="Löschen">🗑️ Löschen</button>
+      </div>
       <div class="detail">
         <div class="detail-media">
           ${s.thumbnail ? `<img src="${escapeAttr(s.thumbnail)}" alt="${escapeAttr(s.title)}"/>` : ''}
@@ -668,11 +690,43 @@
   }
 
   function wireDetailEvents(root) {
+    const sid = state.id;
     const close = root.querySelector('#detail-close');
     if (close) close.addEventListener('click', () => {
       state.id = null;
       writeHash();
       collapseInline();
+    });
+    // Edit / Delete source actions
+    const editBtn = root.querySelector('[data-edit-id]');
+    if (editBtn) editBtn.addEventListener('click', () => openEditModal(sid));
+    const delBtn = root.querySelector('[data-delete-id]');
+    if (delBtn) delBtn.addEventListener('click', async () => {
+      if (!confirm('Quelle wirklich löschen?')) return;
+      const r = await fetch(`${API}/sources/${sid}`, { method: 'DELETE' });
+      if (!r.ok) { alert('Fehler: ' + await r.text()); return; }
+      state.id = null;
+      writeHash();
+      collapseInline();
+      await loadTags();
+      await loadList();
+    });
+    // Per-item delete (comments / usages)
+    root.querySelectorAll('[data-del-comment]').forEach(b => {
+      b.addEventListener('click', async () => {
+        if (!confirm('Kommentar löschen?')) return;
+        const r = await fetch(`${API}/sources/${sid}/comments/${b.dataset.delComment}`, { method: 'DELETE' });
+        if (!r.ok) { alert('Fehler: ' + await r.text()); return; }
+        await expandInline(sid);
+      });
+    });
+    root.querySelectorAll('[data-del-usage]').forEach(b => {
+      b.addEventListener('click', async () => {
+        if (!confirm('Verwendung löschen?')) return;
+        const r = await fetch(`${API}/sources/${sid}/usages/${b.dataset.delUsage}`, { method: 'DELETE' });
+        if (!r.ok) { alert('Fehler: ' + await r.text()); return; }
+        await expandInline(sid);
+      });
     });
     // Tag pills → filter (collapses detail, applies tag).
     root.querySelectorAll('.tag-pill[data-tag]').forEach(p => {
@@ -692,17 +746,16 @@
         if (f) f.style.display = f.style.display === 'none' ? 'flex' : 'none';
       });
     });
-    // Comment form
-    const cf = root.querySelector(`#comment-form-${root.querySelector('[data-source-id]')?.dataset.sourceId}`);
+    // Comment / usage submit
     root.querySelectorAll('form.write-form').forEach(f => {
       f.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const sid = parseInt(f.dataset.sourceId);
+        const sourceId = parseInt(f.dataset.sourceId);
         const fd = new FormData(f);
         const isComment = f.id.startsWith('comment-form-');
         const url = isComment
-          ? `${API}/sources/${sid}/comments`
-          : `${API}/sources/${sid}/usages`;
+          ? `${API}/sources/${sourceId}/comments`
+          : `${API}/sources/${sourceId}/usages`;
         const body = {};
         for (const [k, v] of fd.entries()) {
           if (v === '') continue;
@@ -717,7 +770,7 @@
             body: JSON.stringify(body),
           });
           if (!r.ok) throw new Error(await r.text());
-          await expandInline(sid);  // re-fetch + re-render
+          await expandInline(sourceId);
         } catch (err) {
           alert('Fehler: ' + err.message);
         } finally {
@@ -735,16 +788,47 @@
     return escapeHtml(s).replace(/"/g, '&quot;');
   }
 
-  // ── "Neue Quelle" modal ───────────────────────
+  // ── "Neue Quelle" / Edit modal ────────────────
+  // Same modal serves both modes. editingId == null → create, else PATCH.
   const modal = document.getElementById('new-source-modal');
   const nsForm = document.getElementById('new-source-form');
   const nsError = document.getElementById('ns-error');
+  const nsTitle = modal.querySelector('h2');
+  let editingId = null;
 
-  document.getElementById('open-new-source').addEventListener('click', () => {
+  function openCreateModal() {
+    editingId = null;
+    nsTitle.textContent = '＋ Neue Quelle hinzufügen';
     nsError.innerHTML = '';
     nsForm.reset();
+    // Re-show thumbnail field for create mode (hidden in edit mode).
+    nsForm.querySelector('[name="thumbnail"]').closest('label, div')?.classList.remove('hidden');
+    nsForm.querySelector('#ns-thumbnail').style.display = '';
     modal.style.display = 'flex';
-  });
+  }
+
+  async function openEditModal(id) {
+    editingId = id;
+    nsTitle.textContent = '✏️ Quelle bearbeiten';
+    nsError.innerHTML = '';
+    // Pre-fill from API.
+    try {
+      const s = await fetchJSON(`${API}/sources/${id}`);
+      nsForm.elements.title.value = s.title || '';
+      nsForm.elements.kind.value = s.kind || 'TEXT';
+      nsForm.elements.url.value = s.url || '';
+      nsForm.elements.tags.value = (s.tags || []).join(', ');
+      nsForm.elements.description.value = s.description || '';
+      nsForm.elements.thumbnail.value = '';
+      // Thumbnail field hidden in edit mode (separate replace flow tbd).
+      nsForm.querySelector('#ns-thumbnail').style.display = 'none';
+    } catch (e) {
+      nsError.innerHTML = `<div class="error">${escapeHtml(e.message)}</div>`;
+    }
+    modal.style.display = 'flex';
+  }
+
+  document.getElementById('open-new-source').addEventListener('click', openCreateModal);
   document.getElementById('ns-cancel').addEventListener('click', () => {
     modal.style.display = 'none';
   });
@@ -754,26 +838,46 @@
   nsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     nsError.innerHTML = '';
-    const fd = new FormData(nsForm);
-    // Empty file inputs would otherwise serialize as empty File — strip them.
-    const thumb = fd.get('thumbnail');
-    if (thumb && (!thumb.name || thumb.size === 0)) fd.delete('thumbnail');
     const submit = nsForm.querySelector('button[type="submit"]');
     submit.disabled = true;
     try {
-      const r = await fetch(`${API}/sources/`, { method: 'POST', body: fd });
+      let r;
+      if (editingId != null) {
+        // PATCH (JSON): partial update.
+        const body = {
+          title: nsForm.elements.title.value,
+          kind: nsForm.elements.kind.value,
+          url: nsForm.elements.url.value || null,
+          description: nsForm.elements.description.value || null,
+          tags: nsForm.elements.tags.value
+            .split(',').map(s => s.trim()).filter(Boolean),
+        };
+        r = await fetch(`${API}/sources/${editingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } else {
+        // POST (multipart): create with optional thumbnail upload.
+        const fd = new FormData(nsForm);
+        const thumb = fd.get('thumbnail');
+        if (thumb && (!thumb.name || thumb.size === 0)) fd.delete('thumbnail');
+        r = await fetch(`${API}/sources/`, { method: 'POST', body: fd });
+      }
       if (!r.ok) {
         const t = await r.text();
         throw new Error(t || `${r.status} ${r.statusText}`);
       }
-      const created = await r.json();
+      const saved = await r.json();
       modal.style.display = 'none';
-      state.id = created.id;
-      // Reset filters so the new source is visible (otherwise active filter
-      // might hide it). Keep sort=neu so it lands on top.
-      state.q = ''; state.kind = ''; state.tags = []; state.sort = 'neu';
+      state.id = saved.id;
+      if (editingId == null) {
+        // Reset filters so the new source is visible.
+        state.q = ''; state.kind = ''; state.tags = []; state.sort = 'neu';
+      }
+      editingId = null;
       writeHash();
-      await loadTags();   // refresh tag counts
+      await loadTags();
       await render();
     } catch (err) {
       nsError.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
@@ -803,6 +907,10 @@
 </script>
 </body>
 </html>
+
+
+
+
 
 
 

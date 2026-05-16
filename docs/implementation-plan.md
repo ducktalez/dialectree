@@ -325,6 +325,8 @@ Served at `/quellen`. pr0gramm-style grid → detail view.
 - [x] Backend router `routers/sources.py`: `GET /api/sources/` (filter by `kind`, `tag` (repeatable, AND), `q` full-text, `sort=neu|alt|titel`), `GET /api/sources/tags`, `GET /api/sources/{id}`
 - [x] `POST /api/sources/` create with optional thumbnail upload (multipart) — auto-generates placeholder SVG if no file given
 - [x] `POST /api/sources/{id}/comments` and `POST /api/sources/{id}/usages`
+- [x] `PATCH /api/sources/{id}`, `DELETE /api/sources/{id}` (also removes managed thumbnail file), `DELETE …/comments/{idx}`, `DELETE …/usages/{idx}`
+- [x] Tests (`tests/test_sources.py`): 26 unit + integration tests for CRUD, filters, comments, usages, patch/delete
 - [x] Static thumbnails under `backend/app/static/sources/<id>.{svg,png,jpg,…}`
 - [x] Frontend `quellen.html`: pr0gramm-style fixed 8-col grid (responsive 6/4/3), click expands detail inline at end of row, filter chips (kinds / tags / topics) + search + sort, hash-based deep-linking (`#id=<n>&tag=…&q=…`), "Neue Quelle" modal with file upload, inline comment + usage forms
 - [x] Tag conventions: `QUELLE`, `GEGENSEITE`, `SOUNDBOARD`, `WISSENSCHAFT`, `MEME`, plus `TOPIC:<SLUG>` namespace for topic association

@@ -255,4 +255,84 @@ def add_usage(source_id: int, payload: UsageIn) -> dict:
     return usage
 
 
+# ── PATCH / DELETE ───────────────────────────────────────────────────────────
+
+
+class SourcePatch(BaseModel):
+    title: str | None = None
+    kind: str | None = None
+    url: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None  # full replacement, not append
+
+
+@router.patch("/{source_id}")
+def update_source(source_id: int, payload: SourcePatch) -> dict:
+    data = _load()
+    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
+    if not src:
+        raise HTTPException(404, f"Source {source_id} not found")
+    changes = payload.model_dump(exclude_unset=True)
+    if "kind" in changes:
+        k = (changes["kind"] or "").upper()
+        if k not in _ALLOWED_KINDS:
+            raise HTTPException(400, f"Invalid kind: {k}")
+        changes["kind"] = k
+    if "title" in changes and not (changes["title"] or "").strip():
+        raise HTTPException(400, "Title must not be empty")
+    if "tags" in changes and changes["tags"] is not None:
+        changes["tags"] = [t.strip() for t in changes["tags"] if t and t.strip()]
+    src.update(changes)
+    _persist(data)
+    return src
+
+
+@router.delete("/{source_id}", status_code=204)
+def delete_source(source_id: int) -> None:
+    data = _load()
+    sources = data.get("sources", [])
+    src = next((s for s in sources if s.get("id") == source_id), None)
+    if not src:
+        raise HTTPException(404, f"Source {source_id} not found")
+    # Best-effort delete of the managed thumbnail file (only if it lives under
+    # our static/sources directory — never delete arbitrary referenced URLs).
+    thumb = src.get("thumbnail") or ""
+    if thumb.startswith("/static/sources/"):
+        thumb_file = _THUMB_DIR / Path(thumb).name
+        if thumb_file.exists():
+            try:
+                thumb_file.unlink()
+            except OSError:
+                pass  # leave dangling file rather than fail the request
+    data["sources"] = [s for s in sources if s.get("id") != source_id]
+    _persist(data)
+
+
+@router.delete("/{source_id}/comments/{index}", status_code=204)
+def delete_comment(source_id: int, index: int) -> None:
+    data = _load()
+    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
+    if not src:
+        raise HTTPException(404, f"Source {source_id} not found")
+    comments = src.get("comments", [])
+    if not 0 <= index < len(comments):
+        raise HTTPException(404, f"Comment index {index} out of range")
+    comments.pop(index)
+    _persist(data)
+
+
+@router.delete("/{source_id}/usages/{index}", status_code=204)
+def delete_usage(source_id: int, index: int) -> None:
+    data = _load()
+    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
+    if not src:
+        raise HTTPException(404, f"Source {source_id} not found")
+    usages = src.get("usages", [])
+    if not 0 <= index < len(usages):
+        raise HTTPException(404, f"Usage index {index} out of range")
+    usages.pop(index)
+    _persist(data)
+
+
+
 
