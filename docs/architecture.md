@@ -22,7 +22,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 - **entscheidung.html** – weighted balance/scale visualisation, served at `/entscheidung`.
 - **konflikt.html** – conflict zone analysis, served at `/konflikt`.
 - **rauchen.html** – archived snapshot (route removed).
-- **quellen.html** – pr0gramm-style "Quellensammlung" served at `/quellen`. Grid of thumbnails, click → detail view with description, tags, source URL, usages, comments. Filterable by kind, tags (incl. `TOPIC:<SLUG>` namespace), full-text search; URL hash carries view state (`#id=<n>&tag=…&q=…`). Backed by `routers/sources.py` reading from `backend/app/data/sources.json` (no DB table yet — Phase 2 promotes to model). Thumbnails live in `backend/app/static/sources/<id>.svg`. Add/edit/upload UI deferred (see implementation plan).
+- **quellen.html** – pr0gramm-style "Quellensammlung" served at `/quellen`. Fixed 8-column grid (responsive 6/4/3) of thumbnails; click expands detail inline at end of row (`.detail-row` spans full grid width). Detail shows large preview, tags (prominent), title, description, source URL, usages, comments. Inline comment + usage forms; "Neue Quelle" modal with multipart upload (`POST /api/sources/`). Filterable by kind, tags (incl. `TOPIC:<SLUG>` namespace), full-text search; URL hash carries view state (`#id=<n>&tag=…&q=…`). Backed by `routers/sources.py` reading from `backend/app/data/sources.json` (no DB table yet — Phase 2 promotes to model). Thumbnails live in `backend/app/static/sources/<id>.{svg,png,jpg,…}`; auto-generated SVG placeholder if no file uploaded.
 
 ## Frontend (`frontend/src/`)
 - **App.tsx** – topic list, tree view selection, dark theme.

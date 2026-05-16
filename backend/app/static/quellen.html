@@ -203,6 +203,80 @@
 
     .empty-section { color: #6e7681; font-style: italic; font-size: 0.78rem; }
 
+    /* ── Inline write forms (comment, usage) ──── */
+    .write-form {
+      display: flex; flex-direction: column; gap: 6px;
+      margin-top: 8px; padding: 8px; background: #0d1117;
+      border: 1px solid #30363d; border-radius: 6px;
+    }
+    .write-form input, .write-form textarea {
+      background: #161b22; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 6px 8px; border-radius: 4px; font-size: 0.78rem; font-family: inherit;
+    }
+    .write-form input:focus, .write-form textarea:focus { outline: none; border-color: #58a6ff; }
+    .write-form textarea { resize: vertical; min-height: 50px; }
+    .write-form .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .write-form .row input { flex: 1; min-width: 120px; }
+    .btn-primary {
+      background: #1f6feb; color: #fff; border: 1px solid #1f6feb;
+      padding: 4px 14px; border-radius: 4px; cursor: pointer; font-size: 0.78rem;
+      align-self: flex-start;
+    }
+    .btn-primary:hover { background: #388bfd; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .toggle-form {
+      background: transparent; border: 1px dashed #30363d; color: #8b949e;
+      padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.72rem;
+      margin-top: 6px;
+    }
+    .toggle-form:hover { color: #58a6ff; border-color: #58a6ff; }
+
+    /* ── "Neue Quelle" button + modal ─────────── */
+    .new-source-btn {
+      background: #1f6feb; color: #fff; border: none;
+      padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .new-source-btn:hover { background: #388bfd; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; padding: 20px;
+    }
+    .modal {
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 20px; max-width: 520px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal h2 { font-size: 1rem; margin-bottom: 12px; color: #e6edf3; }
+    .modal label {
+      display: block; font-size: 0.72rem; color: #8b949e;
+      margin-top: 10px; margin-bottom: 3px;
+    }
+    .modal input, .modal textarea, .modal select {
+      width: 100%;
+      background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 6px 8px; border-radius: 4px; font-size: 0.85rem; font-family: inherit;
+    }
+    .modal input:focus, .modal textarea:focus, .modal select:focus { outline: none; border-color: #58a6ff; }
+    .modal textarea { resize: vertical; min-height: 70px; }
+    .modal-actions {
+      display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;
+    }
+    .modal-actions button {
+      padding: 6px 14px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; border: 1px solid #30363d;
+      background: transparent; color: #c9d1d9;
+    }
+    .modal-actions .submit { background: #1f6feb; border-color: #1f6feb; color: #fff; font-weight: 600; }
+    .modal-actions .submit:hover { background: #388bfd; }
+    .modal-actions button:hover:not(.submit) { background: #21262d; }
+    .modal .hint { font-size: 0.7rem; color: #6e7681; margin-top: 3px; }
+    .modal .error {
+      background: #3a1c1c; border: 1px solid #6e2828; color: #ffb4b4;
+      padding: 6px 10px; border-radius: 4px; font-size: 0.78rem; margin-top: 10px;
+    }
+
     .deferred-note {
       margin-top: 24px; padding: 10px 12px; background: #1c2128;
       border: 1px dashed #30363d; border-radius: 6px;
@@ -248,12 +322,57 @@
       <option value="alt">Alt zuerst</option>
       <option value="titel">Alphabetisch</option>
     </select>
+    <button class="new-source-btn" id="open-new-source">＋ Neue Quelle</button>
   </div>
 </div>
 
 <main id="main">
   <div class="grid" id="grid"></div>
 </main>
+
+<!-- DESIGN: New-source modal. Multipart form so the optional thumbnail file
+     can be uploaded in the same request. If no thumbnail is provided the
+     backend generates a placeholder SVG. -->
+<div class="modal-overlay" id="new-source-modal" style="display:none">
+  <div class="modal">
+    <h2>＋ Neue Quelle hinzufügen</h2>
+    <form id="new-source-form">
+      <label for="ns-title">Titel *</label>
+      <input id="ns-title" name="title" required />
+
+      <label for="ns-kind">Typ *</label>
+      <select id="ns-kind" name="kind" required>
+        <option value="QUOTE">💬 Zitat</option>
+        <option value="VIDEO">🎬 Video</option>
+        <option value="AUDIO">🎧 Audio</option>
+        <option value="PAPER">📄 Paper</option>
+        <option value="TWEET">𝕏 Tweet</option>
+        <option value="IMAGE">🖼️ Bild</option>
+        <option value="TEXT">📝 Text</option>
+      </select>
+
+      <label for="ns-url">URL (optional)</label>
+      <input id="ns-url" name="url" type="url" placeholder="https://…" />
+
+      <label for="ns-tags">Tags (komma-getrennt)</label>
+      <input id="ns-tags" name="tags" placeholder="QUELLE, GEGENSEITE, TOPIC:QUOTEN" />
+      <div class="hint">Topics als <code>TOPIC:&lt;SLUG&gt;</code> kennzeichnen.</div>
+
+      <label for="ns-description">Beschreibung</label>
+      <textarea id="ns-description" name="description" rows="3"></textarea>
+
+      <label for="ns-thumbnail">Thumbnail (Bild)</label>
+      <input id="ns-thumbnail" name="thumbnail" type="file" accept="image/*,.svg" />
+      <div class="hint">Optional. Ohne Datei wird ein einfacher Platzhalter erzeugt.</div>
+
+      <div id="ns-error"></div>
+      <div class="modal-actions">
+        <button type="button" id="ns-cancel">Abbrechen</button>
+        <button type="submit" class="submit">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
   const API = '/api';
@@ -523,13 +642,26 @@
           <div class="detail-section">
             <h3>Verwendung in Diskussionen</h3>
             ${usagesHtml}
+            <button class="toggle-form" data-toggle="usage-form-${s.id}">＋ Verwendung hinzufügen</button>
+            <form class="write-form" id="usage-form-${s.id}" data-source-id="${s.id}" style="display:none">
+              <input type="text" name="context" placeholder="Kontext (z.B. „Quotendiskussion")" required />
+              <div class="row">
+                <input type="number" name="argument_id" placeholder="Argument-ID (optional)" min="1" />
+                <input type="text" name="note" placeholder="Notiz (optional)" />
+              </div>
+              <button type="submit" class="btn-primary">Speichern</button>
+            </form>
           </div>
           <div class="detail-section">
             <h3>Kommentare</h3>
             ${commentsHtml}
-          </div>
-          <div class="deferred-note">
-            🛠️ Hinzufügen / Kommentieren / Upload: Phase 2 — siehe <code>docs/implementation-plan.md</code>.
+            <form class="write-form" data-source-id="${s.id}" id="comment-form-${s.id}">
+              <textarea name="text" placeholder="Kommentar schreiben…" required></textarea>
+              <div class="row">
+                <input type="text" name="user" placeholder="Name (optional)" />
+                <button type="submit" class="btn-primary">Abschicken</button>
+              </div>
+            </form>
           </div>
         </div>
       </div>`;
@@ -553,6 +685,46 @@
         render();
       });
     });
+    // Toggleable forms (Usage)
+    root.querySelectorAll('.toggle-form[data-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const f = root.querySelector(`#${btn.dataset.toggle}`);
+        if (f) f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+      });
+    });
+    // Comment form
+    const cf = root.querySelector(`#comment-form-${root.querySelector('[data-source-id]')?.dataset.sourceId}`);
+    root.querySelectorAll('form.write-form').forEach(f => {
+      f.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const sid = parseInt(f.dataset.sourceId);
+        const fd = new FormData(f);
+        const isComment = f.id.startsWith('comment-form-');
+        const url = isComment
+          ? `${API}/sources/${sid}/comments`
+          : `${API}/sources/${sid}/usages`;
+        const body = {};
+        for (const [k, v] of fd.entries()) {
+          if (v === '') continue;
+          body[k] = k === 'argument_id' ? parseInt(v) : v;
+        }
+        const btn = f.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        try {
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) throw new Error(await r.text());
+          await expandInline(sid);  // re-fetch + re-render
+        } catch (err) {
+          alert('Fehler: ' + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   }
 
   function escapeHtml(s) {
@@ -562,6 +734,53 @@
   function escapeAttr(s) {
     return escapeHtml(s).replace(/"/g, '&quot;');
   }
+
+  // ── "Neue Quelle" modal ───────────────────────
+  const modal = document.getElementById('new-source-modal');
+  const nsForm = document.getElementById('new-source-form');
+  const nsError = document.getElementById('ns-error');
+
+  document.getElementById('open-new-source').addEventListener('click', () => {
+    nsError.innerHTML = '';
+    nsForm.reset();
+    modal.style.display = 'flex';
+  });
+  document.getElementById('ns-cancel').addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+  nsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    nsError.innerHTML = '';
+    const fd = new FormData(nsForm);
+    // Empty file inputs would otherwise serialize as empty File — strip them.
+    const thumb = fd.get('thumbnail');
+    if (thumb && (!thumb.name || thumb.size === 0)) fd.delete('thumbnail');
+    const submit = nsForm.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    try {
+      const r = await fetch(`${API}/sources/`, { method: 'POST', body: fd });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || `${r.status} ${r.statusText}`);
+      }
+      const created = await r.json();
+      modal.style.display = 'none';
+      state.id = created.id;
+      // Reset filters so the new source is visible (otherwise active filter
+      // might hide it). Keep sort=neu so it lands on top.
+      state.q = ''; state.kind = ''; state.tags = []; state.sort = 'neu';
+      writeHash();
+      await loadTags();   // refresh tag counts
+      await render();
+    } catch (err) {
+      nsError.innerHTML = `<div class="error">${escapeHtml(err.message)}</div>`;
+    } finally {
+      submit.disabled = false;
+    }
+  });
 
   // ── Router ─────────────────────────────────────
   // Grid is always rendered; inline detail is added on top of it.
@@ -584,6 +803,11 @@
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 

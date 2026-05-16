@@ -323,17 +323,20 @@ Served at `/quellen`. pr0gramm-style grid → detail view.
 **MVP done:**
 - [x] JSON-backed data store (`backend/app/data/sources.json`) — no DB table yet
 - [x] Backend router `routers/sources.py`: `GET /api/sources/` (filter by `kind`, `tag` (repeatable, AND), `q` full-text, `sort=neu|alt|titel`), `GET /api/sources/tags`, `GET /api/sources/{id}`
-- [x] Static thumbnails under `backend/app/static/sources/<id>.svg` (SVG placeholders)
-- [x] Frontend `quellen.html`: grid + detail + filter chips (kinds / tags / topics) + search + sort, hash-based deep-linking (`#id=<n>&tag=…&q=…`)
+- [x] `POST /api/sources/` create with optional thumbnail upload (multipart) — auto-generates placeholder SVG if no file given
+- [x] `POST /api/sources/{id}/comments` and `POST /api/sources/{id}/usages`
+- [x] Static thumbnails under `backend/app/static/sources/<id>.{svg,png,jpg,…}`
+- [x] Frontend `quellen.html`: pr0gramm-style fixed 8-col grid (responsive 6/4/3), click expands detail inline at end of row, filter chips (kinds / tags / topics) + search + sort, hash-based deep-linking (`#id=<n>&tag=…&q=…`), "Neue Quelle" modal with file upload, inline comment + usage forms
 - [x] Tag conventions: `QUELLE`, `GEGENSEITE`, `SOUNDBOARD`, `WISSENSCHAFT`, `MEME`, plus `TOPIC:<SLUG>` namespace for topic association
+- [x] Dependency: `python-multipart>=0.0.9` for `Form`/`File` support
 
 **Deferred (Phase 2 next):**
-- [ ] `POST /api/sources/` create + image/file upload (currently: edit JSON manually)
-- [ ] `POST /api/sources/{id}/comments` and `…/usages`
 - [ ] Voting / "neu vs. top" ordering (needs vote model)
 - [ ] Promote JSON → SQLAlchemy `Source` model with n:m link to `ArgumentNode` (replaces ad-hoc `usages` array). Decision deferred until usage volume is clearer.
 - [ ] Video/audio upload + inline player
+- [ ] Edit / delete sources (currently only create)
 - [ ] Embedding-based duplicate / similarity detection
+- [ ] Tests for the new POST endpoints
 
 ### SRT Import Pipeline (YouTube → Stage 0)
 - [x] `srt_parser.py`: Parse SRT files → clean flowing text (strips timestamps, HTML tags, deduplicates overlapping ASR fragments)
