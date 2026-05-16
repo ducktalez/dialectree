@@ -75,23 +75,6 @@ def root():
     return FileResponse(_STATIC_DIR / "zickzack.html")
 
 
-@app.get("/baum", response_class=FileResponse)
-def tree_view():
-    """Layered argument tree visualisation."""
-    return FileResponse(_STATIC_DIR / "index.html")
-
-
-@app.get("/entscheidung", response_class=FileResponse)
-def decision_view():
-    """Weighted balance visualisation for neutral decision-making."""
-    return FileResponse(_STATIC_DIR / "entscheidung.html")
-
-
-@app.get("/konflikt", response_class=FileResponse)
-def conflict_analysis_view():
-    """Conflict zone analysis: facts vs causality vs values."""
-    return FileResponse(_STATIC_DIR / "konflikt.html")
-
 
 @app.get("/dialog", response_class=FileResponse)
 def dialog_view():

@@ -1,8 +1,10 @@
 # Dialectree – Visualization Strategy
 
-> **Key insight:** The Zickzack format is the core visualization. All other views
-> (Mindmap, Waage, Konfliktanalyse) are derived aggregations built on top of
-> recorded dialogues.
+> **Key insight:** The Zickzack format is the core visualization. Earlier
+> derived views (Mindmap, Waage, Konfliktanalyse) were dropped as standalone
+> pages — the conflict-zone dimension lives on `ArgumentNode.conflict_zone`
+> and will be surfaced inline in Zickzack Stage 4; weighted aggregation is
+> deferred until there is a real use case.
 
 ---
 
@@ -131,12 +133,16 @@ with a count badge ("12 discussions hit this point").
 
 | View | Purpose | Data Source |
 |------|---------|-------------|
-| **Zickzack** | Single dialogue, raw recording | One discussion |
-| **Mindmap / Präsentation** | Dialectical tree with pursued + alternative branches | One discussion, expanded |
-| **Konfliktanalyse** | Where does the disagreement lie? (Facts/Causality/Values) | One topic, aggregated |
-| **Waage / Entscheidung** | Neutral decision support — weigh all arguments | One topic, aggregated |
-| **Dialog** | Chat-style back-and-forth | One discussion, sequential |
-| **Network** *(future)* | Overlay of all discussions on a topic | Multiple discussions |
+| **Zickzack** | Single dialogue, raw recording → split → refinement → einordnung | One discussion |
+| **Quellensammlung** | pr0gramm-style source registry, cross-referenced by argument | All sources |
+| **Dialog** | Chat-style back-and-forth (precursor to Zickzack) | One discussion, sequential |
+| **Network** *(future)* | Cross-topic argument network (Zickzack Stage 6) | Multiple discussions |
+
+> *Dropped:* Mindmap/Präsentation, Konfliktanalyse, Waage/Entscheidung — these
+> were standalone demo pages that duplicated information now first-class in the
+> Zickzack data model (`conflict_zone`, `position_score`, split/refinement
+> structure). The conflict-zone visualisation will be reintroduced inline in
+> Zickzack Stage 4 (Einordnung).
 
 ---
 

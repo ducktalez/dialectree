@@ -868,7 +868,7 @@ can reference them as context when a user's behaviour matches a known pattern.
 | §20 Political Compass Mapping | — | ❌ |
 | §21 Meme Representation | — | ❌ (catalog in `docs/meme-catalog.md`) |
 | §22 Strategic Frameworks | — | ❌ (reference only, no model needed) |
-| §23 Conflict Zone Analysis | `/konflikt` page | ✅ (visualisation only, no DB model) |
+| §23 Conflict Zone Analysis | `ArgumentNode.conflict_zone` field (Stage-4 surfacing in Zickzack) | ⚠️ (field exists; UI surfacing deferred to Zickzack Stage 4) |
 | §24 Three-Step Dialectical Analysis | `/dialog` page | ⚠️ (Step 1 implemented, Steps 2–3 planned) |
 
 ---

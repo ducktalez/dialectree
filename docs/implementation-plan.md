@@ -486,6 +486,26 @@ drawn, not how anchor math works.
 Consolidated record of finished features so the upper sections can stay focused on
 what's next. Newest at the top.
 
+### 2026-Q2 — Retired views: Baum, Waage, Konflikt
+Removed three standalone static pages whose role is now covered by the
+Zickzack data model:
+
+- **`/baum` (index.html — Argumentbaum)** — superseded by Zickzack's layered
+  refinement view; the layered tree concept added no power beyond what Zickzack
+  already offers.
+- **`/entscheidung` (entscheidung.html — Waage)** — never had a concrete use
+  case beyond visual gimmickry; weighted aggregation is deferred until a real
+  need surfaces.
+- **`/konflikt` (konflikt.html — Konfliktanalyse)** — the three-level
+  Facts/Causal/Values dimension is already first-class on
+  `ArgumentNode.conflict_zone` and will be surfaced inline in Zickzack
+  Stage 4 (Einordnung). The standalone explainer added no model power.
+
+Removed: 3 HTML files, 3 routes in `main.py`, nav links across all remaining
+pages (`zickzack.html`, `quellen.html`, `dialog.html`, `rauchen.html`),
+references in `architecture.md`, `taxonomy.md` §23, `visualization-strategy.md`.
+192/192 tests still pass — no backend logic depended on these views.
+
 ### 2026-Q2 — Z.2b Split-Toggle (Stage 3)
 - Button `🔄 Original` on every split card in Stage 3 reveals the original
   argument and hides all sibling splits of the same set.
@@ -578,10 +598,3 @@ The dynamic zigzag refinement model, stages 0–3 fully implemented.
 | 0.8 | Migration Seed Topic | Second seed topic "Deutschland sollte mehr Migranten aufnehmen" exercising all new fields |
 | 0.9 | Frontend Rich Tree View | Anatomy sub-sections, gradient borders, Ⓕ/Ⓥ badges, category-grouped tag chips, evidence quality bars, label severity, hidden-node greying |
 | 0.10 | Argument-Group Workflow | `POST /api/argument-groups/{id}/merge` and `/unmerge/{node_id}`, grouped node display |
-
-
-
-
-
-
-
