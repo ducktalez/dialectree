@@ -54,20 +54,25 @@
       padding: 3px 6px; border-radius: 6px; font-size: 0.72rem;
     }
 
-    /* ── Main layout ───────────────────────────── */
-    main { padding: 16px 20px; }
+    /* ── Main layout ─────────────────────────────
+       Fixed page width = 8 * 128 px tiles + 7 * 4 px gaps = 1052 px.
+       Filter bar and main share the same centered column. */
+    main { padding: 16px 20px; max-width: 1092px; margin: 0 auto; }
+    .filter-bar { max-width: 1092px; margin: 0 auto; }
 
-    /* ── Grid (pr0gramm-style: 8 cols desktop, click expands inline) ── */
+    /* ── Grid (pr0gramm-style: fixed 8 × 128 px, 4 px gap) ── */
     .grid {
       display: grid;
-      grid-template-columns: repeat(8, 1fr);
+      grid-template-columns: repeat(8, 128px);
       gap: 4px;
+      justify-content: start;
     }
-    @media (max-width: 1280px) { .grid { grid-template-columns: repeat(6, 1fr); } }
-    @media (max-width: 900px)  { .grid { grid-template-columns: repeat(4, 1fr); } }
-    @media (max-width: 560px)  { .grid { grid-template-columns: repeat(3, 1fr); } }
+    /* On narrow viewports allow wrapping rather than horizontal scroll. */
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: repeat(auto-fill, 128px); }
+    }
     .tile {
-      position: relative; aspect-ratio: 1;
+      position: relative; width: 128px; height: 128px;
       background: #161b22; border: 1px solid #30363d;
       overflow: hidden; cursor: pointer; transition: all .1s;
     }
@@ -188,7 +193,7 @@
     .detail-back:hover { background: #161b22; }
 
     /* ── Detail view (rendered inside .detail-row) ──────────── */
-    .detail { max-width: 900px; margin: 0 auto; }
+    .detail { max-width: 1052px; margin: 0 auto; }
     .detail-media {
       background: #161b22; border: 1px solid #30363d; border-radius: 8px;
       overflow: hidden; margin-bottom: 10px;
@@ -206,20 +211,34 @@
       width: 100%; padding: 16px; box-sizing: border-box;
     }
 
-    /* Compact meta strip directly under the image (pr0gramm-style) */
-    .detail-strip {
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-      font-size: 0.72rem; color: #8b949e; margin-bottom: 8px;
+    /* Header row directly under the image: vote widget (left) + title.
+       Mirrors pr0gramm’s layout. */
+    .detail-head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 2px;
     }
-    .detail-strip .kind {
-      background: #161b22; border: 1px solid #30363d; color: #c9d1d9;
-      padding: 2px 8px; border-radius: 10px;
+    .detail-head h2 {
+      font-size: 1.1rem; font-weight: 600; color: #e6edf3;
+      margin: 0; line-height: 1.25;
     }
+    /* Tiny meta line: kind · date · uploader · source url */
+    .detail-submeta {
+      font-size: 0.62rem; color: #8b949e; margin-bottom: 6px;
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    .detail-submeta a { color: #58a6ff; text-decoration: none; }
+    .detail-submeta a:hover { text-decoration: underline; }
+    .detail-submeta .sep { opacity: 0.5; }
 
-    /* Tags row — prominent, right under the image */
-    .detail-tags { margin-bottom: 12px; }
+    /* Tags row — shown directly below the meta line. Top 5 by default,
+       remaining ones hidden behind a "+N weitere" toggle (pr0gramm-style). */
+    .detail-tags { margin-bottom: 10px; }
+    .detail-tags .more-tags {
+      display: inline-block; background: transparent; border: none;
+      color: #f85149; font-size: 0.7rem; cursor: pointer;
+      padding: 2px 4px; margin-left: 2px;
+    }
+    .detail-tags .more-tags:hover { text-decoration: underline; }
 
-    .detail-info h2 { font-size: 1.15rem; margin-bottom: 6px; color: #e6edf3; }
     .detail-info .description {
       font-size: 0.85rem; line-height: 1.5; color: #c9d1d9; margin-bottom: 14px;
       background: #161b22; padding: 10px 12px; border-radius: 6px;
@@ -774,10 +793,21 @@
   }
 
   function detailInnerHtml(s) {
-    const tagsHtml = (s.tags || []).map(t => {
+    // Tags: show top 5 by default; rest behind a "+N weitere" toggle.
+    const allTagsForCard = (s.tags || []);
+    const VISIBLE_TAGS = 5;
+    const visible = allTagsForCard.slice(0, VISIBLE_TAGS);
+    const hidden = allTagsForCard.slice(VISIBLE_TAGS);
+    const tagPill = (t) => {
       const cls = isTopicTag(t) ? 'tag-pill topic' : 'tag-pill';
       return `<a class="${cls}" data-tag="${escapeAttr(t)}" href="#">${escapeHtml(tagDisplay(t))}</a>`;
-    }).join('');
+    };
+    const tagsVisibleHtml = visible.map(tagPill).join('');
+    const tagsHiddenHtml = hidden.map(tagPill).join('');
+    const moreBtn = hidden.length
+      ? `<button class="more-tags" data-toggle-more-tags>${hidden.length} weitere anzeigen…</button>`
+      : '';
+
     const usagesHtml = (s.usages || []).length
       ? s.usages.map((u, i) => `
           <div class="usage-item">
@@ -797,6 +827,16 @@
           </div>`).join('')
       : '<div class="empty-section">Noch keine Kommentare.</div>';
 
+    // Tiny meta line under the title: kind · date · uploader · source url.
+    // Mirrors pr0gramm's "vor X Stunden · von Y · …" sub-row.
+    const submetaBits = [];
+    submetaBits.push(`<span>${escapeHtml(KIND_LABELS[s.kind] || s.kind || '')}</span>`);
+    if (s.created_at) submetaBits.push(`<span>${escapeHtml(s.created_at)}</span>`);
+    // The MVP has no uploader field yet — show a stable placeholder so the
+    // visual rhythm matches pr0gramm and the slot exists once auth lands.
+    submetaBits.push(`<span>von <strong>anonym</strong></span>`);
+    if (s.url) submetaBits.push(`<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.url)}</a>`);
+
     return `
       <button class="detail-close" id="detail-close" title="Schließen">✕</button>
       <div class="detail-actions">
@@ -807,18 +847,31 @@
         <div class="detail-media">
           ${mediaHtml(s)}
         </div>
-        <div class="detail-strip">
-          <span class="kind">${escapeHtml(KIND_LABELS[s.kind] || s.kind || '')}</span>
-          ${s.created_at ? `<span>📅 ${escapeHtml(s.created_at)}</span>` : ''}
-          ${(s.comments || []).length ? `<span>💬 ${s.comments.length}</span>` : ''}
-          ${(s.usages || []).length ? `<span>🔗 ${s.usages.length}</span>` : ''}
+        <div class="detail-head">
           ${voteWidgetHtml(s)}
-        </div>
-        ${tagsHtml ? `<div class="detail-tags">${tagsHtml}</div>` : ''}
-        <div class="detail-info">
           <h2>${escapeHtml(s.title)}</h2>
+        </div>
+        <div class="detail-submeta">
+          ${submetaBits.join('<span class="sep">·</span>')}
+        </div>
+        <div class="detail-tags">
+          <span data-tags-visible>${tagsVisibleHtml}</span>
+          <span data-tags-hidden style="display:none">${tagsHiddenHtml}</span>
+          ${moreBtn}
+        </div>
+        <div class="detail-info">
           ${s.description ? `<div class="description">${escapeHtml(s.description)}</div>` : ''}
-          ${s.url ? `<div class="detail-section"><h3>Quelle</h3><a class="source-link" href="${escapeAttr(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.url)}</a></div>` : ''}
+          <div class="detail-section">
+            <h3>Kommentare</h3>
+            ${commentsHtml}
+            <form class="write-form" data-source-id="${s.id}" id="comment-form-${s.id}">
+              <textarea name="text" placeholder="Kommentar schreiben…" required></textarea>
+              <div class="row">
+                <input type="text" name="user" placeholder="Name (optional)" />
+                <button type="submit" class="btn-primary">Abschicken</button>
+              </div>
+            </form>
+          </div>
           <div class="detail-section">
             <h3>Verwendung in Diskussionen</h3>
             ${usagesHtml}
@@ -830,17 +883,6 @@
                 <input type="text" name="note" placeholder="Notiz (optional)" />
               </div>
               <button type="submit" class="btn-primary">Speichern</button>
-            </form>
-          </div>
-          <div class="detail-section">
-            <h3>Kommentare</h3>
-            ${commentsHtml}
-            <form class="write-form" data-source-id="${s.id}" id="comment-form-${s.id}">
-              <textarea name="text" placeholder="Kommentar schreiben…" required></textarea>
-              <div class="row">
-                <input type="text" name="user" placeholder="Name (optional)" />
-                <button type="submit" class="btn-primary">Abschicken</button>
-              </div>
             </form>
           </div>
         </div>
@@ -933,6 +975,14 @@
         const f = root.querySelector(`#${btn.dataset.toggle}`);
         if (f) f.style.display = f.style.display === 'none' ? 'flex' : 'none';
       });
+    });
+    // "+N weitere anzeigen…" tag expansion
+    const moreBtn = root.querySelector('[data-toggle-more-tags]');
+    if (moreBtn) moreBtn.addEventListener('click', () => {
+      const hidden = root.querySelector('[data-tags-hidden]');
+      if (!hidden) return;
+      hidden.style.display = '';
+      moreBtn.remove();
     });
     // Comment / usage submit
     root.querySelectorAll('form.write-form').forEach(f => {
