@@ -328,7 +328,8 @@ Served at `/quellen`. pr0gramm-style grid → detail view.
 - [x] `PATCH /api/sources/{id}`, `DELETE /api/sources/{id}` (also removes managed thumbnail file), `DELETE …/comments/{idx}`, `DELETE …/usages/{idx}`
 - [x] `POST /api/sources/{id}/vote` — `{value, previous}` transition (no per-user tracking yet; client uses localStorage to remember own vote). Sort options `top` and `kontrovers` added.
 - [x] Inline media player: YouTube/Vimeo embed for VIDEO sources, `<video>`/`<audio>` for uploaded media (`media_url` field). Upload via the create modal; tile shows ▶ play icon when a playable medium is detected.
-- [x] Tests (`tests/test_sources.py`): 39 tests for CRUD, filters, comments, usages, patch/delete, voting, media
+- [x] `GET /api/sources/?argument_id=<n>` filter (sources whose `usages` reference a given argument) + `sort=zufall` (pr0gramm-style serendipity) + keyboard navigation in the grid (← → ↑ ↓, Enter, Esc)
+- [x] Tests (`tests/test_sources.py`): 42 tests for CRUD, filters, comments, usages, patch/delete, voting, media, argument-id filter, random sort
 - [x] Static thumbnails under `backend/app/static/sources/<id>.{svg,png,jpg,…}`
 - [x] Frontend `quellen.html`: pr0gramm-style fixed 8-col grid (responsive 6/4/3), click expands detail inline at end of row, filter chips (kinds / tags / topics) + search + sort, hash-based deep-linking (`#id=<n>&tag=…&q=…`), "Neue Quelle" modal with file upload, inline comment + usage forms
 - [x] Tag conventions: `QUELLE`, `GEGENSEITE`, `SOUNDBOARD`, `WISSENSCHAFT`, `MEME`, plus `TOPIC:<SLUG>` namespace for topic association
@@ -337,10 +338,7 @@ Served at `/quellen`. pr0gramm-style grid → detail view.
 **Deferred (Phase 2 next):**
 - [ ] Per-user vote tracking on the server (requires auth) — currently uses client-side localStorage and trusts the `previous` value sent by the client.
 - [ ] Promote JSON → SQLAlchemy `Source` model with n:m link to `ArgumentNode` (replaces ad-hoc `usages` array). Decision deferred until usage volume is clearer.
-- [ ] Video/audio upload + inline player  ← **done** (YouTube/Vimeo embed + `<video>`/`<audio>` for uploads)
-- [ ] Edit / delete sources (currently only create)
 - [ ] Embedding-based duplicate / similarity detection
-- [ ] Tests for the new POST endpoints
 
 ### SRT Import Pipeline (YouTube → Stage 0)
 - [x] `srt_parser.py`: Parse SRT files → clean flowing text (strips timestamps, HTML tags, deduplicates overlapping ASR fragments)

@@ -379,6 +379,7 @@
       <option value="alt">Alt zuerst</option>
       <option value="top">Top bewertet</option>
       <option value="kontrovers">Kontrovers</option>
+      <option value="zufall">🎲 Zufall</option>
       <option value="titel">Alphabetisch</option>
     </select>
     <button class="new-source-btn" id="open-new-source">＋ Neue Quelle</button>
@@ -656,6 +657,53 @@
     if (state.id == null) return;
     clearTimeout(_resizeTimer);
     _resizeTimer = setTimeout(() => expandInline(state.id), 150);
+  });
+
+  // ── Keyboard navigation (pr0gramm-style) ─────
+  //   ← → ↑ ↓ : move selection across the grid (arrow ↑/↓ steps a full row)
+  //   Enter   : open the focused tile
+  //   Esc     : close the open detail
+  // Disabled while a modal is open or the user is typing in an input.
+  document.addEventListener('keydown', (e) => {
+    if (modal.style.display !== 'none') return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'Escape') {
+      if (state.id != null) {
+        state.id = null;
+        writeHash();
+        collapseInline();
+        e.preventDefault();
+      }
+      return;
+    }
+    const grid = document.getElementById('grid');
+    if (!grid) return;
+    const tiles = Array.from(grid.querySelectorAll('.tile'));
+    if (!tiles.length) return;
+    let idx = tiles.findIndex(x => parseInt(x.dataset.id) === state.id);
+    if (e.key === 'Enter') {
+      if (idx === -1) idx = 0;
+      tiles[idx].click();
+      e.preventDefault();
+      return;
+    }
+    const cols = (() => {
+      // Derive current column count from offsetTop of first row.
+      const first = tiles[0];
+      const c = tiles.filter(x => x.offsetTop === first.offsetTop).length;
+      return Math.max(1, c);
+    })();
+    let next = idx;
+    if (e.key === 'ArrowRight') next = (idx === -1 ? 0 : idx + 1);
+    else if (e.key === 'ArrowLeft')  next = (idx === -1 ? 0 : idx - 1);
+    else if (e.key === 'ArrowDown')  next = (idx === -1 ? 0 : idx + cols);
+    else if (e.key === 'ArrowUp')    next = (idx === -1 ? 0 : idx - cols);
+    else return;
+    if (next < 0 || next >= tiles.length) return;
+    e.preventDefault();
+    tiles[next].click();
+    tiles[next].scrollIntoView({ block: 'nearest' });
   });
 
   function tileHtml(s) {

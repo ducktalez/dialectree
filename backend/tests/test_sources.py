@@ -315,3 +315,28 @@ class TestSourcesMedia:
         items = client.get("/api/sources/").json()
         assert items[0]["url"] == "https://youtu.be/abc123"
         assert items[0]["media_url"] is None
+
+
+class TestSourcesQueryExtras:
+    def test_filter_by_argument_id(self, client):
+        a = client.post("/api/sources/", data={"title": "A", "kind": "TEXT"}).json()["id"]
+        b = client.post("/api/sources/", data={"title": "B", "kind": "TEXT"}).json()["id"]
+        client.post("/api/sources/", data={"title": "C", "kind": "TEXT"})
+        client.post(f"/api/sources/{a}/usages", json={"context": "x", "argument_id": 42})
+        client.post(f"/api/sources/{b}/usages", json={"context": "y", "argument_id": 42})
+        client.post(f"/api/sources/{b}/usages", json={"context": "z", "argument_id": 99})
+        r = client.get("/api/sources/?argument_id=42")
+        assert {s["id"] for s in r.json()} == {a, b}
+        r = client.get("/api/sources/?argument_id=99")
+        assert [s["id"] for s in r.json()] == [b]
+        r = client.get("/api/sources/?argument_id=12345")
+        assert r.json() == []
+
+    def test_sort_zufall_returns_all_items(self, client):
+        for t in ("A", "B", "C", "D", "E"):
+            client.post("/api/sources/", data={"title": t, "kind": "TEXT"})
+        r = client.get("/api/sources/?sort=zufall")
+        assert {s["title"] for s in r.json()} == {"A", "B", "C", "D", "E"}
+
+    def test_sort_invalid_rejected(self, client):
+        assert client.get("/api/sources/?sort=bogus").status_code == 422

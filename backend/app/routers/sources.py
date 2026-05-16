@@ -118,7 +118,8 @@ def list_sources(
     tag: list[str] | None = Query(default=None, description="Filter by tag (repeatable, AND-combined)"),
     kind: str | None = None,
     q: str | None = Query(default=None, description="Full-text search over title + description"),
-    sort: str = Query(default="neu", pattern="^(neu|alt|titel|top|kontrovers)$"),
+    argument_id: int | None = Query(default=None, description="Only sources whose usages reference this argument id"),
+    sort: str = Query(default="neu", pattern="^(neu|alt|titel|top|kontrovers|zufall)$"),
 ) -> list[dict]:
     items = _all_sources()
 
@@ -127,6 +128,11 @@ def list_sources(
         items = [s for s in items if wanted.issubset({t.upper() for t in s.get("tags", [])})]
     if kind:
         items = [s for s in items if s.get("kind", "").upper() == kind.upper()]
+    if argument_id is not None:
+        items = [
+            s for s in items
+            if any(u.get("argument_id") == argument_id for u in s.get("usages", []))
+        ]
     if q:
         needle = q.lower()
         items = [
@@ -152,6 +158,10 @@ def list_sources(
             ),
             reverse=True,
         )
+    elif sort == "zufall":
+        # pr0gramm-style "Müll": serendipity for browsing. Different every call.
+        import random as _r
+        _r.shuffle(items)
 
     # List view: omit heavy fields. Detail endpoint returns everything.
     return [
