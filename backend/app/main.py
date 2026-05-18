@@ -76,11 +76,6 @@ def root():
 
 
 
-@app.get("/dialog", response_class=FileResponse)
-def dialog_view():
-    """Zig-zag dialectical dialogue visualisation."""
-    return FileResponse(_STATIC_DIR / "dialog.html")
-
 
 @app.get("/zickzack", response_class=FileResponse)
 def zickzack_view():

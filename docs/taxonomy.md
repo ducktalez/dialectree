@@ -268,7 +268,7 @@ itself (not the content). These are assignable as **multi-node patterns**.
 | **Performative Outrage** | Expressing exaggerated shock or offense to shut down a line of reasoning, especially near taboo topics. The outrage is strategic (conscious or unconscious) rather than genuine. |
 | **Non-Rational Seduction** | Using charm, attractiveness, alcohol, flattery, or emotional manipulation to influence the opponent's position — bypassing rational argument entirely. |
 
-Status: ⚠️ MultiNodePattern model exists, but detection / UI is not implemented.
+Status: 🟡 MultiNodePattern model + REST API + zickzack UI (manual marking) exist. Automatic detection heuristics still post-dev.
 
 ---
 
@@ -845,7 +845,7 @@ can reference them as context when a user's behaviour matches a known pattern.
 | §3 Argument Anatomy | `ArgumentNode.claim/reason/example/implication` | ✅ |
 | §4 Fallacies | `LabelTypeEnum.FALLACY` | ⚠️ (label exists, no fallacy sub-types) |
 | §5 Exit Moves | — | ❌ (tag-based when needed) |
-| §6 Meta-Discussion Strategies | `MultiNodePattern` | ⚠️ (model exists, no detection) |
+| §6 Meta-Discussion Strategies | `MultiNodePattern` | 🟡 (model + REST + manual UI; auto-detection post-dev) |
 | §7 Evidence Hierarchy | `EvidenceTypeEnum` (14 types) + `EVIDENCE_DEFAULT_QUALITY` | ✅ |
 | §8 Rule Systems | — | ❌ (tag-based when needed) |
 | §9 Consensus Mechanisms | — | ❌ |
@@ -957,7 +957,7 @@ Use the generalised patterns from Step 2 for:
 
 | Step | Visualisation | Status |
 |------|---------------|--------|
-| Step 1: Map dialogue | `/dialog` | ✅ (hardcoded examples) |
+| Step 1: Map dialogue | Zickzack `/` (Stages 1–3) | ✅ |
 | Step 2: Generalise | — | ❌ (requires multiple dialogues per topic) |
 | Step 3: Meta-analyse | — | ❌ (requires Step 2 data) |
 

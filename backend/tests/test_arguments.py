@@ -268,3 +268,162 @@ class TestArguments:
         assert len(client.get(f"/api/votes/?argument_node_id={arg['id']}").json()) == 0
         assert len(client.get(f"/api/comments/?argument_node_id={arg['id']}").json()) == 0
 
+
+class TestArgumentSplit:
+    """Z.2c — POST /api/arguments/{id}/split and PATCH /{id}/connect."""
+
+    def _base(self, client, user, topic, parent_id=None):
+        payload = {"topic_id": topic["id"], "title": "Base claim", "position": "PRO"}
+        if parent_id is not None:
+            payload["parent_id"] = parent_id
+        return client.post(f"/api/arguments/?user_id={user['id']}", json=payload).json()
+
+    def test_split_creates_children_with_stage_2_and_split_from(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        resp = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [
+                {"title": "Fakten-Teil", "position": "PRO"},
+                {"title": "Wert-Teil", "position": "CONTRA", "description": "moralisch"},
+            ]},
+        )
+        assert resp.status_code == 201
+        nodes = resp.json()
+        assert len(nodes) == 2
+        for n in nodes:
+            assert n["stage_added"] == 2
+            assert n["split_from_id"] == base["id"]
+            assert n["topic_id"] == sample_topic["id"]
+        assert nodes[1]["description"] == "moralisch"
+
+    def test_split_inherits_base_parent_when_not_given(self, client, sample_user, sample_topic):
+        opponent = self._base(client, sample_user, sample_topic)
+        base = self._base(client, sample_user, sample_topic, parent_id=opponent["id"])
+        resp = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "S1", "position": "PRO"}]},
+        )
+        assert resp.status_code == 201
+        assert resp.json()[0]["parent_id"] == opponent["id"]
+
+    def test_split_accepts_explicit_parent_id(self, client, sample_user, sample_topic):
+        opponent_a = self._base(client, sample_user, sample_topic)
+        opponent_b = self._base(client, sample_user, sample_topic)
+        base = self._base(client, sample_user, sample_topic, parent_id=opponent_a["id"])
+        resp = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [
+                {"title": "answers A", "position": "PRO", "parent_id": opponent_a["id"]},
+                {"title": "answers B", "position": "CONTRA", "parent_id": opponent_b["id"]},
+            ]},
+        )
+        assert resp.status_code == 201
+        parents = [n["parent_id"] for n in resp.json()]
+        assert parents == [opponent_a["id"], opponent_b["id"]]
+
+    def test_split_rejects_when_base_is_already_a_split(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        splits = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "S1", "position": "PRO"}]},
+        ).json()
+        # Try to split the split → 400
+        resp = client.post(
+            f"/api/arguments/{splits[0]['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "Nope", "position": "PRO"}]},
+        )
+        assert resp.status_code == 400
+
+    def test_split_404_for_missing_base(self, client, sample_user):
+        resp = client.post(
+            f"/api/arguments/99999/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "x", "position": "PRO"}]},
+        )
+        assert resp.status_code == 404
+
+    def test_split_requires_at_least_one_item(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        resp = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": []},
+        )
+        assert resp.status_code == 422
+
+    def test_split_rejects_invalid_position(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        resp = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "bad", "position": "MAYBE"}]},
+        )
+        assert resp.status_code == 400
+
+    def test_split_rejects_cross_topic_parent(self, client, sample_user, sample_topic):
+        # Create a second topic via API
+        other_topic = client.post(
+            f"/api/topics/?user_id={sample_user['id']}",
+            json={"title": "Other topic"},
+        ).json()
+        foreign = self._base(client, sample_user, other_topic)
+        base = self._base(client, sample_user, sample_topic)
+        resp = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "X", "position": "PRO", "parent_id": foreign["id"]}]},
+        )
+        assert resp.status_code == 400
+
+    def test_zigzag_shows_splits_in_stage_2_and_hides_base_visually(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [
+                {"title": "S1", "position": "PRO"},
+                {"title": "S2", "position": "CONTRA"},
+            ]},
+        )
+        stage1 = client.get(f"/api/topics/{sample_topic['id']}/zigzag?stage=1").json()
+        assert [s["title"] for s in stage1["steps"]] == ["Base claim"]
+        stage2 = client.get(f"/api/topics/{sample_topic['id']}/zigzag?stage=2").json()
+        titles = [s["title"] for s in stage2["steps"]]
+        assert "S1" in titles and "S2" in titles and "Base claim" in titles
+        # Stage 3 frontend filters split-origin out; backend keeps them.
+        split_nodes = [s for s in stage2["steps"] if s["split_from_id"] == base["id"]]
+        assert len(split_nodes) == 2
+
+    def test_connect_split_to_new_parent(self, client, sample_user, sample_topic):
+        opponent_a = self._base(client, sample_user, sample_topic)
+        opponent_b = self._base(client, sample_user, sample_topic)
+        base = self._base(client, sample_user, sample_topic, parent_id=opponent_a["id"])
+        split = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "S", "position": "PRO"}]},
+        ).json()[0]
+        assert split["parent_id"] == opponent_a["id"]
+        resp = client.patch(f"/api/arguments/{split['id']}/connect", json={"parent_id": opponent_b["id"]})
+        assert resp.status_code == 200
+        assert resp.json()["parent_id"] == opponent_b["id"]
+
+    def test_connect_split_unlink(self, client, sample_user, sample_topic):
+        opponent = self._base(client, sample_user, sample_topic)
+        base = self._base(client, sample_user, sample_topic, parent_id=opponent["id"])
+        split = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "S", "position": "PRO"}]},
+        ).json()[0]
+        resp = client.patch(f"/api/arguments/{split['id']}/connect", json={"parent_id": None})
+        assert resp.status_code == 200
+        assert resp.json()["parent_id"] is None
+
+    def test_connect_rejects_non_split_node(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        other = self._base(client, sample_user, sample_topic)
+        resp = client.patch(f"/api/arguments/{base['id']}/connect", json={"parent_id": other["id"]})
+        assert resp.status_code == 400
+
+    def test_connect_rejects_self_parent(self, client, sample_user, sample_topic):
+        base = self._base(client, sample_user, sample_topic)
+        split = client.post(
+            f"/api/arguments/{base['id']}/split?user_id={sample_user['id']}",
+            json={"splits": [{"title": "S", "position": "PRO"}]},
+        ).json()[0]
+        resp = client.patch(f"/api/arguments/{split['id']}/connect", json={"parent_id": split["id"]})
+        assert resp.status_code == 400

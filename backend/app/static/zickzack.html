@@ -348,6 +348,58 @@
       background: #0d1117; color: #c9d1d9; font-size: 0.72rem; width: 130px;
     }
 
+    /* ── Multi-Node pattern selection mode ──
+       Parallel to polygon selection but used for persisted Mehrknoten-Muster
+       (Gish Gallop etc.). Uses orange accent to distinguish visually. */
+    .zz-card.pattern-selectable { cursor: crosshair !important; }
+    .zz-card.pattern-selectable:hover { box-shadow: 0 0 0 2px rgba(240,136,62,0.45) !important; }
+    .zz-card.pattern-selected { box-shadow: 0 0 0 3px #f0883e !important; }
+    .pattern-select-toolbar {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #1c2128; border: 2px solid #f0883e; border-radius: 10px;
+      padding: 8px 16px; display: none; align-items: center; gap: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5); z-index: 100;
+      font-size: 0.75rem; color: #c9d1d9; flex-wrap: wrap; max-width: 92vw;
+    }
+    .pattern-select-toolbar.visible { display: flex; }
+    .pattern-select-toolbar button {
+      padding: 4px 12px; border-radius: 6px; border: none;
+      cursor: pointer; font-size: 0.72rem;
+    }
+    .pattern-select-toolbar .btn-create { background: #f0883e; color: #0d1117; font-weight: 600; }
+    .pattern-select-toolbar .btn-create:hover { background: #fdb068; }
+    .pattern-select-toolbar .btn-create:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pattern-select-toolbar .btn-cancel { background: #30363d; color: #c9d1d9; }
+    .pattern-select-toolbar .btn-cancel:hover { background: #484f58; }
+    .pattern-select-toolbar input, .pattern-select-toolbar select {
+      padding: 3px 8px; border-radius: 4px; border: 1px solid #30363d;
+      background: #0d1117; color: #c9d1d9; font-size: 0.72rem;
+    }
+    .pattern-select-toolbar input { width: 160px; }
+
+    /* ── Pattern legend items ── */
+    .legend-pattern-item {
+      display: flex; align-items: center; gap: 5px;
+      padding: 2px 4px; border-radius: 3px;
+    }
+    .legend-pattern-swatch {
+      width: 16px; height: 0; border-top: 2px dashed; flex-shrink: 0;
+    }
+    .legend-pattern-name {
+      font-size: 0.55rem; color: #c9d1d9; flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .legend-pattern-type {
+      font-size: 0.5rem; color: #8b949e; flex-shrink: 0;
+      padding: 0 4px; border-radius: 3px; border: 1px solid #30363d;
+      background: #0d1117;
+    }
+    .legend-pattern-delete {
+      font-size: 0.6rem; color: #484f58; cursor: pointer; padding: 0 2px;
+      line-height: 1; flex-shrink: 0;
+    }
+    .legend-pattern-delete:hover { color: #f85149; }
+
     /* ── Transcript viewer / editor (Stage 0) ── */
     .transcript-edit {
       width: 100%; min-height: 420px; resize: vertical;
@@ -442,7 +494,6 @@
     <h1>⚡ Zickzack-Dialog</h1>
     <nav>
       <a href="/" class="active">⚡ Zickzack</a>
-      <a href="/dialog"> Dialog</a>
       <a href="/quellen"> Quellen</a>
     </nav>
     <div class="user-selector">
@@ -489,6 +540,19 @@
   <input type="text" id="polygon-group-name" placeholder="Bereichsname…" />
   <button class="btn-create" id="polygon-btn-create" disabled>✓ Erstellen</button>
   <button class="btn-cancel" id="polygon-btn-cancel">✗ Abbrechen</button>
+</div>
+
+<!-- Multi-Node-Pattern selection toolbar (parallel to polygon toolbar) -->
+<div class="pattern-select-toolbar" id="pattern-select-toolbar">
+  <span>🧩 <strong id="pattern-select-count">0</strong> Argumente</span>
+  <input type="text" id="pattern-name" placeholder="Mustername…" />
+  <select id="pattern-type-select">
+    <option value="GISH_GALLOP">Gish Gallop</option>
+    <option value="CREEPING_RELATIVIZATION">Schleichende Relativierung</option>
+    <option value="OTHER" selected>Sonstiges</option>
+  </select>
+  <button class="btn-create" id="pattern-btn-create" disabled>✓ Speichern</button>
+  <button class="btn-cancel" id="pattern-btn-cancel">✗ Abbrechen</button>
 </div>
 
 <script>
@@ -564,6 +628,27 @@
 
   const POLYGON_COLORS = ['#58a6ff', '#d29922', '#a371f7', '#3fb950', '#f0883e'];
 
+  // ── Multi-Node-Pattern state ────────────────────────────────────
+  // Persisted, topic-scoped patterns (Gish Gallop, creeping relativization, …).
+  // Loaded via GET /api/patterns/?topic_id=…, created via POST /api/patterns/,
+  // deleted via DELETE /api/patterns/{id}. Visualized as a second overlay layer
+  // alongside ad-hoc polygon groups; visually distinct via dashed stroke +
+  // pattern-type colour.
+  let currentPatterns = [];           // [{id, name, pattern_type, member_ids, …}]
+  let patternVisibility = {};         // patternId → boolean (default true)
+  let isSelectingPattern = false;
+  let pendingPatternSelection = new Set();
+
+  const PATTERN_TYPE_META = {
+    GISH_GALLOP:              { label: 'Gish Gallop',                color: '#f85149', emoji: '🌀' },
+    CREEPING_RELATIVIZATION:  { label: 'Schleichende Relativierung', color: '#f0883e', emoji: '📉' },
+    OTHER:                    { label: 'Sonstiges',                  color: '#8b949e', emoji: '🧩' },
+  };
+
+  function patternMeta(t) {
+    return PATTERN_TYPE_META[t] || PATTERN_TYPE_META.OTHER;
+  }
+
   // ── Stage descriptions: what THIS stage adds vs the previous ──
   const STAGE_DESCRIPTIONS = {
     0: '<strong>Rohdaten</strong> — Die Diskussion als lesbarer Text. Kein Canvas, keine Visualisierung.',
@@ -614,6 +699,23 @@
         ? `<span style="font-size:0.55rem;color:#58a6ff;font-style:italic">Argumente wählen…</span>`
         : `<button class="legend-add-btn" id="legend-add-polygon">＋ Neuer Bereich</button>`;
 
+      // ── Multi-Node-Patterns (persisted) ──
+      const patternsHtml = currentPatterns.map(p => {
+        const meta = patternMeta(p.pattern_type);
+        const isOff = patternVisibility[p.id] === false;
+        return `
+          <div class="legend-pattern-item ${isOff ? 'off' : ''}" data-toggle-pattern="${p.id}" style="cursor:pointer;${isOff ? 'opacity:0.45;' : ''}">
+            <span class="legend-pattern-swatch" style="border-top-color:${meta.color}"></span>
+            <span class="legend-pattern-type" title="${esc(meta.label)}">${meta.emoji}</span>
+            <span class="legend-pattern-name" title="${esc(p.name)} (${p.member_ids.length} Knoten)">${esc(p.name)}</span>
+            <span class="legend-pattern-delete" data-delete-pattern="${p.id}" title="Muster löschen">✕</span>
+          </div>`;
+      }).join('');
+
+      const patternAddBtnHtml = isSelectingPattern
+        ? `<span style="font-size:0.55rem;color:#f0883e;font-style:italic">Argumente wählen…</span>`
+        : `<button class="legend-add-btn" id="legend-add-pattern" style="border-color:rgba(240,136,62,0.5);color:#f0883e">🧩 Muster markieren</button>`;
+
       // ── Toggleable connections ──
       const toggleItems = [
         { key: 'origin', label: 'Ursprungs-Argument', desc: 'Gehört zu Original', active: currentStage === 2, lineClass: 'origin' },
@@ -637,6 +739,11 @@
         <div class="legend-list">
           ${groupsHtml || '<span style="font-size:0.52rem;color:#484f58;font-style:italic">Keine Bereiche</span>'}
           ${addBtnHtml}
+        </div>
+        <div class="legend-divider">Muster (Mehrknoten)</div>
+        <div class="legend-list">
+          ${patternsHtml || '<span style="font-size:0.52rem;color:#484f58;font-style:italic">Keine Muster</span>'}
+          ${patternAddBtnHtml}
         </div>
         <div class="legend-divider">Abwählbar</div>
         <div class="legend-list">
@@ -690,6 +797,41 @@
     panel.querySelector('#legend-add-polygon')?.addEventListener('click', () => {
       startPolygonSelection();
     });
+
+    // ── Event: toggle pattern visibility ──
+    panel.querySelectorAll('[data-toggle-pattern]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.legend-pattern-delete')) return;
+        const pid = parseInt(el.dataset.togglePattern);
+        if (!Number.isFinite(pid)) return;
+        patternVisibility[pid] = !(patternVisibility[pid] ?? true);
+        if (currentData && currentStage > 0 && currentStage < 4) render();
+      });
+    });
+
+    // ── Event: delete persisted pattern ──
+    panel.querySelectorAll('[data-delete-pattern]').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pid = parseInt(el.dataset.deletePattern);
+        if (!Number.isFinite(pid)) return;
+        if (!confirm('Muster wirklich löschen?')) return;
+        try {
+          await deletePattern(pid);
+          currentPatterns = currentPatterns.filter(p => p.id !== pid);
+          delete patternVisibility[pid];
+          renderLegendPanel();
+          if (currentData && currentStage > 0 && currentStage < 4) render();
+        } catch (err) {
+          alert('Löschen fehlgeschlagen: ' + err.message);
+        }
+      });
+    });
+
+    // ── Event: start pattern selection ──
+    panel.querySelector('#legend-add-pattern')?.addEventListener('click', () => {
+      startPatternSelection();
+    });
   }
 
   function getUserId() {
@@ -723,6 +865,49 @@
       throw new Error(`${r.status}: ${txt}`);
     }
     return r.json();
+  }
+
+  async function patchJSON(url, body) {
+    const r = await fetch(url, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`${r.status}: ${txt}`);
+    }
+    return r.json();
+  }
+
+  async function deleteJSON(url) {
+    const r = await fetch(url, { method: 'DELETE' });
+    if (!r.ok && r.status !== 204) {
+      const txt = await r.text();
+      throw new Error(`${r.status}: ${txt}`);
+    }
+  }
+
+  // ── Multi-Node-Pattern API helpers ─────────────────────────────
+  async function loadPatternsForCurrentTopic() {
+    if (!currentTopicId) { currentPatterns = []; return; }
+    try {
+      currentPatterns = await fetchJSON(`${API}/patterns/?topic_id=${currentTopicId}`);
+    } catch (e) {
+      console.error('loadPatterns failed:', e);
+      currentPatterns = [];
+    }
+  }
+
+  async function createPattern({ name, pattern_type, member_ids }) {
+    return postJSON(`${API}/patterns/?user_id=${getUserId()}`, {
+      topic_id: currentTopicId,
+      name,
+      pattern_type,
+      member_ids,
+    });
+  }
+
+  async function deletePattern(id) {
+    await deleteJSON(`${API}/patterns/${id}`);
   }
 
   // ── Load stage 0: editable transcript ─────────
@@ -878,6 +1063,10 @@
     activePolygonGroups = [];
     revealedSplitOrigins.clear();
     if (isSelectingPolygon) exitPolygonSelection();
+    if (isSelectingPattern) exitPatternSelection();
+    // Load persisted multi-node patterns for the new topic.
+    await loadPatternsForCurrentTopic();
+    patternVisibility = {};
     if (currentStage === 0) {
       await loadTranscript();
     } else if (currentStage >= 4) {
@@ -1061,6 +1250,13 @@
         ? `${step.title} — ${step.description}`
         : step.title;
       html += `<div class="card-text">${esc(fullText)}</div>`;
+      // Z.2c — "Aufteilen" only if this original has not been split yet.
+      // (Splitting an already-split base would create ambiguous origin chains.)
+      const alreadySplit = currentData && currentData.steps
+        && currentData.steps.some(s => s.split_from_id === step.id);
+      if (!alreadySplit) {
+        html += `<button class="split-create" data-base-id="${step.id}" title="In Teilargumente aufteilen" style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:6px;font-size:0.55rem;font-weight:600;background:#1f2937;color:#3fb950;border:1px solid #374151;cursor:pointer">✂ Aufteilen</button>`;
+      }
     } else {
       // Stage 2 split cards are title-only. Stage 3+ shows title + body.
       html += `<div class="card-header">`;
@@ -1075,6 +1271,14 @@
       // Stage 3+: split badge
       if (step.stage_added === 2 && currentStage >= 3) {
         html += `<span style="display:inline-block;margin-top:3px;padding:0 5px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1e2a1e;color:#3fb950" title="Stufe-2-Split">✂ Split</span>`;
+      }
+
+      // Z.2c — "Verbinden" on Stage-2 split cards: lets the user (re)wire the
+      // logical reference (parent_id) to a specific opponent argument. Only
+      // shown in the work step (Stage 2) where splits and originals coexist.
+      if (isStage2Split) {
+        const targetLabel = step.parent_id ? `→ #${step.parent_id}` : 'kein Ziel';
+        html += `<button class="split-connect" data-split-id="${step.id}" title="Logische Referenz setzen" style="display:inline-block;margin:3px 0 0 4px;padding:1px 6px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1f2937;color:#93c5fd;border:1px solid #374151;cursor:pointer">🔗 ${esc(targetLabel)}</button>`;
       }
 
       // Z.2b — Split-Toggle (Stage 3 only):
@@ -1148,6 +1352,20 @@
       if (revealedSplitOrigins.has(originId)) revealedSplitOrigins.delete(originId);
       else revealedSplitOrigins.add(originId);
       render();
+    });
+
+    // Z.2c — Open split-creation form for Stage-2 raw cards.
+    card.querySelector('.split-create')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const baseId = parseInt(e.currentTarget.dataset.baseId);
+      if (Number.isFinite(baseId)) showSplitCreateForm(baseId, card);
+    });
+
+    // Z.2c — Open connect picker for Stage-2 split cards.
+    card.querySelector('.split-connect')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const splitId = parseInt(e.currentTarget.dataset.splitId);
+      if (Number.isFinite(splitId)) showSplitConnectForm(splitId, card);
     });
 
     return card;
@@ -1578,6 +1796,31 @@
       polygonState.push({ el: path, nodeIds: g.nodeIds, color: g.color });
     });
 
+    // ── Multi-Node-Pattern overlays (dashed, by pattern_type colour) ──
+    // Drawn as a second hull layer with a wider padding so they sit visibly
+    // outside polygon overlays. Single-member patterns still render as a small
+    // ring around the lone card.
+    const patternState = [];
+    currentPatterns.forEach(p => {
+      if (patternVisibility[p.id] === false) return;
+      const pItems = p.member_ids.map(id => allItemById[id]).filter(Boolean);
+      if (pItems.length === 0) return;
+      const meta = patternMeta(p.pattern_type);
+      const hull = computePaddedHull(pItems, CARD_W, 28);
+      if (hull.length < 3) return; // single-card hulls would degenerate; skip for now
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', smoothHullPath(hull, 18));
+      path.setAttribute('fill', meta.color);
+      path.setAttribute('fill-opacity', '0.05');
+      path.setAttribute('stroke', meta.color);
+      path.setAttribute('stroke-opacity', '0.65');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('stroke-dasharray', '6,4');
+      path.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(path);
+      patternState.push({ el: path, nodeIds: p.member_ids, meta });
+    });
+
     items.forEach((item, idx) => {
       const color = item.side === 'L' ? PRO_C : CON_C;
       const toX = item.edgeX;
@@ -1824,7 +2067,7 @@
     svg.setAttribute('height', finalH);
     svg.setAttribute('viewBox', `0 0 ${W} ${finalH}`);
 
-    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, extraLines, polygonState };
+    renderState = { items, CX, topicBottom, CARD_W, V_PAD, mode: 'chrono', allItemById, extraLines, polygonState, patternState };
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -2133,6 +2376,156 @@
     document.querySelectorAll('.inline-form').forEach(f => f.remove());
   }
 
+  // ── Z.2c — Split creation + connection editing (Stage 2) ─────────────
+  // Two inline forms reuse the existing .inline-form styles.
+
+  function _positionSelect(name, value = 'NEUTRAL') {
+    return `<select name="${name}">
+      <option value="PRO"${value==='PRO'?' selected':''}>PRO</option>
+      <option value="CONTRA"${value==='CONTRA'?' selected':''}>CONTRA</option>
+      <option value="NEUTRAL"${value==='NEUTRAL'?' selected':''}>NEUTRAL</option>
+    </select>`;
+  }
+
+  function _opponentOptions(currentSplitId, selectedParentId) {
+    // Candidates: all Stage-1 raw nodes in the topic except the base from
+    // which this split originates (a split must not point back at its own
+    // origin or at itself). The base is implicitly excluded because splits
+    // do not list their own origin as a target.
+    if (!currentData || !currentData.steps) return '';
+    const split = currentData.steps.find(s => s.id === currentSplitId);
+    const ownBaseId = split ? split.split_from_id : null;
+    const opts = currentData.steps
+      .filter(s => s.stage_added === 1 && s.id !== ownBaseId)
+      .map(s => {
+        const sel = (s.id === selectedParentId) ? ' selected' : '';
+        const title = (s.title || '').slice(0, 60);
+        return `<option value="${s.id}"${sel}>#${s.id} · ${s.position} · ${title}</option>`;
+      })
+      .join('');
+    return `<option value=""${selectedParentId ? '' : ' selected'}>— kein Ziel —</option>` + opts;
+  }
+
+  function showSplitCreateForm(baseId, anchorCard) {
+    removeInlineForms();
+    const base = currentData?.steps?.find(s => s.id === baseId);
+    const form = document.createElement('div');
+    form.className = 'inline-form';
+    const rect = anchorCard.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    form.style.left = (rect.left - canvasRect.left) + 'px';
+    form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+    form.style.width = '380px';
+
+    // Default: 2 empty split rows. Each row is a (title, position) pair plus
+    // an optional logical-reference target. The target list excludes the
+    // base node itself (a split cannot point at its own origin).
+    const targetOptions = (function() {
+      if (!currentData?.steps) return '';
+      return currentData.steps
+        .filter(s => s.stage_added === 1 && s.id !== baseId)
+        .map(s => `<option value="${s.id}">#${s.id} · ${s.position} · ${esc((s.title||'').slice(0,60))}</option>`)
+        .join('');
+    })();
+    const rowHtml = (i) => `
+      <div class="split-row" data-row="${i}" style="border:1px solid #30363d;border-radius:6px;padding:6px;margin-top:6px;background:#0d1117">
+        <label>Titel ${i+1} *</label>
+        <input type="text" name="title" placeholder="Teilargument…" />
+        <div class="form-row">
+          <div><label>Position</label>${_positionSelect('position')}</div>
+          <div><label>Ziel (opt.)</label>
+            <select name="parent_id"><option value="">— Basis-Ziel übernehmen —</option>${targetOptions}</select>
+          </div>
+        </div>
+        <button type="button" class="split-row-remove" title="Zeile entfernen" style="margin-top:4px;padding:1px 6px;font-size:0.6rem;background:#30363d;color:#c9d1d9;border:none;border-radius:4px;cursor:pointer">− entfernen</button>
+      </div>`;
+
+    form.innerHTML = `
+      <h4>✂ Original aufteilen</h4>
+      <div style="font-size:0.62rem;color:#8b949e;margin-bottom:4px">Basis #${base?.id ?? baseId}: <em>${esc((base?.title || '').slice(0,80))}</em></div>
+      <div id="split-rows">${rowHtml(0)}${rowHtml(1)}</div>
+      <button type="button" id="split-row-add" style="margin-top:6px;padding:2px 8px;font-size:0.6rem;background:#1f2937;color:#93c5fd;border:1px solid #374151;border-radius:4px;cursor:pointer">+ weiterer Teil</button>
+      <div class="form-actions">
+        <button class="btn-cancel" type="button">Abbrechen</button>
+        <button class="btn-submit" id="split-submit" type="button">Splits anlegen</button>
+      </div>
+    `;
+    document.getElementById('canvas').appendChild(form);
+
+    let nextRowIdx = 2;
+    form.querySelector('#split-row-add').addEventListener('click', () => {
+      const container = form.querySelector('#split-rows');
+      const wrap = document.createElement('div');
+      wrap.innerHTML = rowHtml(nextRowIdx++);
+      container.appendChild(wrap.firstElementChild);
+    });
+    form.addEventListener('click', (e) => {
+      if (e.target.classList.contains('split-row-remove')) {
+        const rows = form.querySelectorAll('.split-row');
+        if (rows.length > 1) e.target.closest('.split-row').remove();
+      }
+      if (e.target.classList.contains('btn-cancel')) removeInlineForms();
+    });
+
+    form.querySelector('#split-submit').addEventListener('click', async () => {
+      const rows = Array.from(form.querySelectorAll('.split-row'));
+      const splits = rows.map(r => {
+        const title = r.querySelector('input[name="title"]').value.trim();
+        const position = r.querySelector('select[name="position"]').value;
+        const pidRaw = r.querySelector('select[name="parent_id"]').value;
+        const parent_id = pidRaw ? parseInt(pidRaw) : undefined;
+        return { title, position, ...(parent_id != null ? { parent_id } : {}) };
+      }).filter(s => s.title);
+      if (splits.length === 0) { alert('Mindestens ein Titel erforderlich.'); return; }
+      try {
+        await postJSON(`${API}/arguments/${baseId}/split?user_id=${getUserId()}`, { splits });
+        removeInlineForms();
+        await loadZigzag();
+      } catch(e) {
+        alert('Fehler: ' + e.message);
+      }
+    });
+  }
+
+  function showSplitConnectForm(splitId, anchorCard) {
+    removeInlineForms();
+    const split = currentData?.steps?.find(s => s.id === splitId);
+    const form = document.createElement('div');
+    form.className = 'inline-form';
+    const rect = anchorCard.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    form.style.left = (rect.left - canvasRect.left) + 'px';
+    form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+    form.style.width = '320px';
+
+    form.innerHTML = `
+      <h4>🔗 Logische Referenz</h4>
+      <div style="font-size:0.62rem;color:#8b949e;margin-bottom:4px">Split #${splitId}: <em>${esc((split?.title||'').slice(0,80))}</em></div>
+      <label>Ziel-Argument</label>
+      <select id="connect-target">${_opponentOptions(splitId, split?.parent_id ?? null)}</select>
+      <div class="form-actions">
+        <button class="btn-cancel" type="button">Abbrechen</button>
+        <button class="btn-submit" id="connect-submit" type="button">Speichern</button>
+      </div>
+    `;
+    document.getElementById('canvas').appendChild(form);
+
+    form.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-cancel')) removeInlineForms();
+    });
+    form.querySelector('#connect-submit').addEventListener('click', async () => {
+      const raw = form.querySelector('#connect-target').value;
+      const parent_id = raw ? parseInt(raw) : null;
+      try {
+        await patchJSON(`${API}/arguments/${splitId}/connect`, { parent_id });
+        removeInlineForms();
+        await loadZigzag();
+      } catch(e) {
+        alert('Fehler: ' + e.message);
+      }
+    });
+  }
+
   // ── Relayout for chrono mode ───────────────────
 
   function relayout() {
@@ -2247,6 +2640,74 @@
   document.getElementById('polygon-btn-create')?.addEventListener('click', createCustomPolygonGroup);
   document.getElementById('polygon-btn-cancel')?.addEventListener('click', cancelPolygonSelection);
 
+  // ── Multi-Node-Pattern selection mode ───────────
+  // Mirrors polygon selection but creates a persisted pattern via the API.
+  function startPatternSelection() {
+    if (isSelectingPolygon) exitPolygonSelection();
+    isSelectingPattern = true;
+    pendingPatternSelection.clear();
+    document.querySelectorAll('.zz-card').forEach(c => c.classList.add('pattern-selectable'));
+    const toolbar = document.getElementById('pattern-select-toolbar');
+    toolbar.classList.add('visible');
+    updatePatternToolbar();
+    renderLegendPanel();
+  }
+
+  function togglePatternCardSelection(cardEl) {
+    const stepId = parseInt(cardEl.dataset.stepId);
+    if (!stepId) return;
+    if (pendingPatternSelection.has(stepId)) {
+      pendingPatternSelection.delete(stepId);
+      cardEl.classList.remove('pattern-selected');
+    } else {
+      pendingPatternSelection.add(stepId);
+      cardEl.classList.add('pattern-selected');
+    }
+    updatePatternToolbar();
+  }
+
+  function updatePatternToolbar() {
+    const count = pendingPatternSelection.size;
+    const countEl = document.getElementById('pattern-select-count');
+    const createBtn = document.getElementById('pattern-btn-create');
+    if (countEl) countEl.textContent = String(count);
+    // A pattern needs at least one member (backend allows zero, but for UX
+    // we require ≥1 so the user sees something on the canvas).
+    if (createBtn) createBtn.disabled = count < 1;
+  }
+
+  async function submitPendingPattern() {
+    if (pendingPatternSelection.size < 1) return;
+    const nameInput = document.getElementById('pattern-name');
+    const typeSel = document.getElementById('pattern-type-select');
+    const name = (nameInput?.value || '').trim() || patternMeta(typeSel?.value || 'OTHER').label;
+    const pattern_type = typeSel?.value || 'OTHER';
+    const member_ids = [...pendingPatternSelection];
+    try {
+      const created = await createPattern({ name, pattern_type, member_ids });
+      currentPatterns.push(created);
+      exitPatternSelection();
+      render();
+    } catch (e) {
+      alert('Muster konnte nicht gespeichert werden: ' + e.message);
+    }
+  }
+
+  function exitPatternSelection() {
+    isSelectingPattern = false;
+    pendingPatternSelection.clear();
+    document.querySelectorAll('.zz-card.pattern-selected').forEach(c => c.classList.remove('pattern-selected'));
+    document.querySelectorAll('.zz-card.pattern-selectable').forEach(c => c.classList.remove('pattern-selectable'));
+    const toolbar = document.getElementById('pattern-select-toolbar');
+    if (toolbar) toolbar.classList.remove('visible');
+    const nameInput = document.getElementById('pattern-name');
+    if (nameInput) nameInput.value = '';
+    renderLegendPanel();
+  }
+
+  document.getElementById('pattern-btn-create')?.addEventListener('click', submitPendingPattern);
+  document.getElementById('pattern-btn-cancel')?.addEventListener('click', exitPatternSelection);
+
   // ── Drag system with live SVG line updates ──
   let dragInfo = null;
 
@@ -2351,7 +2812,7 @@
     }
 
     // Update polygon overlays during drag
-    const { polygonState, allItemById: aidMap } = renderState;
+    const { polygonState, patternState, allItemById: aidMap } = renderState;
     if (polygonState && polygonState.length > 0 && aidMap) {
       polygonState.forEach(pg => {
         const gItems = pg.nodeIds.map(id => aidMap[id]).filter(Boolean);
@@ -2359,6 +2820,16 @@
         const hull = computePaddedHull(gItems, CARD_W, 18);
         if (hull.length < 3) return;
         pg.el.setAttribute('d', smoothHullPath(hull));
+      });
+    }
+    // Update multi-node pattern overlays during drag (wider padding, smaller r)
+    if (patternState && patternState.length > 0 && aidMap) {
+      patternState.forEach(p => {
+        const pItems = p.nodeIds.map(id => aidMap[id]).filter(Boolean);
+        if (pItems.length === 0) return;
+        const hull = computePaddedHull(pItems, CARD_W, 28);
+        if (hull.length < 3) return;
+        p.el.setAttribute('d', smoothHullPath(hull, 18));
       });
     }
   }
@@ -2372,6 +2843,13 @@
       if (isSelectingPolygon) {
         e.preventDefault();
         toggleCardSelection(card);
+        return;
+      }
+
+      // Pattern selection mode: toggle card for persistent multi-node pattern
+      if (isSelectingPattern) {
+        e.preventDefault();
+        togglePatternCardSelection(card);
         return;
       }
 

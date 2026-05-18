@@ -20,26 +20,21 @@ The **Changelog** and **Design Discussions** are at the very bottom.
 The next handful of tasks, ordered by what makes sense to tackle next given current
 state (no auth, no AI stack, in-memory DB). Pick from the top.
 
-1. **Z.2c — GUI editing for splits** *(backend + frontend)*
-   Interactive UI to create a new split-set from an existing argument, plus
-   drawing logical reference connections between splits. New endpoint
-   `POST /api/arguments/{id}/split`.
-2. **Promote sources JSON → SQLAlchemy `Source` model** *(backend, breaking)*
+1. **Promote sources JSON → SQLAlchemy `Source` model** *(backend, breaking)*
    Replace the JSON-backed store with a proper SQL model and n:m link to
    `ArgumentNode` (replaces the ad-hoc `usages` array). Decision: do this once
    usage volume justifies it — currently the JSON store is sufficient.
-3. **Multi-node patterns UI** *(frontend)*
-   Tests already exist for the backend (`test_multi_node_patterns.py`). Add a
-   UI to mark and name patterns spanning multiple nodes (Gish gallop,
-   creeping relativization, …).
-4. **Definition forks UI** *(frontend)*
+2. **Definition forks UI** *(frontend)*
    Backend tests (`test_definition_forks.py`) already exist. Add UI for
    splitting argument strands by term interpretation.
-5. **Twitter/X import via n8n** *(integration)*
+3. **Twitter/X import via n8n** *(integration)*
    n8n sketch exists in `n8n/`. Wire it up to the SRT/transcript import surface
    so threads can be imported as Stage-0 transcripts.
-6. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
+4. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
    Replace localStorage trust with server-side per-user vote records.
+5. **Automatic multi-node pattern detection** *(KI, post-dev)*
+   Manual UI exists (see Changelog). Heuristics / KI for auto-suggesting
+   Gish-gallop / creeping-relativization patterns require an embedding stack.
 
 Everything below this stack is either a larger phase (security/infra, advanced
 features) or detail spec for items already on the stack.
@@ -138,8 +133,9 @@ copies to LLM for speaker segmentation → pastes result back via `PUT /api/topi
 - [ ] Automatic tag suggestion based on tag-similarity to existing arguments
 
 ### Multi-Node Patterns
-- [ ] UI for marking and naming patterns across multiple nodes (e.g. Gish gallop, creeping relativization)
-- [ ] Pattern detection heuristics
+- [x] **Manuelle UI** in `zickzack.html`: Auswahlmodus, persistente Server-Muster (Stand: siehe Changelog 2026-Q2).
+- [ ] Pattern detection heuristics (auto-suggest Gish-gallop / creeping
+      relativization based on graph topology + embeddings — requires KI stack).
 
 ### Definition Forks
 - [ ] UI for splitting argument strands by term interpretation (e.g. "racism" has multiple definitions with different moral implications)
@@ -212,16 +208,11 @@ Tests that are **not needed during early development** but must be added before 
 Erledigt — siehe Changelog. Button auf jeder Split-Karte in Stage 3 zeigt
 temporär das Original an und blendet die Geschwister-Splits aus.
 
-### Z.2c — GUI-Editing für Splits ⬜ Next Up
+### Z.2c — GUI-Editing für Splits ✅
 
-Interactive split creation and connection editing in Stage 2 (Split-Prozess):
-
-| Task | Type |
-|------|------|
-| Create a new split-set from an existing argument (select argument → "✂ Aufteilen" → enter split titles) | Frontend |
-| Draw logical reference connections between split arguments and their targets | Frontend |
-| API: `POST /api/arguments/{id}/split` — create split-set from a base argument | API |
-| Visual feedback: highlight which original is being split, show split-set grouping | Frontend |
+Erledigt — siehe Changelog. Inline-Forms in Stage 2: `✂ Aufteilen` auf jeder
+Rohkarte erzeugt N Splits (`POST /api/arguments/{id}/split`); `🔗 …` auf
+jeder Split-Karte setzt die logische Referenz (`PATCH /api/arguments/{id}/connect`).
 
 ### Z.4 — Zickzack Einordnung ⚙️ TODO: post-dev
 
@@ -486,6 +477,56 @@ drawn, not how anchor math works.
 Consolidated record of finished features so the upper sections can stay focused on
 what's next. Newest at the top.
 
+### 2026-Q2 — Multi-Node-Muster (manuelle UI, Zickzack)
+Manuelle Markierung von Mehrknoten-Mustern (z.B. Gish Gallop, schleichende
+Relativierung) im Zickzack-View. Backend (Router + 12 Tests) war bereits
+vorhanden; jetzt vollständig vom UI bedient.
+
+- **Frontend** (`zickzack.html`):
+  - Neuer Auswahlmodus parallel zu Polygon-Bereichen: „🧩 Muster markieren"-Button
+    im Legend-Panel, fixe Toolbar unten mit Name-Input + `PatternType`-Select +
+    Erstellen/Abbrechen.
+  - Persistente Muster werden bei Topic-Wechsel via `GET /api/patterns/?topic_id=…`
+    geladen und in `currentPatterns` gehalten.
+  - Rendering als **zweite Overlay-Ebene**: dashed convex-hull Outline, Farbe
+    nach `pattern_type` (`GISH_GALLOP` rot, `CREEPING_RELATIVIZATION` orange,
+    `OTHER` neutralgrau). Folgt Karten beim Draggen.
+  - Eigene Legend-Sektion „Muster" mit Type-Badge, Mitgliederzahl, 🗑-Löschen
+    pro Eintrag.
+  - Sichtbar in Stages 1–3 (in Placeholder-Stages 4–6 nicht).
+- **Backend**: keine Änderungen — bestehende Endpunkte (`POST/GET/DELETE
+  /api/patterns/`) ausreichend. Pattern-Editing (PATCH) bleiben aufgeschoben;
+  bei Bedarf erfolgt Löschen+Neuanlage.
+- **Docs**: `architecture.md` (Static-UI-Eintrag), `taxonomy.md` §6 Status
+  auf 🟡 (Modell + REST + manuelle UI; Auto-Detection post-dev),
+  `implementation-plan.md` Multi-Node-Patterns-Phase 2 aktualisiert.
+- Tests unverändert grün (205/205).
+
+### 2026-Q2 — Z.2c GUI editing for splits (Stage 2)
+Interactive split creation and connection editing in the Split-Prozess view.
+
+- **Backend** (`routers/arguments.py`):
+  - `POST /api/arguments/{id}/split?user_id=…` — body `{splits: [{title, position, description?, parent_id?}]}`.
+    Creates N children with `stage_added=2` and `split_from_id=<base>`. If a
+    split omits `parent_id`, it inherits the base node's `parent_id` (logical
+    reference defaults to the original opponent). Rejects splitting an
+    already-split node (Stage-1 only).
+  - `PATCH /api/arguments/{id}/connect` — body `{parent_id: int | null}`.
+    Convenience endpoint to (re)wire only a split node's logical reference;
+    refuses non-split nodes and self-parenting.
+- **Tests** (`tests/test_arguments.py`): +13 tests (205/205 total), covering
+  inheritance of base parent, explicit parent override, cross-topic rejection,
+  zigzag visibility of created splits, connect/unlink, self-parent rejection.
+- **Frontend** (`zickzack.html`):
+  - Stage-2 raw cards get a `✂ Aufteilen` button (hidden if the original is
+    already split). Opens an inline form with addable rows: title, position,
+    optional target opponent dropdown.
+  - Stage-2 split cards get a `🔗 #<n>` / `🔗 kein Ziel` button. Opens a
+    target picker (all Stage-1 raw nodes except own origin); choosing
+    "— kein Ziel —" unlinks the parent.
+  - Both forms reuse the existing `.inline-form` styling and call the new
+    `patchJSON` helper.
+
 ### 2026-Q2 — Retired views: Baum, Waage, Konflikt
 Removed three standalone static pages whose role is now covered by the
 Zickzack data model:
@@ -501,9 +542,10 @@ Zickzack data model:
   `ArgumentNode.conflict_zone` and will be surfaced inline in Zickzack
   Stage 4 (Einordnung). The standalone explainer added no model power.
 
-Removed: 3 HTML files, 3 routes in `main.py`, nav links across all remaining
-pages (`zickzack.html`, `quellen.html`, `dialog.html`, `rauchen.html`),
-references in `architecture.md`, `taxonomy.md` §23, `visualization-strategy.md`.
+Removed: 4 HTML files, 4 routes in `main.py`, nav links across all remaining
+pages (`zickzack.html`, `quellen.html`, `rauchen.html`),
+references in `architecture.md`, `taxonomy.md` §23/§24, `visualization-strategy.md`.
+The standalone `dialog.html` was redundant with the Zickzack Stage-1 view.
 192/192 tests still pass — no backend logic depended on these views.
 
 ### 2026-Q2 — Z.2b Split-Toggle (Stage 3)
@@ -598,3 +640,7 @@ The dynamic zigzag refinement model, stages 0–3 fully implemented.
 | 0.8 | Migration Seed Topic | Second seed topic "Deutschland sollte mehr Migranten aufnehmen" exercising all new fields |
 | 0.9 | Frontend Rich Tree View | Anatomy sub-sections, gradient borders, Ⓕ/Ⓥ badges, category-grouped tag chips, evidence quality bars, label severity, hidden-node greying |
 | 0.10 | Argument-Group Workflow | `POST /api/argument-groups/{id}/merge` and `/unmerge/{node_id}`, grouped node display |
+
+
+
+
