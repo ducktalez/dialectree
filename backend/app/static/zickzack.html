@@ -639,6 +639,15 @@
   let isSelectingPattern = false;
   let pendingPatternSelection = new Set();
 
+  // ── Definition-Fork state ───────────────────────────────────────
+  // Per-topic list of {id, argument_node_id, term, definition_variant, description}.
+  // Forks let users split argument strands by competing interpretations of a
+  // disputed term (e.g. "Rassismus = Vorurteil+Macht" vs. "Rassismus = jede
+  // Ungleichbehandlung nach Ethnie"). Surfaced in Stage 3 as a ⑂-badge on the
+  // card; the panel below opens for add/list/delete. Loaded once per topic via
+  // GET /api/definition-forks/?topic_id=… so card rendering can stay sync.
+  let currentDefinitionForks = [];
+
   const PATTERN_TYPE_META = {
     GISH_GALLOP:              { label: 'Gish Gallop',                color: '#f85149', emoji: '🌀' },
     CREEPING_RELATIVIZATION:  { label: 'Schleichende Relativierung', color: '#f0883e', emoji: '📉' },
@@ -897,6 +906,23 @@
     }
   }
 
+  // ── Definition-Fork API helpers ─────────────────────────────────
+  async function loadDefinitionForksForCurrentTopic() {
+    if (!currentTopicId) { currentDefinitionForks = []; return; }
+    try {
+      currentDefinitionForks = await fetchJSON(
+        `${API}/definition-forks/?topic_id=${currentTopicId}`,
+      );
+    } catch (e) {
+      console.error('loadDefinitionForks failed:', e);
+      currentDefinitionForks = [];
+    }
+  }
+
+  function forksForNode(nodeId) {
+    return currentDefinitionForks.filter(f => f.argument_node_id === nodeId);
+  }
+
   async function createPattern({ name, pattern_type, member_ids }) {
     return postJSON(`${API}/patterns/?user_id=${getUserId()}`, {
       topic_id: currentTopicId,
@@ -1067,6 +1093,8 @@
     // Load persisted multi-node patterns for the new topic.
     await loadPatternsForCurrentTopic();
     patternVisibility = {};
+    // Load definition forks (used by Stage-3 ⑂-badge on cards).
+    await loadDefinitionForksForCurrentTopic();
     if (currentStage === 0) {
       await loadTranscript();
     } else if (currentStage >= 4) {
@@ -1297,6 +1325,19 @@
         }
       }
 
+      // Z.5 (preview) — Definition-Fork badge (Stage 3+ only):
+      // Shows ⑂ <count> if this argument has competing term interpretations
+      // attached. Clicking opens an inline panel (list + add/delete form).
+      // Always render the badge in Stage 3+ so users can ALSO add a first fork
+      // — the count is just 0 in that case.
+      if (currentStage >= 3) {
+        const forkCount = forksForNode(step.id).length;
+        const badgeBg = forkCount > 0 ? '#2a1f3d' : '#1f2937';
+        const badgeColor = forkCount > 0 ? '#d8b4fe' : '#9ca3af';
+        const label = forkCount > 0 ? `⑂ ${forkCount}` : '⑂ +';
+        html += `<button class="fork-toggle" data-node-id="${step.id}" title="Definitionen / Begriffslesarten" style="display:inline-block;margin:3px 0 0 4px;padding:1px 6px;border-radius:6px;font-size:0.52rem;font-weight:600;background:${badgeBg};color:${badgeColor};border:1px solid #374151;cursor:pointer">${label}</button>`;
+      }
+
       // Stage 4+: conflict zone, opens_conflict (TODO: post-dev)
       if (currentStage >= 4) {
         const zone = step.conflict_zone;
@@ -1366,6 +1407,13 @@
       e.stopPropagation();
       const splitId = parseInt(e.currentTarget.dataset.splitId);
       if (Number.isFinite(splitId)) showSplitConnectForm(splitId, card);
+    });
+
+    // Z.5 (preview) — Open definition-fork panel for Stage-3+ cards.
+    card.querySelector('.fork-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nodeId = parseInt(e.currentTarget.dataset.nodeId);
+      if (Number.isFinite(nodeId)) showDefinitionForkPanel(nodeId, card);
     });
 
     return card;
@@ -2522,6 +2570,110 @@
         await loadZigzag();
       } catch(e) {
         alert('Fehler: ' + e.message);
+      }
+    });
+  }
+
+  // ── Z.5 (preview) — Definition-Fork panel ───────────────────────
+  // DESIGN: forks are competing interpretations of a disputed term used inside
+  // the argument. The panel shows existing forks (term + variant + optional
+  // description) with delete buttons, and an add row. After mutation we reload
+  // the topic-wide fork list and only redraw the badge counters — the SVG
+  // connection layout doesn't depend on forks, so a full `loadZigzag()` would
+  // be overkill (and would also collapse all cards).
+  function showDefinitionForkPanel(nodeId, anchorCard) {
+    removeInlineForms();
+    const node = currentData?.steps?.find(s => s.id === nodeId);
+    const forks = forksForNode(nodeId);
+
+    const form = document.createElement('div');
+    form.className = 'inline-form';
+    const rect = anchorCard.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    form.style.left = (rect.left - canvasRect.left) + 'px';
+    form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+    form.style.width = '340px';
+
+    const listHtml = forks.length === 0
+      ? `<div style="font-size:0.62rem;color:#6e7681;font-style:italic;margin:4px 0 8px">Noch keine Definitionsvarianten.</div>`
+      : `<ul style="list-style:none;padding:0;margin:4px 0 8px;display:flex;flex-direction:column;gap:4px">${
+          forks.map(f => `
+            <li style="display:flex;align-items:flex-start;gap:6px;padding:4px 6px;background:#161b22;border-radius:6px;border-left:3px solid #8b5cf6">
+              <div style="flex:1;font-size:0.64rem;color:#e6edf3;line-height:1.35">
+                <span style="font-weight:700;color:#d8b4fe">${esc(f.term)}</span>
+                <span style="color:#9ca3af"> = </span>
+                <span>${esc(f.definition_variant)}</span>
+                ${f.description ? `<div style="color:#8b949e;font-size:0.58rem;margin-top:2px">${esc(f.description)}</div>` : ''}
+              </div>
+              <button class="fork-delete" data-fork-id="${f.id}" title="Löschen" type="button"
+                style="background:#1f2937;color:#f87171;border:1px solid #374151;border-radius:4px;padding:1px 5px;font-size:0.6rem;cursor:pointer">🗑</button>
+            </li>`).join('')
+        }</ul>`;
+
+    form.innerHTML = `
+      <h4>⑂ Begriffslesarten</h4>
+      <div style="font-size:0.62rem;color:#8b949e;margin-bottom:4px">
+        Knoten #${nodeId}: <em>${esc((node?.title || '').slice(0, 80))}</em>
+      </div>
+      ${listHtml}
+      <div style="border-top:1px solid #30363d;padding-top:6px">
+        <label>Begriff</label>
+        <input id="fork-term" placeholder="z.B. Rassismus" maxlength="200" />
+        <label>Lesart / Definition</label>
+        <input id="fork-variant" placeholder="z.B. Vorurteil + institutionelle Macht" maxlength="300" />
+        <label>Beschreibung (optional)</label>
+        <textarea id="fork-desc" placeholder="Wann gilt diese Lesart, was unterscheidet sie?"></textarea>
+        <div class="form-actions">
+          <button class="btn-cancel" type="button">Schließen</button>
+          <button class="btn-submit" id="fork-submit" type="button">Hinzufügen</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('canvas').appendChild(form);
+
+    form.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-cancel')) removeInlineForms();
+    });
+
+    form.querySelectorAll('.fork-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const forkId = parseInt(btn.dataset.forkId);
+        if (!Number.isFinite(forkId)) return;
+        try {
+          await deleteJSON(`${API}/definition-forks/${forkId}`);
+          await loadDefinitionForksForCurrentTopic();
+          // Re-open the panel so the user immediately sees the new list state.
+          // Anchor card may have been re-rendered, look it up again.
+          if (typeof render === 'function') render();
+          const newAnchor = document.querySelector(`.zz-card[data-step-id="${nodeId}"]`);
+          if (newAnchor) showDefinitionForkPanel(nodeId, newAnchor);
+        } catch (err) {
+          alert('Löschen fehlgeschlagen: ' + err.message);
+        }
+      });
+    });
+
+    form.querySelector('#fork-submit').addEventListener('click', async () => {
+      const term = form.querySelector('#fork-term').value.trim();
+      const variant = form.querySelector('#fork-variant').value.trim();
+      const description = form.querySelector('#fork-desc').value.trim() || null;
+      if (!term || !variant) {
+        alert('Begriff und Lesart sind Pflichtfelder.');
+        return;
+      }
+      try {
+        await postJSON(`${API}/definition-forks/`, {
+          argument_node_id: nodeId,
+          term,
+          definition_variant: variant,
+          description,
+        });
+        await loadDefinitionForksForCurrentTopic();
+        if (typeof render === 'function') render();
+        const newAnchor = document.querySelector(`.zz-card[data-step-id="${nodeId}"]`);
+        if (newAnchor) showDefinitionForkPanel(nodeId, newAnchor);
+      } catch (err) {
+        alert('Speichern fehlgeschlagen: ' + err.message);
       }
     });
   }

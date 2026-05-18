@@ -99,6 +99,17 @@ class ConflictZone(str, enum.Enum):
     VALUE = "VALUE"
 
 
+class SourceKind(str, enum.Enum):
+    """Kind of evidence/source in the Quellensammlung."""
+    QUOTE = "QUOTE"
+    VIDEO = "VIDEO"
+    AUDIO = "AUDIO"
+    PAPER = "PAPER"
+    TWEET = "TWEET"
+    IMAGE = "IMAGE"
+    TEXT = "TEXT"
+
+
 class EdgeType(str, enum.Enum):
     """How this argument responds to its parent (taxonomy §25)."""
     COMMUNITY_NOTE = "COMMUNITY_NOTE"
@@ -378,4 +389,94 @@ class DefinitionFork(Base):
     created_at = Column(DateTime, default=_utcnow)
 
     argument_node = relationship("ArgumentNode", back_populates="definition_forks")
+
+
+# ── Source collection (Quellensammlung) ─────────────────────────────────────
+#
+# Promoted from a JSON file to proper SQL models. Each `Source` carries
+# many-to-many `SourceTag`s (free-form strings; we don't reuse the argument
+# `Tag` table because source tags follow their own conventions like
+# `QUELLE`, `WISSENSCHAFT`, `TOPIC:<SLUG>`), a list of comments, and a list
+# of usages. `SourceUsage.argument_id` is a real FK so cascade behaviour is
+# explicit (ON DELETE SET NULL preserves usage history when an argument is
+# deleted).
+
+source_tag_link = Table(
+    "source_tag_link",
+    Base.metadata,
+    Column("source_id", Integer, ForeignKey("sources.id", ondelete="CASCADE"), primary_key=True),
+    Column("source_tag_id", Integer, ForeignKey("source_tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class SourceTag(Base):
+    __tablename__ = "source_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # Free-form string. Convention: uppercase, `TOPIC:<SLUG>` for topic links.
+    name = Column(String(120), unique=True, nullable=False, index=True)
+
+    sources = relationship("Source", secondary=source_tag_link, back_populates="tags")
+
+
+class Source(Base):
+    __tablename__ = "sources"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(500), nullable=False)
+    kind = Column(Enum(SourceKind), nullable=False)
+    url = Column(String(2000), nullable=True)
+    description = Column(Text, nullable=True)
+    # Path under /static/sources/, either an uploaded image or a generated SVG.
+    thumbnail = Column(String(500), nullable=True)
+    # Path under /static/sources/media/ for uploaded audio/video.
+    media_url = Column(String(500), nullable=True)
+    # Aggregate vote counters. Per-user vote tracking is deferred — see
+    # implementation-plan.md → Phase 1 / Phase 2 (Per-user vote tracking).
+    up = Column(Integer, nullable=False, default=0)
+    down = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=_utcnow)
+
+    tags = relationship("SourceTag", secondary=source_tag_link, back_populates="sources")
+    comments = relationship(
+        "SourceComment",
+        back_populates="source",
+        cascade="all, delete-orphan",
+        order_by="SourceComment.id",
+    )
+    usages = relationship(
+        "SourceUsage",
+        back_populates="source",
+        cascade="all, delete-orphan",
+        order_by="SourceUsage.id",
+    )
+
+
+class SourceComment(Base):
+    __tablename__ = "source_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_id = Column(Integer, ForeignKey("sources.id", ondelete="CASCADE"), nullable=False)
+    # Free-form display name for now (no auth). Defaults to "anonym".
+    user = Column(String(120), nullable=False, default="anonym")
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=_utcnow)
+
+    source = relationship("Source", back_populates="comments")
+
+
+class SourceUsage(Base):
+    __tablename__ = "source_usages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_id = Column(Integer, ForeignKey("sources.id", ondelete="CASCADE"), nullable=False)
+    # Real n:m link to argument_nodes (replaces the JSON `argument_id` field).
+    # ON DELETE SET NULL: deleting the argument keeps the usage record intact
+    # so we don't silently lose the curation history.
+    argument_id = Column(Integer, ForeignKey("argument_nodes.id", ondelete="SET NULL"), nullable=True)
+    context = Column(String(500), nullable=False)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+
+    source = relationship("Source", back_populates="usages")
 

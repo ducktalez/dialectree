@@ -23,6 +23,9 @@ The project is in early development. Only implement what is **technically necess
 
 ## Known Pitfalls
 - **Tests must run from `backend/`**: `cd backend && python -m pytest tests/ -v`.
+- **PyCharm Sources Root**: mark `backend/` as *Sources Root* (right-click → Mark
+  Directory as) so `from app.…` imports resolve. Otherwise the IDE shows spurious
+  "Unresolved reference 'app'" warnings even though the code runs fine.
 - **In-memory SQLite** is the default (`sqlite://` with `StaticPool`). No DB files to manage. Data resets on every server restart. Set `DATABASE_URL` env var for persistence.
 - The dev server **auto-seeds** on startup (via `lifespan`). Tests skip this via `TESTING=1` env var (set in `conftest.py`).
 - After `db.commit()` + `db.close()`, do **not** access ORM attributes on detached objects → `DetachedInstanceError`.

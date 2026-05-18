@@ -1,6 +1,7 @@
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 
@@ -33,4 +34,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Enable SQLite FK enforcement globally. Without this, ON DELETE SET NULL /
+# CASCADE clauses declared on FKs (e.g. SourceUsage.argument_id) are silently
+# ignored by SQLite. Applies to any SQLite engine in this process — including
+# the test conftest's separate engine. No-op for other dialects.
+@event.listens_for(Engine, "connect")
+def _enable_sqlite_fk(dbapi_connection, _record):  # pragma: no cover - infra
+    try:
+        from sqlite3 import Connection as _SQLite3Connection
+    except ImportError:
+        return
+    if isinstance(dbapi_connection, _SQLite3Connection):
+        cur = dbapi_connection.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
 

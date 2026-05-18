@@ -274,6 +274,12 @@ class DefinitionForkCreate(BaseModel):
     description: Optional[str] = None
 
 
+class DefinitionForkUpdate(BaseModel):
+    term: Optional[str] = None
+    definition_variant: Optional[str] = None
+    description: Optional[str] = None
+
+
 class DefinitionForkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

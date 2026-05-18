@@ -1,85 +1,160 @@
-"""Source collection (Quellensammlung) – MVP.
+"""Source collection (Quellensammlung) — SQLAlchemy-backed.
 
-Reads from a manually curated JSON file. No DB table yet (see
-docs/implementation-plan.md → Phase 2 → Quellensammlung). Kept intentionally
-simple so the schema can be revised without migration pain.
+Promoted from a JSON file to proper SQL models (`Source`, `SourceTag`,
+`SourceComment`, `SourceUsage`) so usage links to argument nodes are real
+foreign keys and tag deduplication is enforced at the schema level.
 
-Endpoints:
-- GET  /api/sources/        list with optional filters (?tag, ?kind, ?q, ?sort)
-- GET  /api/sources/tags    aggregated tag list with counts
-- GET  /api/sources/{id}    single source incl. comments + usages
-- POST /api/sources/        create source (multipart: title, kind, url, description, tags, thumbnail file)
-- POST /api/sources/{id}/comments   add comment (JSON)
-- POST /api/sources/{id}/usages     add usage entry  (JSON)
+Endpoints (same surface as the JSON era so the frontend keeps working):
+- GET  /api/sources/           list with optional filters
+- GET  /api/sources/tags       aggregated tag list with counts
+- GET  /api/sources/similar    lightweight Jaccard-based dedup suggestions
+- GET  /api/sources/{id}       single source incl. comments + usages
+- POST /api/sources/           create source (multipart)
+- POST /api/sources/{id}/comments
+- POST /api/sources/{id}/usages
+- POST /api/sources/{id}/vote  aggregate vote counter transition
+- PATCH /api/sources/{id}
+- DELETE /api/sources/{id}
+- DELETE /api/sources/{id}/comments/{index}    index-based for FE simplicity
+- DELETE /api/sources/{id}/usages/{index}
 
-Writes persist to the same JSON file. Auth is not implemented; user is passed
-as ?user_id (query param) — same convention as the rest of the API.
+Per-user vote tracking and auth are still deferred — see implementation-plan.md
+(Phase 1 → Auth, Phase 2 → Per-user vote tracking).
 """
 from __future__ import annotations
 
-import json
-from datetime import date
+import re as _re
 from pathlib import Path
-from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload
+
+from ..database import get_db
+from ..models import (
+    ArgumentNode,
+    Source,
+    SourceComment,
+    SourceKind,
+    SourceTag,
+    SourceUsage,
+)
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
-_DATA_FILE = Path(__file__).parent.parent / "data" / "sources.json"
+# Thumbnail / media upload directory. Reassigned by tests via monkeypatch, so
+# downstream helpers must look up the *current* value each call instead of
+# capturing it at import time.
 _THUMB_DIR = Path(__file__).parent.parent / "static" / "sources"
 
+
 def _media_dir() -> Path:
-    # Lazy lookup so tests can monkeypatch _THUMB_DIR.
     return _THUMB_DIR / "media"
 
-# Simple mtime-based cache so editing the JSON during dev does not require
-# a server restart. Not thread-safe but irrelevant for the dev server.
-_cache: dict[str, Any] = {"mtime": None, "data": None}
 
 _ALLOWED_THUMB_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 _ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".ogg", ".mov", ".m4v"}
 _ALLOWED_AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".oga", ".flac"}
-_ALLOWED_KINDS = {"QUOTE", "VIDEO", "AUDIO", "PAPER", "TWEET", "IMAGE", "TEXT"}
+_ALLOWED_KINDS = {k.value for k in SourceKind}
 
 
-def _load() -> dict:
-    mtime = _DATA_FILE.stat().st_mtime
-    if _cache["mtime"] != mtime:
-        with _DATA_FILE.open(encoding="utf-8") as f:
-            _cache["data"] = json.load(f)
-        _cache["mtime"] = mtime
-    return _cache["data"]
+# ── Serialisation helpers ────────────────────────────────────────────────────
+
+def _tag_names(src: Source) -> list[str]:
+    return [t.name for t in src.tags]
 
 
-def _persist(data: dict) -> None:
-    """Write back to JSON and refresh cache."""
-    with _DATA_FILE.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    _cache["mtime"] = _DATA_FILE.stat().st_mtime
-    _cache["data"] = data
+def _to_detail(src: Source) -> dict:
+    """Full detail payload (includes comments + usages)."""
+    return {
+        "id": src.id,
+        "title": src.title,
+        "kind": src.kind.value,
+        "url": src.url,
+        "description": src.description,
+        "thumbnail": src.thumbnail,
+        "media_url": src.media_url,
+        "tags": _tag_names(src),
+        "created_at": src.created_at.isoformat() if src.created_at else None,
+        "up": src.up,
+        "down": src.down,
+        "score": src.up - src.down,
+        "comments": [
+            {
+                "user": c.user,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "text": c.text,
+            }
+            for c in src.comments
+        ],
+        "usages": [
+            {
+                "context": u.context,
+                "argument_id": u.argument_id,
+                "note": u.note,
+            }
+            for u in src.usages
+        ],
+    }
 
 
-def _all_sources() -> list[dict]:
-    return list(_load().get("sources", []))
+def _to_list_item(src: Source) -> dict:
+    """List payload: heavy fields stripped, but enough metadata for tiles."""
+    return {
+        "id": src.id,
+        "title": src.title,
+        "kind": src.kind.value,
+        "thumbnail": src.thumbnail,
+        "tags": _tag_names(src),
+        "created_at": src.created_at.isoformat() if src.created_at else None,
+        "comment_count": len(src.comments),
+        "usage_count": len(src.usages),
+        "up": src.up,
+        "down": src.down,
+        "score": src.up - src.down,
+        "url": src.url,
+        "media_url": src.media_url,
+    }
 
 
-def _find_source(source_id: int) -> dict:
-    for s in _load().get("sources", []):
-        if s.get("id") == source_id:
-            return s
-    raise HTTPException(404, f"Source {source_id} not found")
+def _get_source_or_404(db: Session, source_id: int) -> Source:
+    src = db.get(Source, source_id)
+    if not src:
+        raise HTTPException(404, f"Source {source_id} not found")
+    return src
 
 
-def _next_id(sources: list[dict]) -> int:
-    return max((s.get("id", 0) for s in sources), default=0) + 1
+def _get_or_create_tag(db: Session, name: str) -> SourceTag:
+    """Tag names are unique per `SourceTag.name`. Reuse if exists, else create."""
+    tag = db.query(SourceTag).filter(SourceTag.name == name).first()
+    if tag is None:
+        tag = SourceTag(name=name)
+        db.add(tag)
+        db.flush()  # populate id without committing the surrounding tx
+    return tag
 
+
+def _parse_tag_csv(raw: str | None) -> list[str]:
+    """Comma-separated input → trimmed, de-duplicated, order-preserving list."""
+    if not raw:
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for piece in raw.split(","):
+        t = piece.strip()
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
+# ── Placeholder thumbnail ────────────────────────────────────────────────────
 
 def _generate_placeholder_svg(path: Path, title: str, kind: str) -> None:
     """Minimal placeholder SVG so every source has a visual tile."""
-    import html
-    safe_title = html.escape((title or "")[:60])
+    import html as _html
+    safe_title = _html.escape((title or "")[:60])
     kind_label = {
         "QUOTE": "💬 ZITAT", "VIDEO": "🎬 VIDEO", "AUDIO": "🎧 AUDIO",
         "PAPER": "📄 PAPER", "TWEET": "𝕏 TWEET", "IMAGE": "🖼️ BILD", "TEXT": "📝 TEXT",
@@ -97,10 +172,8 @@ def _generate_placeholder_svg(path: Path, title: str, kind: str) -> None:
 
 # ── Similarity helpers (lightweight, no embeddings) ──────────────────────────
 
-import re as _re
-
-# Common German + English stop words. The list is intentionally small;
-# the goal is rough deduplication, not search-engine quality.
+# Small German + English stop-word list. Goal is rough duplicate detection
+# in the "Neue Quelle" modal, not search-engine quality.
 _STOP = frozenset({
     "der", "die", "das", "und", "oder", "ist", "im", "in", "ein", "eine",
     "den", "dem", "des", "zu", "zur", "zum", "auf", "von", "vom", "mit",
@@ -109,12 +182,13 @@ _STOP = frozenset({
     "with", "by", "at", "as",
 })
 
+
 def _tokens(text: str) -> set[str]:
     if not text:
         return set()
-    # Lowercase, split on non-letters/digits, drop short + stop words.
     parts = _re.split(r"[^\wäöüß]+", text.lower())
     return {p for p in parts if len(p) >= 3 and p not in _STOP}
+
 
 def _jaccard(a: set[str], b: set[str]) -> float:
     if not a or not b:
@@ -128,52 +202,56 @@ def _jaccard(a: set[str], b: set[str]) -> float:
 
 
 @router.get("/tags")
-def list_tags() -> list[dict]:
+def list_tags(db: Session = Depends(get_db)) -> list[dict]:
     """All tags with usage counts. Used by the frontend filter bar."""
-    counts: dict[str, int] = {}
-    for src in _all_sources():
-        for t in src.get("tags", []):
-            counts[t] = counts.get(t, 0) + 1
+    rows = (
+        db.query(SourceTag.name, func.count(Source.id))
+        .join(SourceTag.sources)
+        .group_by(SourceTag.id)
+        .all()
+    )
+
     # Stable sort: TOPIC:* tags grouped at the end, otherwise by count desc.
-    def key(item: tuple[str, int]) -> tuple[int, int, str]:
-        tag, cnt = item
-        is_topic = 1 if tag.startswith("TOPIC:") else 0
-        return (is_topic, -cnt, tag)
-    return [{"tag": t, "count": c} for t, c in sorted(counts.items(), key=key)]
+    def _key(item):
+        name, cnt = item
+        is_topic = 1 if name.startswith("TOPIC:") else 0
+        return (is_topic, -cnt, name)
+
+    return [{"tag": name, "count": cnt} for name, cnt in sorted(rows, key=_key)]
 
 
 @router.get("/similar")
 def find_similar(
-    title: str = Query(default="", description="Candidate title to compare against existing sources"),
+    title: str = Query(default=""),
     description: str = Query(default=""),
     threshold: float = Query(default=0.25, ge=0.0, le=1.0),
     limit: int = Query(default=5, ge=1, le=50),
-    exclude_id: int | None = Query(default=None, description="Skip this source id (used by edit dialogs)"),
+    exclude_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
 ) -> list[dict]:
     """Lightweight duplicate suggestions for the 'new source' modal.
 
-    Uses normalized token-set Jaccard similarity over title + description.
-    Stand-in for embedding-based dedup (post-dev: replace with vector search).
-    Returns at most `limit` items above `threshold`, ordered by similarity.
+    Token-set Jaccard similarity over title + description. Stand-in for
+    embedding-based dedup (post-dev: replace with vector search).
     """
     candidate = _tokens(title) | _tokens(description)
     if not candidate:
         return []
-    scored: list[tuple[float, dict]] = []
-    for s in _all_sources():
-        if exclude_id is not None and s.get("id") == exclude_id:
+    scored: list[tuple[float, Source]] = []
+    for s in db.query(Source).all():
+        if exclude_id is not None and s.id == exclude_id:
             continue
-        their = _tokens(s.get("title") or "") | _tokens(s.get("description") or "")
+        their = _tokens(s.title or "") | _tokens(s.description or "")
         score = _jaccard(candidate, their)
         if score >= threshold:
             scored.append((score, s))
-    scored.sort(key=lambda x: (-x[0], x[1].get("id", 0)))
+    scored.sort(key=lambda x: (-x[0], x[1].id))
     return [
         {
-            "id": s["id"],
-            "title": s.get("title"),
-            "kind": s.get("kind"),
-            "thumbnail": s.get("thumbnail"),
+            "id": s.id,
+            "title": s.title,
+            "kind": s.kind.value,
+            "thumbnail": s.thumbnail,
             "similarity": round(score, 3),
         }
         for score, s in scored[:limit]
@@ -187,78 +265,54 @@ def list_sources(
     q: str | None = Query(default=None, description="Full-text search over title + description"),
     argument_id: int | None = Query(default=None, description="Only sources whose usages reference this argument id"),
     sort: str = Query(default="neu", pattern="^(neu|alt|titel|top|kontrovers|zufall)$"),
+    db: Session = Depends(get_db),
 ) -> list[dict]:
-    items = _all_sources()
+    # Eager-load relationships used in the response shape so we don't hit N+1.
+    query = db.query(Source).options(
+        selectinload(Source.tags),
+        selectinload(Source.comments),
+        selectinload(Source.usages),
+    )
+    items: list[Source] = query.all()
 
     if tag:
         wanted = {t.upper() for t in tag}
-        items = [s for s in items if wanted.issubset({t.upper() for t in s.get("tags", [])})]
+        items = [s for s in items if wanted.issubset({t.name.upper() for t in s.tags})]
     if kind:
-        items = [s for s in items if s.get("kind", "").upper() == kind.upper()]
+        items = [s for s in items if s.kind.value.upper() == kind.upper()]
     if argument_id is not None:
-        items = [
-            s for s in items
-            if any(u.get("argument_id") == argument_id for u in s.get("usages", []))
-        ]
+        items = [s for s in items if any(u.argument_id == argument_id for u in s.usages)]
     if q:
         needle = q.lower()
         items = [
             s for s in items
-            if needle in (s.get("title") or "").lower()
-            or needle in (s.get("description") or "").lower()
+            if needle in (s.title or "").lower()
+            or needle in (s.description or "").lower()
         ]
 
     if sort == "neu":
-        items.sort(key=lambda s: (s.get("created_at", ""), s.get("id", 0)), reverse=True)
+        items.sort(key=lambda s: (s.created_at, s.id), reverse=True)
     elif sort == "alt":
-        items.sort(key=lambda s: (s.get("created_at", ""), s.get("id", 0)))
+        items.sort(key=lambda s: (s.created_at, s.id))
     elif sort == "titel":
-        items.sort(key=lambda s: (s.get("title") or "").lower())
+        items.sort(key=lambda s: (s.title or "").lower())
     elif sort == "top":
-        items.sort(key=lambda s: (s.get("up", 0) - s.get("down", 0), s.get("id", 0)), reverse=True)
+        items.sort(key=lambda s: (s.up - s.down, s.id), reverse=True)
     elif sort == "kontrovers":
-        # Highest total engagement, score near zero ranks higher within equal totals.
         items.sort(
-            key=lambda s: (
-                s.get("up", 0) + s.get("down", 0),
-                -abs(s.get("up", 0) - s.get("down", 0)),
-            ),
+            key=lambda s: (s.up + s.down, -abs(s.up - s.down)),
             reverse=True,
         )
     elif sort == "zufall":
-        # pr0gramm-style "Müll": serendipity for browsing. Different every call.
         import random as _r
         _r.shuffle(items)
 
-    # List view: omit heavy fields. Detail endpoint returns everything.
-    return [
-        {
-            "id": s["id"],
-            "title": s.get("title"),
-            "kind": s.get("kind"),
-            "thumbnail": s.get("thumbnail"),
-            "tags": s.get("tags", []),
-            "created_at": s.get("created_at"),
-            "comment_count": len(s.get("comments", [])),
-            "usage_count": len(s.get("usages", [])),
-            "up": s.get("up", 0),
-            "down": s.get("down", 0),
-            "score": s.get("up", 0) - s.get("down", 0),
-            # Surfaced so the tile can show a play icon without an extra request
-            "url": s.get("url"),
-            "media_url": s.get("media_url"),
-        }
-        for s in items
-    ]
+    return [_to_list_item(s) for s in items]
 
 
 @router.get("/{source_id}")
-def get_source(source_id: int) -> dict:
-    src = _find_source(source_id)
-    # Ensure vote fields are always present for the frontend.
-    up = int(src.get("up", 0))
-    down = int(src.get("down", 0))
-    return {**src, "up": up, "down": down, "score": up - down}
+def get_source(source_id: int, db: Session = Depends(get_db)) -> dict:
+    return _to_detail(_get_source_or_404(db, source_id))
 
 
 # ── POST endpoints ───────────────────────────────────────────────────────────
@@ -274,58 +328,59 @@ async def create_source(
     tags: str = Form(""),
     thumbnail: UploadFile | None = File(None),
     media: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
 ) -> dict:
-    kind = kind.upper()
-    if kind not in _ALLOWED_KINDS:
-        raise HTTPException(400, f"Invalid kind: {kind}. Allowed: {sorted(_ALLOWED_KINDS)}")
+    kind_upper = kind.upper()
+    if kind_upper not in _ALLOWED_KINDS:
+        raise HTTPException(400, f"Invalid kind: {kind_upper}. Allowed: {sorted(_ALLOWED_KINDS)}")
 
-    data = _load()
-    sources = data.setdefault("sources", [])
-    new_id = _next_id(sources)
+    # Validate uploaded files *before* creating the row so an early 400 doesn't
+    # leave an orphan Source behind.
+    thumb_ext: str | None = None
+    if thumbnail is not None and thumbnail.filename:
+        thumb_ext = Path(thumbnail.filename).suffix.lower()
+        if thumb_ext not in _ALLOWED_THUMB_EXT:
+            raise HTTPException(400, f"Unsupported thumbnail format: {thumb_ext}")
+    media_ext: str | None = None
+    if media is not None and media.filename:
+        media_ext = Path(media.filename).suffix.lower()
+        if media_ext not in (_ALLOWED_VIDEO_EXT | _ALLOWED_AUDIO_EXT):
+            raise HTTPException(400, f"Unsupported media format: {media_ext}")
+
+    tag_names = _parse_tag_csv(tags)
+    # Convention: every entry carries at least the generic "QUELLE" tag so the
+    # filter bar always has a stable bucket — matches the legacy JSON seed.
+    if not tag_names:
+        tag_names = ["QUELLE"]
+
+    src = Source(
+        title=title.strip(),
+        kind=SourceKind(kind_upper),
+        url=(url or None) and url.strip(),
+        description=(description or None) and description.strip(),
+    )
+    src.tags = [_get_or_create_tag(db, n) for n in tag_names]
+    db.add(src)
+    db.flush()  # need src.id for filenames
 
     _THUMB_DIR.mkdir(parents=True, exist_ok=True)
-
-    if thumbnail is not None and thumbnail.filename:
-        ext = Path(thumbnail.filename).suffix.lower()
-        if ext not in _ALLOWED_THUMB_EXT:
-            raise HTTPException(400, f"Unsupported thumbnail format: {ext}")
-        out = _THUMB_DIR / f"{new_id}{ext}"
+    if thumb_ext is not None and thumbnail is not None:
+        out = _THUMB_DIR / f"{src.id}{thumb_ext}"
         out.write_bytes(await thumbnail.read())
-        thumb_path = f"/static/sources/{new_id}{ext}"
+        src.thumbnail = f"/static/sources/{src.id}{thumb_ext}"
     else:
-        thumb_path = f"/static/sources/{new_id}.svg"
-        _generate_placeholder_svg(_THUMB_DIR / f"{new_id}.svg", title, kind)
+        _generate_placeholder_svg(_THUMB_DIR / f"{src.id}.svg", title, kind_upper)
+        src.thumbnail = f"/static/sources/{src.id}.svg"
 
-    # Optional media file (audio/video). Inline-player consumes this on the
-    # detail view. Bigger files belong on a CDN long-term, but for the MVP
-    # we just store them under /static/sources/media/.
-    media_path: str | None = None
-    if media is not None and media.filename:
-        ext = Path(media.filename).suffix.lower()
-        allowed = _ALLOWED_VIDEO_EXT | _ALLOWED_AUDIO_EXT
-        if ext not in allowed:
-            raise HTTPException(400, f"Unsupported media format: {ext}")
+    if media_ext is not None and media is not None:
         _media_dir().mkdir(parents=True, exist_ok=True)
-        out = _media_dir() / f"{new_id}{ext}"
+        out = _media_dir() / f"{src.id}{media_ext}"
         out.write_bytes(await media.read())
-        media_path = f"/static/sources/media/{new_id}{ext}"
+        src.media_url = f"/static/sources/media/{src.id}{media_ext}"
 
-    new_source = {
-        "id": new_id,
-        "title": title.strip(),
-        "kind": kind,
-        "url": (url or None) and url.strip(),
-        "thumbnail": thumb_path,
-        "media_url": media_path,
-        "description": (description or None) and description.strip(),
-        "tags": [t.strip() for t in tags.split(",") if t.strip()],
-        "created_at": date.today().isoformat(),
-        "usages": [],
-        "comments": [],
-    }
-    sources.append(new_source)
-    _persist(data)
-    return new_source
+    db.commit()
+    db.refresh(src)
+    return _to_detail(src)
 
 
 class CommentIn(BaseModel):
@@ -334,21 +389,23 @@ class CommentIn(BaseModel):
 
 
 @router.post("/{source_id}/comments", status_code=201)
-def add_comment(source_id: int, payload: CommentIn) -> dict:
+def add_comment(source_id: int, payload: CommentIn, db: Session = Depends(get_db)) -> dict:
     if not payload.text.strip():
         raise HTTPException(400, "Comment text is required")
-    data = _load()
-    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
-    comment = {
-        "user": (payload.user or "anonym").strip() or "anonym",
-        "created_at": date.today().isoformat(),
-        "text": payload.text.strip(),
+    src = _get_source_or_404(db, source_id)
+    comment = SourceComment(
+        source_id=src.id,
+        user=(payload.user or "anonym").strip() or "anonym",
+        text=payload.text.strip(),
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return {
+        "user": comment.user,
+        "created_at": comment.created_at.isoformat() if comment.created_at else None,
+        "text": comment.text,
     }
-    src.setdefault("comments", []).append(comment)
-    _persist(data)
-    return comment
 
 
 class UsageIn(BaseModel):
@@ -358,58 +415,61 @@ class UsageIn(BaseModel):
 
 
 @router.post("/{source_id}/usages", status_code=201)
-def add_usage(source_id: int, payload: UsageIn) -> dict:
+def add_usage(source_id: int, payload: UsageIn, db: Session = Depends(get_db)) -> dict:
     if not payload.context.strip():
         raise HTTPException(400, "Usage context is required")
-    data = _load()
-    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
-    usage = {
-        "context": payload.context.strip(),
-        "argument_id": payload.argument_id,
-        "note": (payload.note or None) and payload.note.strip(),
+    src = _get_source_or_404(db, source_id)
+    if payload.argument_id is not None:
+        # argument_id is a real FK now — reject dangling references with 404
+        # instead of letting the DB raise IntegrityError on commit.
+        if db.get(ArgumentNode, payload.argument_id) is None:
+            raise HTTPException(404, f"Argument {payload.argument_id} not found")
+    usage = SourceUsage(
+        source_id=src.id,
+        argument_id=payload.argument_id,
+        context=payload.context.strip(),
+        note=(payload.note or None) and payload.note.strip(),
+    )
+    db.add(usage)
+    db.commit()
+    db.refresh(usage)
+    return {
+        "context": usage.context,
+        "argument_id": usage.argument_id,
+        "note": usage.note,
     }
-    src.setdefault("usages", []).append(usage)
-    _persist(data)
-    return usage
-
-
-# ── PATCH / DELETE ───────────────────────────────────────────────────────────
 
 
 class VoteIn(BaseModel):
-    """Vote transition. Client passes the previous vote so the server can adjust
-    the counters correctly without per-user tracking (deferred — see Phase 2)."""
+    """Vote transition. Client passes the previous vote so the server can
+    adjust the aggregate counters without per-user tracking (deferred — see
+    implementation-plan.md → Phase 1/2)."""
     value: int  # 1, -1, or 0 (clear)
     previous: int = 0  # 1, -1, or 0
 
 
 @router.post("/{source_id}/vote")
-def cast_vote(source_id: int, payload: VoteIn) -> dict:
-    # TODO: post-dev — replace with per-user vote tracking (auth required)
+def cast_vote(source_id: int, payload: VoteIn, db: Session = Depends(get_db)) -> dict:
+    # TODO: post-dev — replace with per-user vote tracking (requires auth).
     if payload.value not in (-1, 0, 1) or payload.previous not in (-1, 0, 1):
         raise HTTPException(400, "value/previous must be -1, 0, or 1")
-    data = _load()
-    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
-    up = int(src.get("up", 0))
-    down = int(src.get("down", 0))
-    # Undo previous vote
+    src = _get_source_or_404(db, source_id)
+    up, down = src.up, src.down
     if payload.previous == 1:
         up = max(0, up - 1)
     elif payload.previous == -1:
         down = max(0, down - 1)
-    # Apply new vote
     if payload.value == 1:
         up += 1
     elif payload.value == -1:
         down += 1
-    src["up"] = up
-    src["down"] = down
-    _persist(data)
-    return {"id": source_id, "up": up, "down": down, "score": up - down}
+    src.up = up
+    src.down = down
+    db.commit()
+    return {"id": src.id, "up": up, "down": down, "score": up - down}
+
+
+# ── PATCH / DELETE ───────────────────────────────────────────────────────────
 
 
 class SourcePatch(BaseModel):
@@ -421,45 +481,54 @@ class SourcePatch(BaseModel):
 
 
 @router.patch("/{source_id}")
-def update_source(source_id: int, payload: SourcePatch) -> dict:
-    data = _load()
-    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
+def update_source(source_id: int, payload: SourcePatch, db: Session = Depends(get_db)) -> dict:
+    src = _get_source_or_404(db, source_id)
     changes = payload.model_dump(exclude_unset=True)
+
     if "kind" in changes:
         k = (changes["kind"] or "").upper()
         if k not in _ALLOWED_KINDS:
             raise HTTPException(400, f"Invalid kind: {k}")
-        changes["kind"] = k
-    if "title" in changes and not (changes["title"] or "").strip():
-        raise HTTPException(400, "Title must not be empty")
+        src.kind = SourceKind(k)
+    if "title" in changes:
+        new_title = (changes["title"] or "").strip()
+        if not new_title:
+            raise HTTPException(400, "Title must not be empty")
+        src.title = new_title
+    if "url" in changes:
+        src.url = (changes["url"] or None) and changes["url"].strip()
+    if "description" in changes:
+        src.description = (changes["description"] or None) and changes["description"].strip()
     if "tags" in changes and changes["tags"] is not None:
-        changes["tags"] = [t.strip() for t in changes["tags"] if t and t.strip()]
-    src.update(changes)
-    _persist(data)
-    return src
+        clean, seen = [], set()
+        for t in changes["tags"]:
+            if not t:
+                continue
+            stripped = t.strip()
+            if stripped and stripped not in seen:
+                seen.add(stripped)
+                clean.append(stripped)
+        src.tags = [_get_or_create_tag(db, n) for n in clean]
+
+    db.commit()
+    db.refresh(src)
+    return _to_detail(src)
 
 
 @router.delete("/{source_id}", status_code=204)
-def delete_source(source_id: int) -> None:
-    data = _load()
-    sources = data.get("sources", [])
-    src = next((s for s in sources if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
-    # Best-effort delete of the managed thumbnail file (only if it lives under
-    # our static/sources directory — never delete arbitrary referenced URLs).
-    thumb = src.get("thumbnail") or ""
-    if thumb.startswith("/static/sources/"):
+def delete_source(source_id: int, db: Session = Depends(get_db)) -> None:
+    src = _get_source_or_404(db, source_id)
+    # Best-effort cleanup of managed files (only ones we created under
+    # /static/sources/ — never touch arbitrary externally hosted URLs).
+    thumb = src.thumbnail or ""
+    if thumb.startswith("/static/sources/") and not thumb.startswith("/static/sources/media/"):
         thumb_file = _THUMB_DIR / Path(thumb).name
         if thumb_file.exists():
             try:
                 thumb_file.unlink()
             except OSError:
-                pass  # leave dangling file rather than fail the request
-    # Same for an uploaded media file.
-    media_url = src.get("media_url") or ""
+                pass
+    media_url = src.media_url or ""
     if media_url.startswith("/static/sources/media/"):
         media_file = _media_dir() / Path(media_url).name
         if media_file.exists():
@@ -467,35 +536,27 @@ def delete_source(source_id: int) -> None:
                 media_file.unlink()
             except OSError:
                 pass
-    data["sources"] = [s for s in sources if s.get("id") != source_id]
-    _persist(data)
+
+    db.delete(src)  # cascades to comments + usages via relationship config
+    db.commit()
 
 
 @router.delete("/{source_id}/comments/{index}", status_code=204)
-def delete_comment(source_id: int, index: int) -> None:
-    data = _load()
-    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
-    comments = src.get("comments", [])
+def delete_comment(source_id: int, index: int, db: Session = Depends(get_db)) -> None:
+    src = _get_source_or_404(db, source_id)
+    comments = list(src.comments)  # ordered by id ASC (relationship config)
     if not 0 <= index < len(comments):
         raise HTTPException(404, f"Comment index {index} out of range")
-    comments.pop(index)
-    _persist(data)
+    db.delete(comments[index])
+    db.commit()
 
 
 @router.delete("/{source_id}/usages/{index}", status_code=204)
-def delete_usage(source_id: int, index: int) -> None:
-    data = _load()
-    src = next((s for s in data.get("sources", []) if s.get("id") == source_id), None)
-    if not src:
-        raise HTTPException(404, f"Source {source_id} not found")
-    usages = src.get("usages", [])
+def delete_usage(source_id: int, index: int, db: Session = Depends(get_db)) -> None:
+    src = _get_source_or_404(db, source_id)
+    usages = list(src.usages)
     if not 0 <= index < len(usages):
         raise HTTPException(404, f"Usage index {index} out of range")
-    usages.pop(index)
-    _persist(data)
-
-
-
+    db.delete(usages[index])
+    db.commit()
 

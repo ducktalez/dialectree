@@ -1,9 +1,9 @@
-"""Tests for the Quellensammlung (sources) router.
+"""Tests for the SQLAlchemy-backed Quellensammlung (sources) router.
 
-The router reads/writes a JSON file on disk rather than the DB, so tests use
-the `tmp_path` fixture and monkeypatch the data file + thumb dir for isolation.
+The router now uses the shared in-memory test DB (see conftest.py). The only
+filesystem dependency left is the thumbnail/media upload directory — those
+are redirected per-test via monkeypatch.
 """
-import json
 from pathlib import Path
 
 import pytest
@@ -12,17 +12,12 @@ from app.routers import sources as sources_mod
 
 
 @pytest.fixture(autouse=True)
-def isolated_data(tmp_path, monkeypatch):
-    """Redirect the sources router to a per-test JSON file + thumb dir."""
-    data_file = tmp_path / "sources.json"
+def isolated_thumb_dir(tmp_path, monkeypatch):
+    """Redirect the sources router thumbnail/media dir for upload tests."""
     thumb_dir = tmp_path / "static" / "sources"
     thumb_dir.mkdir(parents=True)
-    data_file.write_text(json.dumps({"sources": []}), encoding="utf-8")
-    monkeypatch.setattr(sources_mod, "_DATA_FILE", data_file)
     monkeypatch.setattr(sources_mod, "_THUMB_DIR", thumb_dir)
-    # Reset the mtime cache so the new path takes effect immediately.
-    monkeypatch.setattr(sources_mod, "_cache", {"mtime": None, "data": None})
-    yield data_file, thumb_dir
+    yield thumb_dir
 
 
 class TestSourcesCRUD:
@@ -36,21 +31,20 @@ class TestSourcesCRUD:
         assert r.status_code == 200
         assert r.json() == []
 
-    def test_create_with_placeholder_thumbnail(self, client, isolated_data):
-        _, thumb_dir = isolated_data
+    def test_create_with_placeholder_thumbnail(self, client, isolated_thumb_dir):
         r = self._create(client, title="Hello", description="world")
         assert r.status_code == 201
         body = r.json()
-        assert body["id"] == 1
+        sid = body["id"]
         assert body["title"] == "Hello"
         assert body["kind"] == "TEXT"
-        assert body["thumbnail"] == "/static/sources/1.svg"
-        assert (thumb_dir / "1.svg").exists()
+        assert body["thumbnail"] == f"/static/sources/{sid}.svg"
+        assert (isolated_thumb_dir / f"{sid}.svg").exists()
         assert body["comments"] == []
         assert body["usages"] == []
+        assert body["tags"] == ["QUELLE"]
 
-    def test_create_with_uploaded_thumbnail(self, client, isolated_data):
-        _, thumb_dir = isolated_data
+    def test_create_with_uploaded_thumbnail(self, client, isolated_thumb_dir):
         png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32  # fake but non-empty
         r = client.post(
             "/api/sources/",
@@ -58,8 +52,9 @@ class TestSourcesCRUD:
             files={"thumbnail": ("pic.png", png_bytes, "image/png")},
         )
         assert r.status_code == 201
-        assert r.json()["thumbnail"] == "/static/sources/1.png"
-        assert (thumb_dir / "1.png").read_bytes() == png_bytes
+        sid = r.json()["id"]
+        assert r.json()["thumbnail"] == f"/static/sources/{sid}.png"
+        assert (isolated_thumb_dir / f"{sid}.png").read_bytes() == png_bytes
 
     def test_create_rejects_invalid_kind(self, client):
         r = self._create(client, kind="UNKNOWN")
@@ -137,6 +132,18 @@ class TestSourcesFilters:
         non_topic_indices = [i for i, t in enumerate(r.json()) if not t["tag"].startswith("TOPIC:")]
         assert topic_idx > max(non_topic_indices)
 
+    def test_tag_reuse_is_deduplicated(self, client):
+        """Same tag string across sources must produce a single SourceTag row."""
+        from app.models import SourceTag as _ST
+        client.post("/api/sources/", data={"title": "A", "kind": "TEXT", "tags": "SHARED"})
+        client.post("/api/sources/", data={"title": "B", "kind": "TEXT", "tags": "SHARED"})
+        # Access via the client's DB session is not available here; use a
+        # fresh count via the API instead.
+        r = client.get("/api/sources/tags")
+        shared = [t for t in r.json() if t["tag"] == "SHARED"]
+        assert len(shared) == 1
+        assert shared[0]["count"] == 2
+
 
 class TestSourceComments:
     def test_add_and_delete_comment(self, client):
@@ -147,7 +154,7 @@ class TestSourceComments:
         assert r.json()["user"] == "alice"
         # Reflected in detail
         assert len(client.get(f"/api/sources/{sid}").json()["comments"]) == 1
-        # Delete
+        # Delete by index (backward-compatible with JSON era)
         r = client.delete(f"/api/sources/{sid}/comments/0")
         assert r.status_code == 204
         assert client.get(f"/api/sources/{sid}").json()["comments"] == []
@@ -170,10 +177,10 @@ class TestSourceComments:
 class TestSourceUsages:
     def test_add_and_delete_usage(self, client):
         sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
-        r = client.post(f"/api/sources/{sid}/usages", json={"context": "Diskussion XY", "argument_id": 7})
+        r = client.post(f"/api/sources/{sid}/usages", json={"context": "Diskussion XY"})
         assert r.status_code == 201
         assert r.json()["context"] == "Diskussion XY"
-        assert r.json()["argument_id"] == 7
+        assert r.json()["argument_id"] is None
         r = client.delete(f"/api/sources/{sid}/usages/0")
         assert r.status_code == 204
         assert client.get(f"/api/sources/{sid}").json()["usages"] == []
@@ -182,6 +189,38 @@ class TestSourceUsages:
         sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
         r = client.post(f"/api/sources/{sid}/usages", json={"context": "  "})
         assert r.status_code == 400
+
+    def test_usage_with_valid_argument_id(self, client, sample_argument):
+        """argument_id is now a real FK and must reference an existing node."""
+        sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
+        r = client.post(
+            f"/api/sources/{sid}/usages",
+            json={"context": "verlinkt", "argument_id": sample_argument["id"]},
+        )
+        assert r.status_code == 201
+        assert r.json()["argument_id"] == sample_argument["id"]
+
+    def test_usage_rejects_unknown_argument_id(self, client):
+        sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
+        r = client.post(
+            f"/api/sources/{sid}/usages",
+            json={"context": "bogus", "argument_id": 99999},
+        )
+        assert r.status_code == 404
+
+    def test_argument_delete_sets_usage_argument_id_null(self, client, sample_user, sample_topic):
+        """ON DELETE SET NULL: usage row survives, just loses the link."""
+        arg = client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+            "topic_id": sample_topic["id"], "title": "Temp", "position": "PRO",
+        }).json()
+        sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
+        client.post(f"/api/sources/{sid}/usages", json={"context": "ref", "argument_id": arg["id"]})
+        # Delete the argument
+        client.delete(f"/api/arguments/{arg['id']}")
+        usages = client.get(f"/api/sources/{sid}").json()["usages"]
+        assert len(usages) == 1
+        assert usages[0]["argument_id"] is None
+        assert usages[0]["context"] == "ref"
 
 
 class TestSourcePatchDelete:
@@ -199,17 +238,28 @@ class TestSourcePatchDelete:
         sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
         assert client.patch(f"/api/sources/{sid}", json={"kind": "NOPE"}).status_code == 400
 
+    def test_patch_rejects_empty_title(self, client):
+        sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
+        assert client.patch(f"/api/sources/{sid}", json={"title": "   "}).status_code == 400
+
     def test_patch_404(self, client):
         assert client.patch("/api/sources/999", json={"title": "x"}).status_code == 404
 
-    def test_delete_source_also_removes_managed_thumbnail(self, client, isolated_data):
-        _, thumb_dir = isolated_data
+    def test_delete_source_also_removes_managed_thumbnail(self, client, isolated_thumb_dir):
         sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
-        thumb = thumb_dir / f"{sid}.svg"
+        thumb = isolated_thumb_dir / f"{sid}.svg"
         assert thumb.exists()
         r = client.delete(f"/api/sources/{sid}")
         assert r.status_code == 204
         assert not thumb.exists()
+        assert client.get(f"/api/sources/{sid}").status_code == 404
+
+    def test_delete_cascades_to_comments_and_usages(self, client):
+        sid = client.post("/api/sources/", data={"title": "X", "kind": "TEXT"}).json()["id"]
+        client.post(f"/api/sources/{sid}/comments", json={"text": "c"})
+        client.post(f"/api/sources/{sid}/usages", json={"context": "u"})
+        client.delete(f"/api/sources/{sid}")
+        # 404 indicates the source is gone; children should be cascaded out
         assert client.get(f"/api/sources/{sid}").status_code == 404
 
     def test_delete_source_404(self, client):
@@ -268,8 +318,7 @@ class TestSourcesVoting:
 
 
 class TestSourcesMedia:
-    def test_create_with_media_upload(self, client, isolated_data):
-        _, thumb_dir = isolated_data
+    def test_create_with_media_upload(self, client, isolated_thumb_dir):
         mp4 = b"\x00\x00\x00 ftypisom" + b"\x00" * 16
         r = client.post(
             "/api/sources/",
@@ -277,18 +326,18 @@ class TestSourcesMedia:
             files={"media": ("clip.mp4", mp4, "video/mp4")},
         )
         assert r.status_code == 201
-        body = r.json()
-        assert body["media_url"] == "/static/sources/media/1.mp4"
-        assert (thumb_dir / "media" / "1.mp4").read_bytes() == mp4
+        sid = r.json()["id"]
+        assert r.json()["media_url"] == f"/static/sources/media/{sid}.mp4"
+        assert (isolated_thumb_dir / "media" / f"{sid}.mp4").read_bytes() == mp4
 
-    def test_create_with_audio_upload(self, client, isolated_data):
-        _, thumb_dir = isolated_data
+    def test_create_with_audio_upload(self, client, isolated_thumb_dir):
         r = client.post(
             "/api/sources/",
             data={"title": "Snippet", "kind": "AUDIO"},
             files={"media": ("a.mp3", b"ID3" + b"\x00" * 32, "audio/mpeg")},
         )
-        assert r.json()["media_url"] == "/static/sources/media/1.mp3"
+        sid = r.json()["id"]
+        assert r.json()["media_url"] == f"/static/sources/media/{sid}.mp3"
 
     def test_create_rejects_unsupported_media(self, client):
         r = client.post(
@@ -298,14 +347,13 @@ class TestSourcesMedia:
         )
         assert r.status_code == 400
 
-    def test_delete_removes_media_file(self, client, isolated_data):
-        _, thumb_dir = isolated_data
+    def test_delete_removes_media_file(self, client, isolated_thumb_dir):
         sid = client.post(
             "/api/sources/",
             data={"title": "X", "kind": "VIDEO"},
             files={"media": ("c.mp4", b"x" * 16, "video/mp4")},
         ).json()["id"]
-        media_file = thumb_dir / "media" / f"{sid}.mp4"
+        media_file = isolated_thumb_dir / "media" / f"{sid}.mp4"
         assert media_file.exists()
         client.delete(f"/api/sources/{sid}")
         assert not media_file.exists()
@@ -318,16 +366,23 @@ class TestSourcesMedia:
 
 
 class TestSourcesQueryExtras:
-    def test_filter_by_argument_id(self, client):
+    def test_filter_by_argument_id(self, client, sample_user, sample_topic):
+        # Need real argument nodes (FK now)
+        def _arg(title):
+            return client.post(f"/api/arguments/?user_id={sample_user['id']}", json={
+                "topic_id": sample_topic["id"], "title": title, "position": "PRO",
+            }).json()["id"]
+        arg42 = _arg("arg42")
+        arg99 = _arg("arg99")
         a = client.post("/api/sources/", data={"title": "A", "kind": "TEXT"}).json()["id"]
         b = client.post("/api/sources/", data={"title": "B", "kind": "TEXT"}).json()["id"]
         client.post("/api/sources/", data={"title": "C", "kind": "TEXT"})
-        client.post(f"/api/sources/{a}/usages", json={"context": "x", "argument_id": 42})
-        client.post(f"/api/sources/{b}/usages", json={"context": "y", "argument_id": 42})
-        client.post(f"/api/sources/{b}/usages", json={"context": "z", "argument_id": 99})
-        r = client.get("/api/sources/?argument_id=42")
+        client.post(f"/api/sources/{a}/usages", json={"context": "x", "argument_id": arg42})
+        client.post(f"/api/sources/{b}/usages", json={"context": "y", "argument_id": arg42})
+        client.post(f"/api/sources/{b}/usages", json={"context": "z", "argument_id": arg99})
+        r = client.get(f"/api/sources/?argument_id={arg42}")
         assert {s["id"] for s in r.json()} == {a, b}
-        r = client.get("/api/sources/?argument_id=99")
+        r = client.get(f"/api/sources/?argument_id={arg99}")
         assert [s["id"] for s in r.json()] == [b]
         r = client.get("/api/sources/?argument_id=12345")
         assert r.json() == []

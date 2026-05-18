@@ -20,21 +20,17 @@ The **Changelog** and **Design Discussions** are at the very bottom.
 The next handful of tasks, ordered by what makes sense to tackle next given current
 state (no auth, no AI stack, in-memory DB). Pick from the top.
 
-1. **Promote sources JSON → SQLAlchemy `Source` model** *(backend, breaking)*
-   Replace the JSON-backed store with a proper SQL model and n:m link to
-   `ArgumentNode` (replaces the ad-hoc `usages` array). Decision: do this once
-   usage volume justifies it — currently the JSON store is sufficient.
-2. **Definition forks UI** *(frontend)*
-   Backend tests (`test_definition_forks.py`) already exist. Add UI for
-   splitting argument strands by term interpretation.
-3. **Twitter/X import via n8n** *(integration)*
-   n8n sketch exists in `n8n/`. Wire it up to the SRT/transcript import surface
-   so threads can be imported as Stage-0 transcripts.
-4. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
+1. **Definition Forks — edit existing entries from the UI** *(frontend, small)*
+   Backend `PATCH /api/definition-forks/{id}` exists; current Stage-3 panel only
+   supports add + delete. Add inline edit.
+2. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
    Replace localStorage trust with server-side per-user vote records.
-5. **Automatic multi-node pattern detection** *(KI, post-dev)*
+3. **Automatic multi-node pattern detection** *(KI, post-dev)*
    Manual UI exists (see Changelog). Heuristics / KI for auto-suggesting
    Gish-gallop / creeping-relativization patterns require an embedding stack.
+4. **Twitter/X import via n8n** *(integration, deprioritized — better methods under consideration)*
+   n8n sketch exists in `n8n/`. Parked until a clearer ingestion approach is
+   chosen (e.g. direct API, browser extension, manual paste flow).
 
 Everything below this stack is either a larger phase (security/infra, advanced
 features) or detail spec for items already on the stack.
@@ -98,8 +94,6 @@ done — see Changelog. Still open:
 
 - [ ] **Per-user vote tracking on the server** (requires auth) — currently uses
       client-side localStorage and trusts the `previous` value sent by the client.
-- [ ] **Promote JSON → SQLAlchemy `Source` model** with n:m link to `ArgumentNode`
-      (replaces ad-hoc `usages` array). Decision deferred until usage volume is clearer.
 - [ ] **Replace Jaccard stand-in with embedding-based similarity** once an embedding
       stack (OpenAI / sentence-transformers) is available.
 
@@ -138,7 +132,10 @@ copies to LLM for speaker segmentation → pastes result back via `PUT /api/topi
       relativization based on graph topology + embeddings — requires KI stack).
 
 ### Definition Forks
-- [ ] UI for splitting argument strands by term interpretation (e.g. "racism" has multiple definitions with different moral implications)
+- [x] Backend CRUD + `PATCH` + topic-wide listing (`/api/definition-forks/?topic_id=…`).
+- [x] Stage-3 UI: ⑂-Badge mit Inline-Panel zum Hinzufügen/Löschen von Begriffslesarten.
+- [ ] Inline-Editing für bestehende Forks (PATCH-Endpunkt ist da, UI noch nicht).
+- [ ] Dispute/Voting auf konkurrierende Definitionen (eigene Mini-Diskussion pro Term).
 
 ### Conflict & Sub-Discussion System
 - [ ] Conflict detection (contradicting arguments on same node)
@@ -477,6 +474,53 @@ drawn, not how anchor math works.
 Consolidated record of finished features so the upper sections can stay focused on
 what's next. Newest at the top.
 
+### 2026-Q2 — Seed cleanup: removed "Migration" demo topic
+Third seed topic "Deutschland sollte mehr Migranten aufnehmen" entirely removed
+from `app/seed.py` (it had served as a Phase-0 full-feature demo). Reasoning:
+the topic added clutter to the seed/landing experience without contributing
+anything that isn't already exercised by the Quotenrassismus topics or by
+`tests/`. Topics 1 ("Sollte es Quoten für Minderheiten geben?") and 2
+("🔧 Blueprint: Quotenrassismus-Diskussion") remain. Print-summary trimmed
+accordingly. Tests still 216/216 green (no test depended on topic 3).
+
+### 2026-Q2 — Definition Forks UI (Stage 3) + backend polish
+The Stage-3 Verfeinerung view now lets users attach competing term
+interpretations directly to argument cards.
+
+- **Backend** (`routers/definition_forks.py`):
+  - `POST` now validates `argument_node_id` → 404 instead of 500 on dangling FK.
+  - New `PATCH /api/definition-forks/{id}` to edit term / variant / description.
+  - `GET /api/definition-forks/?topic_id=…` joins on `ArgumentNode.topic_id` so
+    the frontend can fetch every fork for a topic in one request (badge counts).
+- **Frontend** (`zickzack.html`):
+  - New per-topic state `currentDefinitionForks`, loaded alongside patterns.
+  - Stage-3+ cards carry a `⑂ <n>` badge (or `⑂ +` when empty). Click opens an
+    inline panel with the existing forks (term + variant + optional description)
+    + an add-row. Delete via 🗑. Mutations reload the topic-wide list and
+    re-open the panel so the user sees the new state immediately.
+  - Reuses the existing `.inline-form` styling and `postJSON`/`deleteJSON`
+    helpers — no new CSS.
+- **Tests**: +5 tests in `test_definition_forks.py` (FK 404, topic filter, PATCH
+  happy path, PATCH 400 on empty term, PATCH 404). Total 216/216 green.
+- **Deferred**: editing existing forks from the UI (currently only add+delete);
+  scoring / dispute mechanics on competing definitions.
+
+### 2026-Q2 — Sources JSON → SQLAlchemy (Quellensammlung promoted)
+The Quellensammlung is now backed by proper SQL models instead of `sources.json`.
+
+- **Models** (`models.py`): `Source`, `SourceTag` (n:m via `source_tag_link`),
+  `SourceComment`, `SourceUsage`. `SourceUsage.argument_id` is a real FK with
+  `ON DELETE SET NULL` so curation history survives argument deletion.
+- **Router** (`routers/sources.py`): full surface preserved (`GET/POST/PATCH/DELETE
+  /api/sources/…`, `/tags`, `/similar`, `/{id}/comments`, `/{id}/usages`,
+  `/{id}/vote`) so the frontend keeps working without changes. Tag deduplication
+  is now enforced at the schema level (`SourceTag.name UNIQUE`).
+- **Seed** (`seed.py`): `_seed_sources_from_json` idempotently imports legacy
+  `data/sources.json` on first start; JSON file kept as authoring source for now.
+- **Tests** (`tests/test_sources.py`): 47 tests still green (total 211/211).
+- **Deferred** (still in Phase 2): per-user vote tracking (needs auth);
+  embedding-based similarity (Jaccard stand-in remains).
+
 ### 2026-Q2 — Multi-Node-Muster (manuelle UI, Zickzack)
 Manuelle Markierung von Mehrknoten-Mustern (z.B. Gish Gallop, schleichende
 Relativierung) im Zickzack-View. Backend (Router + 12 Tests) war bereits
@@ -637,7 +681,7 @@ The dynamic zigzag refinement model, stages 0–3 fully implemented.
 | 0.5 | Tag Origin & Meta-Categories | `TagCategory` (10 values), `TagOrigin` (USER/MOD/AI), proper `ArgumentNodeTag` model |
 | 0.6 | Statement Type | `StatementType` enum (POSITIVE/NORMATIVE/MIXED/UNCLASSIFIED) |
 | 0.7 | Continuous Position Score | `position_score` (Float 0.0–1.0) on `ArgumentNode`, auto-derives discrete position |
-| 0.8 | Migration Seed Topic | Second seed topic "Deutschland sollte mehr Migranten aufnehmen" exercising all new fields |
+| 0.8 | Migration Seed Topic | (Removed 2026-Q2) A third seed topic "Deutschland sollte mehr Migranten aufnehmen" was added to exercise anatomy / visibility / labels / evidence / group end-to-end. Dropped from the seed to keep the demo focused on the Zickzack stages; the underlying features are still covered by tests. |
 | 0.9 | Frontend Rich Tree View | Anatomy sub-sections, gradient borders, Ⓕ/Ⓥ badges, category-grouped tag chips, evidence quality bars, label severity, hidden-node greying |
 | 0.10 | Argument-Group Workflow | `POST /api/argument-groups/{id}/merge` and `/unmerge/{node_id}`, grouped node display |
 
