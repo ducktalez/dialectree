@@ -20,15 +20,12 @@ The **Changelog** and **Design Discussions** are at the very bottom.
 The next handful of tasks, ordered by what makes sense to tackle next given current
 state (no auth, no AI stack, in-memory DB). Pick from the top.
 
-1. **Definition Forks — edit existing entries from the UI** *(frontend, small)*
-   Backend `PATCH /api/definition-forks/{id}` exists; current Stage-3 panel only
-   supports add + delete. Add inline edit.
-2. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
+1. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
    Replace localStorage trust with server-side per-user vote records.
-3. **Automatic multi-node pattern detection** *(KI, post-dev)*
+2. **Automatic multi-node pattern detection** *(KI, post-dev)*
    Manual UI exists (see Changelog). Heuristics / KI for auto-suggesting
    Gish-gallop / creeping-relativization patterns require an embedding stack.
-4. **Twitter/X import via n8n** *(integration, deprioritized — better methods under consideration)*
+3. **Twitter/X import via n8n** *(integration, deprioritized — better methods under consideration)*
    n8n sketch exists in `n8n/`. Parked until a clearer ingestion approach is
    chosen (e.g. direct API, browser extension, manual paste flow).
 
@@ -134,7 +131,8 @@ copies to LLM for speaker segmentation → pastes result back via `PUT /api/topi
 ### Definition Forks
 - [x] Backend CRUD + `PATCH` + topic-wide listing (`/api/definition-forks/?topic_id=…`).
 - [x] Stage-3 UI: ⑂-Badge mit Inline-Panel zum Hinzufügen/Löschen von Begriffslesarten.
-- [ ] Inline-Editing für bestehende Forks (PATCH-Endpunkt ist da, UI noch nicht).
+- [x] Inline-Editing für bestehende Forks (✏-Button schaltet Zeile in einen
+      Edit-Mode mit Term/Variant/Description, Speichern via PATCH).
 - [ ] Dispute/Voting auf konkurrierende Definitionen (eigene Mini-Diskussion pro Term).
 
 ### Conflict & Sub-Discussion System
@@ -473,6 +471,21 @@ drawn, not how anchor math works.
 
 Consolidated record of finished features so the upper sections can stay focused on
 what's next. Newest at the top.
+
+### 2026-Q2 — Definition Forks: inline edit in Stage-3 panel
+Closing the last gap for the Stage-3 fork UI. Backend was already complete.
+
+- **Frontend** (`zickzack.html`): each list row in the ⑂ panel now carries a ✏
+  button next to 🗑. Click switches the single row to an inline edit form
+  (term + variant + description prefilled, Speichern/Abbrechen buttons).
+  PATCH is sent via the existing `patchJSON` helper; after success the panel
+  re-opens in normal mode. Only one row can be in edit mode at a time so the
+  panel stays narrow.
+- **Backend**: no changes — `PATCH /api/definition-forks/{id}` already shipped
+  in the previous Definition-Forks change.
+- **Tests**: unchanged, still 216/216 green (frontend-only change, backend
+  PATCH path is already covered by `test_patch_definition_fork` /
+  `test_patch_rejects_empty_term` / `test_patch_not_found`).
 
 ### 2026-Q2 — Seed cleanup: removed "Migration" demo topic
 Third seed topic "Deutschland sollte mehr Migranten aufnehmen" entirely removed

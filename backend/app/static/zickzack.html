@@ -2581,7 +2581,7 @@
   // the topic-wide fork list and only redraw the badge counters — the SVG
   // connection layout doesn't depend on forks, so a full `loadZigzag()` would
   // be overkill (and would also collapse all cards).
-  function showDefinitionForkPanel(nodeId, anchorCard) {
+  function showDefinitionForkPanel(nodeId, anchorCard, editingForkId = null) {
     removeInlineForms();
     const node = currentData?.steps?.find(s => s.id === nodeId);
     const forks = forksForNode(nodeId);
@@ -2594,21 +2594,63 @@
     form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
     form.style.width = '340px';
 
+    // Re-open the panel anchored to the (possibly re-rendered) card.
+    const reopen = (nextEditingId = null) => {
+      if (typeof render === 'function') render();
+      const newAnchor = document.querySelector(`.zz-card[data-step-id="${nodeId}"]`);
+      if (newAnchor) showDefinitionForkPanel(nodeId, newAnchor, nextEditingId);
+    };
+
+    // Render a single fork row — either as a static read-only entry with
+    // ✏ Edit / 🗑 Delete actions, or as an inline edit form when this row's
+    // id matches `editingForkId`. Only ONE row can be in edit mode at a time
+    // so the panel stays simple.
+    const renderForkRow = (f) => {
+      const isEditing = f.id === editingForkId;
+      if (!isEditing) {
+        return `
+          <li style="display:flex;align-items:flex-start;gap:6px;padding:4px 6px;background:#161b22;border-radius:6px;border-left:3px solid #8b5cf6">
+            <div style="flex:1;font-size:0.64rem;color:#e6edf3;line-height:1.35">
+              <span style="font-weight:700;color:#d8b4fe">${esc(f.term)}</span>
+              <span style="color:#9ca3af"> = </span>
+              <span>${esc(f.definition_variant)}</span>
+              ${f.description ? `<div style="color:#8b949e;font-size:0.58rem;margin-top:2px">${esc(f.description)}</div>` : ''}
+            </div>
+            <button class="fork-edit" data-fork-id="${f.id}" title="Bearbeiten" type="button"
+              style="background:#1f2937;color:#93c5fd;border:1px solid #374151;border-radius:4px;padding:1px 5px;font-size:0.6rem;cursor:pointer">✏</button>
+            <button class="fork-delete" data-fork-id="${f.id}" title="Löschen" type="button"
+              style="background:#1f2937;color:#f87171;border:1px solid #374151;border-radius:4px;padding:1px 5px;font-size:0.6rem;cursor:pointer">🗑</button>
+          </li>`;
+      }
+      // Inline edit form for this single fork. Inputs are prefilled; PATCH
+      // sends only changed fields (the backend treats unset fields as
+      // unchanged, but we send all three to keep client logic minimal).
+      const termVal = esc(f.term).replace(/"/g, '&quot;');
+      const variantVal = esc(f.definition_variant).replace(/"/g, '&quot;');
+      const descVal = esc(f.description || '');
+      return `
+        <li style="padding:6px 8px;background:#1c2030;border-radius:6px;border-left:3px solid #fbbf24">
+          <label style="font-size:0.58rem;color:#9ca3af">Begriff</label>
+          <input class="fork-edit-term" data-fork-id="${f.id}" value="${termVal}" maxlength="200"
+            style="width:100%;padding:3px 5px;font-size:0.62rem;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e6edf3;margin-bottom:4px" />
+          <label style="font-size:0.58rem;color:#9ca3af">Lesart / Definition</label>
+          <input class="fork-edit-variant" data-fork-id="${f.id}" value="${variantVal}" maxlength="300"
+            style="width:100%;padding:3px 5px;font-size:0.62rem;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e6edf3;margin-bottom:4px" />
+          <label style="font-size:0.58rem;color:#9ca3af">Beschreibung (optional)</label>
+          <textarea class="fork-edit-desc" data-fork-id="${f.id}"
+            style="width:100%;height:42px;padding:3px 5px;font-size:0.6rem;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e6edf3;resize:vertical">${descVal}</textarea>
+          <div style="display:flex;gap:4px;justify-content:flex-end;margin-top:4px">
+            <button class="fork-edit-cancel" type="button"
+              style="background:#30363d;color:#c9d1d9;border:none;border-radius:4px;padding:2px 8px;font-size:0.6rem;cursor:pointer">Abbrechen</button>
+            <button class="fork-edit-save" data-fork-id="${f.id}" type="button"
+              style="background:#1f6feb;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:0.6rem;cursor:pointer">Speichern</button>
+          </div>
+        </li>`;
+    };
+
     const listHtml = forks.length === 0
       ? `<div style="font-size:0.62rem;color:#6e7681;font-style:italic;margin:4px 0 8px">Noch keine Definitionsvarianten.</div>`
-      : `<ul style="list-style:none;padding:0;margin:4px 0 8px;display:flex;flex-direction:column;gap:4px">${
-          forks.map(f => `
-            <li style="display:flex;align-items:flex-start;gap:6px;padding:4px 6px;background:#161b22;border-radius:6px;border-left:3px solid #8b5cf6">
-              <div style="flex:1;font-size:0.64rem;color:#e6edf3;line-height:1.35">
-                <span style="font-weight:700;color:#d8b4fe">${esc(f.term)}</span>
-                <span style="color:#9ca3af"> = </span>
-                <span>${esc(f.definition_variant)}</span>
-                ${f.description ? `<div style="color:#8b949e;font-size:0.58rem;margin-top:2px">${esc(f.description)}</div>` : ''}
-              </div>
-              <button class="fork-delete" data-fork-id="${f.id}" title="Löschen" type="button"
-                style="background:#1f2937;color:#f87171;border:1px solid #374151;border-radius:4px;padding:1px 5px;font-size:0.6rem;cursor:pointer">🗑</button>
-            </li>`).join('')
-        }</ul>`;
+      : `<ul style="list-style:none;padding:0;margin:4px 0 8px;display:flex;flex-direction:column;gap:4px">${forks.map(renderForkRow).join('')}</ul>`;
 
     form.innerHTML = `
       <h4>⑂ Begriffslesarten</h4>
@@ -2642,15 +2684,43 @@
         try {
           await deleteJSON(`${API}/definition-forks/${forkId}`);
           await loadDefinitionForksForCurrentTopic();
-          // Re-open the panel so the user immediately sees the new list state.
-          // Anchor card may have been re-rendered, look it up again.
-          if (typeof render === 'function') render();
-          const newAnchor = document.querySelector(`.zz-card[data-step-id="${nodeId}"]`);
-          if (newAnchor) showDefinitionForkPanel(nodeId, newAnchor);
+          reopen();
         } catch (err) {
           alert('Löschen fehlgeschlagen: ' + err.message);
         }
       });
+    });
+
+    // ✏-Button switches the row to edit mode (single-row edit only).
+    form.querySelectorAll('.fork-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const forkId = parseInt(btn.dataset.forkId);
+        if (Number.isFinite(forkId)) reopen(forkId);
+      });
+    });
+
+    // Cancel/save handlers for the inline edit row.
+    form.querySelector('.fork-edit-cancel')?.addEventListener('click', () => reopen(null));
+    form.querySelector('.fork-edit-save')?.addEventListener('click', async (e) => {
+      const forkId = parseInt(e.currentTarget.dataset.forkId);
+      const term = form.querySelector(`.fork-edit-term[data-fork-id="${forkId}"]`).value.trim();
+      const variant = form.querySelector(`.fork-edit-variant[data-fork-id="${forkId}"]`).value.trim();
+      const descRaw = form.querySelector(`.fork-edit-desc[data-fork-id="${forkId}"]`).value.trim();
+      if (!term || !variant) {
+        alert('Begriff und Lesart dürfen nicht leer sein.');
+        return;
+      }
+      try {
+        await patchJSON(`${API}/definition-forks/${forkId}`, {
+          term,
+          definition_variant: variant,
+          description: descRaw || null,
+        });
+        await loadDefinitionForksForCurrentTopic();
+        reopen(null);
+      } catch (err) {
+        alert('Speichern fehlgeschlagen: ' + err.message);
+      }
     });
 
     form.querySelector('#fork-submit').addEventListener('click', async () => {
@@ -2669,9 +2739,7 @@
           description,
         });
         await loadDefinitionForksForCurrentTopic();
-        if (typeof render === 'function') render();
-        const newAnchor = document.querySelector(`.zz-card[data-step-id="${nodeId}"]`);
-        if (newAnchor) showDefinitionForkPanel(nodeId, newAnchor);
+        reopen();
       } catch (err) {
         alert('Speichern fehlgeschlagen: ' + err.message);
       }
