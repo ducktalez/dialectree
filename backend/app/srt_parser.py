@@ -56,8 +56,10 @@ def parse_srt_to_yaml(
 ) -> str:
     """Parse SRT content and wrap it in the Stage-0 YAML transcript format.
 
-    The output matches the ``stage_0.transcript`` structure used in
-    blueprint YAML files (see ``quoten_blueprint.yaml``).
+    The output is a minimal YAML wrapper around the flowing transcript text —
+    just enough metadata (source URL, title, imported_at) for provenance.
+    Any richer structure (speaker turns, splits, labels) is the job of the
+    later zigzag stages, not of this importer.
 
     Speaker assignment is NOT performed here — the transcript is stored as
     unsegmented flowing text.  Speaker diarization is a separate step

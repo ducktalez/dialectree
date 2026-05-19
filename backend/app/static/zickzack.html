@@ -81,9 +81,46 @@
       background: #1c2128; border: 1.5px solid #30363d; border-radius: 7px;
       padding: 7px 10px; width: 220px;
       box-shadow: 0 2px 8px rgba(0,0,0,.3);
-      line-height: 1.3; user-select: none; cursor: grab;
+      line-height: 1.3;
+      /* DESIGN: text-selectable so users can copy quotes; drag is bound to a
+         dedicated handle (.card-drag-handle) instead of the whole card. */
+      user-select: text; cursor: default;
     }
     .zz-card.dragging { cursor: grabbing; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,.4); opacity: 0.9; transition: none; }
+    /* Drag handle: sits in the top-LEFT corner so it doesn't collide with the
+       floating short-ID plate in the top-right. Sized generously (28×28) so
+       it's an easy hit target on touch + mouse — bumped up from 24 after
+       user feedback that the previous grip was still too small. */
+    .card-drag-handle {
+      position: absolute; top: 0; left: 0;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.05rem; color: #6e7681;
+      cursor: grab; user-select: none;
+      border-radius: 6px 0 6px 0;
+      transition: color .12s, background .12s;
+    }
+    .card-drag-handle:hover { color: #c9d1d9; background: rgba(255,255,255,.08); }
+    .zz-card.dragging .card-drag-handle { cursor: grabbing; }
+
+    /* Short-ID plate: monospace reference (e.g. #2, #15) FLOATING slightly
+       outside the top-right corner of the card so it does not push the title
+       to the right. Background matches the canvas so it visually overlaps
+       the border like a corner sticker. */
+    .card-shortid {
+      position: absolute;
+      top: -8px; right: -4px;
+      padding: 1px 6px;
+      font-size: 0.58rem; font-weight: 700; line-height: 1.3;
+      color: #c9d1d9; background: #0d1117;
+      border: 1px solid #30363d; border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      user-select: text; z-index: 4;
+      pointer-events: none;
+    }
+    .zz-card.stage-raw .card-shortid {
+      color: #8b949e; border-color: rgba(139,148,158,.35);
+    }
     .zz-card.L { border-right: 4px solid #3fb950; }
     .zz-card.R { border-left: 4px solid #f85149; }
 
@@ -128,21 +165,102 @@
     }
     .card-actions button:hover { border-color: #58a6ff; color: #e6edf3; }
     .card-actions .vote-score { font-size: 0.6rem; color: #58a6ff; font-weight: 600; margin: 0 2px; align-self: center; }
-
-    /* ── Collapse toggle ── */
-    .collapse-toggle {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 18px; height: 18px; min-width: 18px;
-      font-size: 0.65rem; color: #484f58;
-      cursor: pointer; user-select: none;
-      transition: transform .15s, color .15s, background .1s;
-      flex-shrink: 0; border-radius: 4px;
+    .card-actions .action-count {
+      display: inline-block; min-width: 14px; padding: 0 4px;
+      margin-left: 2px; border-radius: 8px;
+      background: #30363d; color: #e6edf3; font-weight: 600;
+      font-size: 0.55rem; line-height: 1.4;
     }
-    .collapse-toggle:hover { color: #e6edf3; background: rgba(255,255,255,.08); }
-    .zz-card:not(.collapsed) .collapse-toggle { transform: rotate(90deg); }
+
+    /* Z.4 — Label chips (server-confirmed labels on Stage-4 cards). */
+    .label-strip {
+      display: flex; gap: 3px; margin-top: 4px; flex-wrap: wrap;
+    }
+    .label-chip {
+      padding: 1px 6px; border-radius: 6px;
+      font-size: 0.52rem; font-weight: 600; letter-spacing: 0.02em;
+      cursor: pointer; user-select: none;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .label-chip:hover { filter: brightness(1.2); }
+
+    /* Z.4 — "Nachtrag" marker on late-added (stage_added>=4) arguments. */
+    .late-add-badge {
+      display: inline-block; margin: 3px 0 0 4px;
+      padding: 1px 6px; border-radius: 6px;
+      font-size: 0.52rem; font-weight: 600;
+      background: #1e3a5f; color: #93c5fd;
+      border: 1px dashed #1d4ed8;
+    }
+
+    /* Z.4b — "Edge inadmissible" marker.
+       Sits on the child card's bottom-LEFT corner so it visually anchors the
+       *incoming* connection that's being rejected. The colour scheme matches
+       the dashed grey-red parent line drawn in renderChrono. */
+    .edge-inadmissible-badge {
+      position: absolute;
+      bottom: -8px; left: -6px;
+      padding: 1px 6px;
+      font-size: 0.55rem; font-weight: 700; line-height: 1.3;
+      color: #fca5a5; background: #0d1117;
+      border: 1px dashed #f85149; border-radius: 8px;
+      cursor: pointer; z-index: 4;
+      user-select: none;
+    }
+    .edge-inadmissible-badge:hover { color: #fee2e2; border-color: #ff7b72; }
+
+    /* ── Collapse divider ──
+       Replaces the old ▸/▾ toggle: a thin horizontal line under the title
+       with a centered chevron pointing DOWN when the card is collapsed
+       (suggesting "click to drop down content") and UP when expanded
+       ("click to fold up"). The whole row is the click target. */
+    .collapse-divider {
+      position: relative;
+      display: flex; align-items: center;
+      gap: 4px;
+      height: 9px;
+      margin: 5px -2px 3px;
+      cursor: pointer;
+    }
+    .collapse-divider::before, .collapse-divider::after {
+      content: ''; flex: 1; height: 1px; background: #30363d;
+      transition: background .12s;
+    }
+    .collapse-arrow {
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 4px solid #6e7681;
+      transition: transform .15s, border-top-color .12s;
+    }
+    .zz-card:not(.collapsed) .collapse-arrow { transform: rotate(180deg); }
+    .collapse-divider:hover::before,
+    .collapse-divider:hover::after { background: #58a6ff; }
+    .collapse-divider:hover .collapse-arrow { border-top-color: #58a6ff; }
     .zz-card.collapsed { padding: 4px 8px; }
-    .zz-card.collapsed .card-content { display: none; }
+    .zz-card.collapsed .card-content,
+    .zz-card.collapsed .collapse-divider { display: none; }
     .zz-card.collapsed .card-title { font-size: 0.7rem; }
+
+    /* Floating "+" reply button: protrudes below the card to suggest that
+       a new connection is being added downward. Sits centered on the card's
+       bottom edge so it visually grows out of the box. */
+    .btn-reply-float {
+      position: absolute;
+      left: 50%; bottom: -11px;
+      transform: translateX(-50%);
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #1f6feb; color: #fff;
+      font-size: 0.95rem; font-weight: 700; line-height: 1;
+      border: 2px solid #0d1117;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,.45);
+      z-index: 3;
+      transition: background .12s, transform .12s;
+    }
+    .btn-reply-float:hover { background: #388bfd; transform: translateX(-50%) translateY(1px); }
 
     /* ── Smooth relayout transition ── */
     .zz-card, .zz-deadend, .zz-card.edge-attack { transition: top 0.3s ease; }
@@ -254,13 +372,18 @@
         background: rgba(22, 27, 34, 0.92);
         border: 1px solid #30363d;
         border-radius: 5px;
-        padding: 4px 8px;
+        padding: 6px 10px;
         font-size: 0.62rem;
         color: #8b949e;
         max-width: 280px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       }
     .legend-panel.hidden { display: none; }
+    .legend-heading {
+      font-size: 0.78rem; font-weight: 700; color: #e6edf3;
+      margin: -2px 0 6px; padding-bottom: 4px;
+      border-bottom: 1px solid #30363d;
+    }
     .legend-title { font-size: 0.62rem; font-weight: 600; color: #c9d1d9; margin-bottom: 3px; }
     .legend-divider { font-size: 0.55rem; font-weight: 600; color: #484f58; margin-top: 5px; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
     .legend-list { display: flex; flex-direction: column; gap: 2px; }
@@ -510,7 +633,7 @@
     <button class="stage-btn active" data-stage="1">1️⃣ Basis</button>
     <button class="stage-btn" data-stage="2">2️⃣ Split-Prozess</button>
     <button class="stage-btn" data-stage="3">3️⃣ Verfeinerung</button>
-    <button class="stage-btn deferred" data-stage="4" title="Noch nicht implementiert">4️⃣ Einordnung</button>
+    <button class="stage-btn" data-stage="4" title="Bewertungen, Labels, Kommentare auf bestehenden Argumenten">4️⃣ Einordnung</button>
     <button class="stage-btn deferred" data-stage="5" title="Noch nicht implementiert">5️⃣ Meta</button>
     <button class="stage-btn deferred" data-stage="6" title="Noch nicht spezifiziert">6️⃣ Netz</button>
   </div>
@@ -618,6 +741,23 @@
   let showBlueChronoFlow = true;
   let showOriginLines = true;
 
+  // Auto-derived short IDs per node. Within a single (local) discussion the
+  // numbering is a flat counter — #1, #2, #3, … in chronological order — so
+  // a user can quickly reference "#2" without typing letters or sub-IDs.
+  // Splits and late additions just continue the same counter. The ID is a
+  // pure UI artefact (not stored in the DB) so the seed data stays clean.
+  let nodeShortIds = {};
+
+  function computeNodeShortIds(steps) {
+    const ids = {};
+    let n = 0;
+    for (const s of steps) {
+      n += 1;
+      ids[s.id] = String(n);
+    }
+    return ids;
+  }
+
   // ── Polygon group state ──
   let customPolygonGroups = [];     // User-created groups: { key, name, nodeIds, color }
   let polygonGroupVisibility = {};  // groupKey → boolean (default true)
@@ -659,14 +799,39 @@
   }
 
   // ── Stage descriptions: what THIS stage adds vs the previous ──
+  // Each stage is cumulative: it starts from the previous view and lists
+  // exactly the new pieces of information visible in this stage. Keep the
+  // wording close to what's actually rendered on the canvas.
   const STAGE_DESCRIPTIONS = {
-    0: '<strong>Rohdaten</strong> — Die Diskussion als lesbarer Text. Kein Canvas, keine Visualisierung.',
-    1: '<strong>Basiszuordnung</strong> — Jedes Argument chronologisch einer Seite zugeordnet. Einfacher Zickzack zwischen PRO und CONTRA.',
-    2: '<strong>2️⃣ Split-Prozess</strong> — Arbeitsschritt: Originale offen im Rohformat. Split-Karten zeigen nur ihre Titel; Inhalte folgen erst in Stufe 3.',
-    3: '<strong>Verfeinerung</strong> — Nur Split-Argumente sichtbar. Gesplittete Originale verschwinden; die Split-Inhalte werden jetzt sichtbar.',
-    4: '<strong>+ Einordnung</strong> — Bewertungen, Labels, Kommentare auf Argumente. <em>[Noch nicht implementiert]</em>',
-    5: '<strong>+ Meta</strong> — Argumentgruppen, Klassifizierung als Quelle / Grundannahme. <em>[Noch nicht implementiert]</em>',
-    6: '<strong>+ Netz</strong> — Einordnung in allgemeines Diskussionsnetz. <em>[Geplant — separate Spezifikation]</em>',
+    0: '<strong>Rohdaten</strong> — Die Diskussion als lesbarer Fließtext. '
+       + 'Sprecherwechsel sind erkennbar, sonst keine Struktur.',
+    1: '<strong>Basiszuordnung</strong> — Zusätzlich zum Transkript:'
+       + '<ul style="margin:3px 0 0 18px;padding:0;font-size:0.72rem">'
+       + '<li>Jeder Sprecherbeitrag wird zu einem Argument-Knoten.</li>'
+       + '<li>Knoten bekommen eine <em>fortlaufende Kurz-ID</em> (<code>#1</code>, <code>#2</code>, …) zum schnellen Referenzieren in Diskussion und Kommentaren.</li>'
+       + '<li>Chronologischer Zickzack zwischen PRO und CONTRA.</li>'
+       + '</ul>',
+    2: '<strong>Split-Prozess</strong> <em>(Arbeitsschritt)</em> — Zusätzlich zur Basiszuordnung:'
+       + '<ul style="margin:3px 0 0 18px;padding:0;font-size:0.72rem">'
+       + '<li>Lange Beiträge werden in <em>einzelne Teilargumente</em> zerlegt; jeder Split bekommt seine eigene Kurz-ID.</li>'
+       + '<li>Jeder Split verweist auf seinen <em>Original-Knoten</em> (grau, gestrichelt) und auf das konkret beantwortete Gegen-Argument (farbig).</li>'
+       + '<li>Originale bleiben als Rohversion sichtbar; Split-Karten zeigen nur ihre Titel.</li>'
+       + '</ul>',
+    3: '<strong>Verfeinerung</strong> — Zusätzlich zum Split-Prozess:'
+       + '<ul style="margin:3px 0 0 18px;padding:0;font-size:0.72rem">'
+       + '<li>Jeder Split bekommt eine <em>Steelman-Überschrift</em> + Begründung – die zerlegten Originale werden entfernt.</li>'
+       + '<li>Strittige Begriffe können via ⑂ als <em>Definitions-Fork</em> markiert werden.</li>'
+       + '<li>Diskussionsstränge können als <em>Bereiche</em> (Sub-Diskussionen) eingefasst werden.</li>'
+       + '</ul>',
+    4: '<strong>Einordnung</strong> — Zusätzlich zur Verfeinerung:'
+       + '<ul style="margin:3px 0 0 18px;padding:0;font-size:0.72rem">'
+       + '<li>Persönliche <em>Bewertungen, Labels</em> (z.&nbsp;B. Fehlschluss) und <em>Kommentare</em>.</li>'
+       + '<li><em>Nachträge</em>: in dieser Stufe ergänzte Argumente sind als gestricheltes „＋ Nachtrag" markiert und visuell unterscheidbar.</li>'
+       + '<li><em>Mehrknoten-Muster</em> (Gish Gallop, schleichende Relativierung …) markierbar.</li>'
+       + '<li><em>Geplant</em>: einzelne <em>Verbindungen als unzulässig</em> markieren („Argument passt hier nicht").</li>'
+       + '</ul>',
+    5: '<strong>Meta</strong> — Argumentgruppen, Klassifizierung als Quelle / Grundannahme. <em>[Noch nicht implementiert]</em>',
+    6: '<strong>Netz</strong> — Einordnung in allgemeines Diskussionsnetz. <em>[Geplant — separate Spezifikation]</em>',
   };
 
   function updateStageDescription() {
@@ -677,18 +842,24 @@
     const panel = document.getElementById('legend-panel');
     if (!panel) return;
 
-    const visible = currentStage === 2 || currentStage === 3;
+    const visible = currentStage >= 2 && currentStage <= 4;
     panel.classList.toggle('hidden', !visible);
     if (!visible) {
       panel.innerHTML = '';
       return;
     }
 
+      // Heading is identical across stages so users recognise the panel as
+      // the same artefact no matter which view they're in.
+      const LEGEND_HEADING = 'Legende & Einstellungen';
+
       // ── Connection types (non-toggleable) ──
-      const connItems = [
+      // Stage 4 doesn't draw raw-chain/logical reference overlays — skip
+      // those entries so the legend reflects what the user actually sees.
+      const connItems = currentStage <= 3 ? [
         { label: 'Roh-Kette', desc: 'Ursprüngliche Reihenfolge', active: currentStage === 2, lineClass: 'raw' },
         { label: 'Logische Referenz', desc: 'Inhaltliche Antwort', active: true, lineClass: 'logical' },
-      ];
+      ] : [];
 
       // ── Polygon groups (individual toggles) ──
       const groupsHtml = activePolygonGroups.map(g => {
@@ -726,15 +897,13 @@
         : `<button class="legend-add-btn" id="legend-add-pattern" style="border-color:rgba(240,136,62,0.5);color:#f0883e">🧩 Muster markieren</button>`;
 
       // ── Toggleable connections ──
-      const toggleItems = [
+      // Stage 4 has no origin/chrono overlays either.
+      const toggleItems = currentStage <= 3 ? [
         { key: 'origin', label: 'Ursprungs-Argument', desc: 'Gehört zu Original', active: currentStage === 2, lineClass: 'origin' },
         { key: 'chrono', label: 'Chronologischer Fluss', desc: 'Ablauf', active: true, lineClass: 'chrono' },
-      ];
+      ] : [];
 
-      panel.innerHTML = `
-        <div class="legend-title">Verbindungen</div>
-        <div class="legend-list">
-          ${connItems.filter(i => i.active).map(item => `
+      const connHtml = connItems.filter(i => i.active).map(item => `
             <div style="cursor:default" class="legend-item">
               <span class="legend-line ${item.lineClass}"></span>
               <div class="legend-item-main">
@@ -742,8 +911,11 @@
                 <span class="legend-item-desc">- ${item.desc}</span>
               </div>
             </div>
-          `).join('')}
-        </div>
+          `).join('');
+
+      panel.innerHTML = `
+        <div class="legend-heading">${LEGEND_HEADING}</div>
+        ${connHtml ? `<div class="legend-title">Verbindungen</div><div class="legend-list">${connHtml}</div>` : ''}
         <div class="legend-divider">Bereiche</div>
         <div class="legend-list">
           ${groupsHtml || '<span style="font-size:0.52rem;color:#484f58;font-style:italic">Keine Bereiche</span>'}
@@ -754,7 +926,7 @@
           ${patternsHtml || '<span style="font-size:0.52rem;color:#484f58;font-style:italic">Keine Muster</span>'}
           ${patternAddBtnHtml}
         </div>
-        <div class="legend-divider">Abwählbar</div>
+        ${toggleItems.length ? `<div class="legend-divider">Abwählbar</div>
         <div class="legend-list">
           ${toggleItems.filter(i => i.active).map(item => {
             const isOff = (item.key === 'chrono' && !showBlueChronoFlow) || (item.key === 'origin' && !showOriginLines);
@@ -767,19 +939,19 @@
               </div>
             </div>`;
           }).join('')}
-        </div>`;
+        </div>` : ''}`;
 
     // ── Event: toggle connection types ──
     panel.querySelector('[data-legend-toggle="chrono"]')?.addEventListener('click', () => {
       showBlueChronoFlow = !showBlueChronoFlow;
       renderLegendPanel();
-      if (currentData && currentStage > 0 && currentStage < 4) render();
+      if (currentData && currentStage > 0 && currentStage < 5) render();
     });
 
     panel.querySelector('[data-legend-toggle="origin"]')?.addEventListener('click', () => {
       showOriginLines = !showOriginLines;
       renderLegendPanel();
-      if (currentData && currentStage > 0 && currentStage < 4) render();
+      if (currentData && currentStage > 0 && currentStage < 5) render();
     });
 
     // ── Event: toggle individual polygon groups ──
@@ -788,7 +960,7 @@
         if (e.target.closest('.legend-group-delete')) return; // don't toggle on delete click
         const key = el.dataset.toggleGroup;
         polygonGroupVisibility[key] = !(polygonGroupVisibility[key] ?? true);
-        if (currentData && currentStage > 0 && currentStage < 4) render();
+        if (currentData && currentStage > 0 && currentStage < 5) render();
       });
     });
 
@@ -798,7 +970,7 @@
         const key = el.dataset.deleteGroup;
         customPolygonGroups = customPolygonGroups.filter(g => g.key !== key);
         delete polygonGroupVisibility[key];
-        if (currentData && currentStage > 0 && currentStage < 4) render();
+        if (currentData && currentStage > 0 && currentStage < 5) render();
       });
     });
 
@@ -814,7 +986,7 @@
         const pid = parseInt(el.dataset.togglePattern);
         if (!Number.isFinite(pid)) return;
         patternVisibility[pid] = !(patternVisibility[pid] ?? true);
-        if (currentData && currentStage > 0 && currentStage < 4) render();
+        if (currentData && currentStage > 0 && currentStage < 5) render();
       });
     });
 
@@ -830,7 +1002,7 @@
           currentPatterns = currentPatterns.filter(p => p.id !== pid);
           delete patternVisibility[pid];
           renderLegendPanel();
-          if (currentData && currentStage > 0 && currentStage < 4) render();
+          if (currentData && currentStage > 0 && currentStage < 5) render();
         } catch (err) {
           alert('Löschen fehlgeschlagen: ' + err.message);
         }
@@ -1097,7 +1269,7 @@
     await loadDefinitionForksForCurrentTopic();
     if (currentStage === 0) {
       await loadTranscript();
-    } else if (currentStage >= 4) {
+    } else if (currentStage >= 5) {
       showStagePlaceholder(currentStage);
     } else {
       await loadZigzag();
@@ -1111,8 +1283,11 @@
     const canvas = document.getElementById('canvas');
     canvas.innerHTML = '<svg id="zz-svg"></svg><div class="loading">⏳ Lade…</div>';
     try {
-      // Stages 2 and 3 both use ?stage=2 from the API — difference is frontend filtering
-      const apiStage = currentStage >= 2 ? 2 : currentStage;
+      // Stage 2 and 3 both reuse the API's stage=2 set (Stage-3 hides
+      // split origins in the frontend). Stage 4 sends ?stage=4 so the
+      // server includes late-added arguments and bulk-loads labels + comment
+      // counts for inline rendering.
+      const apiStage = currentStage === 3 ? 2 : currentStage;
       currentData = await fetchJSON(`${API}/topics/${currentTopicId}/zigzag?stage=${apiStage}`);
       render();
     } catch (e) {
@@ -1158,7 +1333,7 @@
     document.getElementById('mode-toggle').style.display = currentStage >= 4 ? 'flex' : 'none';
     if (skipLoad) return true;
     if (currentStage === 0) return loadTranscript();
-    if (currentStage >= 4) { showStagePlaceholder(currentStage); return true; }
+    if (currentStage >= 5) { showStagePlaceholder(currentStage); return true; }
     return loadZigzag();
   }
 
@@ -1197,7 +1372,7 @@
     } else {
       // Stage changed but topic didn't: trigger reload of current stage view.
       if (currentStage === 0) await loadTranscript();
-      else if (currentStage >= 4) showStagePlaceholder(currentStage);
+      else if (currentStage >= 5) showStagePlaceholder(currentStage);
       else await loadZigzag();
     }
   });
@@ -1232,6 +1407,7 @@
     if (!currentData) return;
     const canvas = document.getElementById('canvas');
     if (!canvas) return;
+    nodeShortIds = computeNodeShortIds(currentData.steps || []);
     renderChrono(currentData);
     renderLegendPanel(); // Update legend with computed polygon groups
   }
@@ -1253,11 +1429,11 @@
     const isStage2Raw = currentStage === 2 && step.stage_added === 1;
     const isStage2Split = currentStage === 2 && step.stage_added === 2;
     const shouldHaveToggle = currentStage >= 3;
-    // Z.2b: a split-origin revealed by the user in Stage 3 should start
-    // expanded — they explicitly asked to see its content.
-    const isRevealedOrigin = currentStage === 3 && revealedSplitOrigins.has(step.id);
-    const shouldStartCollapsed = (currentStage === 3 && !isRevealedOrigin) || (isSibling && currentStage >= 4);
-    const collapseIcon = shouldStartCollapsed ? '▸' : '▾';
+    // Z.2b / Z.4 polish: a split-origin revealed by the user (Stages 3 + 4)
+    // should start expanded — they explicitly asked to see its content.
+    const isRevealedOrigin = currentStage >= 3 && revealedSplitOrigins.has(step.id);
+    const shouldStartCollapsed = (currentStage >= 3 && !isRevealedOrigin && currentStage <= 3)
+      || (isSibling && currentStage >= 4);
 
     // Stage 1: single merged text block — no title/body distinction, no interactive features.
     // Stage 2: Split-Prozess — originals in raw style + splits with badge (working step).
@@ -1288,9 +1464,16 @@
     } else {
       // Stage 2 split cards are title-only. Stage 3+ shows title + body.
       html += `<div class="card-header">`;
-      if (shouldHaveToggle) html += `<span class="collapse-toggle">${collapseIcon}</span>`;
       html += `<div class="card-title">${esc(step.title)}</div>`;
       html += `</div>`;
+      // Collapse-divider sits BETWEEN header and content; clicking it folds
+      // the content up. When the card is collapsed, .collapse-divider is
+      // hidden via CSS and the chevron lives "outside" — the new card-title
+      // single-line view doubles as the click target via the new collapse
+      // class added below to keep the same UX.
+      if (shouldHaveToggle && !isStage2Split) {
+        html += `<div class="collapse-divider" title="Auf-/Zuklappen"><span class="collapse-arrow"></span></div>`;
+      }
       if (!isStage2Split) {
         html += `<div class="card-content">`;
         if (step.description) html += `<div class="card-body">${esc(step.description)}</div>`;
@@ -1309,14 +1492,11 @@
         html += `<button class="split-connect" data-split-id="${step.id}" title="Logische Referenz setzen" style="display:inline-block;margin:3px 0 0 4px;padding:1px 6px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1f2937;color:#93c5fd;border:1px solid #374151;cursor:pointer">🔗 ${esc(targetLabel)}</button>`;
       }
 
-      // Z.2b — Split-Toggle (Stage 3 only):
+      // Z.2b — Split-Toggle (Stages 3 + 4):
       // - On a split card: button "🔄 Original" reveals the origin and hides
       //   all sibling splits of the same set.
       // - On a revealed-origin card: button "↩ Splits" restores the split view.
-      // The toggle button is also rendered when the card is collapsed because
-      // it sits in the card header area (added to .card-header below — but for
-      // simplicity we append after badges; clicks stop propagation).
-      if (currentStage === 3) {
+      if (currentStage >= 3) {
         if (step.split_from_id) {
           html += `<button class="split-toggle" data-origin-id="${step.split_from_id}" title="Original-Argument anzeigen" style="display:inline-block;margin:3px 0 0 4px;padding:1px 6px;border-radius:6px;font-size:0.52rem;font-weight:600;background:#1f2937;color:#93c5fd;border:1px solid #374151;cursor:pointer">🔄 Original</button>`;
         } else if (currentData && currentData.steps && currentData.steps.some(s => s.split_from_id === step.id)) {
@@ -1347,34 +1527,136 @@
         if (step.opens_conflict) html += `<div class="new-conflict">→ ${esc(step.opens_conflict)}</div>`;
       }
 
+      // Z.4 — Labels as chips on the card (Stage 4+).
+      // Bulk-fetched by the zigzag endpoint, so no per-card request.
+      // FALLACY-style labels get a warning hue; everything else a neutral grey.
+      if (currentStage >= 4 && Array.isArray(step.labels) && step.labels.length > 0) {
+        html += `<div class="label-strip">`;
+        for (const lb of step.labels) {
+          const severe = ['FALLACY','MANIPULATION','SPAM','INVALID','CIRCULAR','DOUBLE_STANDARD'].includes(lb.label_type);
+          const bg = severe ? '#3b1d1d' : '#1f2937';
+          const fg = severe ? '#fca5a5' : '#cbd5e1';
+          html += `<span class="label-chip" data-label-id="${lb.id}" title="${esc(lb.justification || '')}" style="background:${bg};color:${fg}">${esc(lb.label_type)}</span>`;
+        }
+        html += `</div>`;
+      }
+
+      // Z.4 — Late-addition marker (`stage_added=4` arguments only become
+      // visible in this stage). Helps the reviewer distinguish "noticed only
+      // in retrospect" from primary debate turns.
+      if (currentStage >= 4 && step.stage_added >= 4) {
+        html += `<span class="late-add-badge" title="Nachträglich in Stufe ${step.stage_added} ergänzt">＋ Nachtrag</span>`;
+      }
+
       // Stage 2/3 split cards should remain visually identical full cards.
       // No collapsed or "alternative stub" treatment in the refined/work views.
 
       // Stage 4+: action buttons (TODO: post-dev)
+      // Note: the "Antworten" (+) button is rendered as a separate FLOATING
+      // pill below the card (.btn-reply-float) — see end of createCardEl —
+      // so it visually grows out of the box and implies a new outgoing edge.
       if (currentStage >= 4) {
         html += `<div class="card-actions">`;
         html += `<button class="btn-vote-up" data-id="${step.id}" title="Upvote">▲</button>`;
         html += `<span class="vote-score">${step.vote_score || 0}</span>`;
         html += `<button class="btn-vote-down" data-id="${step.id}" title="Downvote">▼</button>`;
-        html += `<button class="btn-reply" data-id="${step.id}" title="Antworten">＋</button>`;
-        html += `<button class="btn-comment" data-id="${step.id}" title="Kommentar"></button>`;
+        // Z.4 — Label set + comment-count badge. Comment count goes on the
+        // comment button so the chrome stays compact; click to add a new one.
+        const cnt = step.comment_count || 0;
+        const cntBadge = cnt > 0 ? ` <span class="action-count">${cnt}</span>` : '';
+        html += `<button class="btn-comment" data-id="${step.id}" title="Kommentare (${cnt})">💬${cntBadge}</button>`;
+        html += `<button class="btn-label" data-id="${step.id}" title="Label hinzufügen">🏷</button>`;
+        // Z.4b — Verbindung-zum-Eltern markieren (nur sinnvoll wenn überhaupt
+        // ein Eltern-Knoten existiert; Root-Knoten haben keine eingehende
+        // Verbindung). Button-Status spiegelt aktuelle Markierung wider.
+        if (step.parent_id) {
+          const admMark = step.edge_admissibility && step.edge_admissibility !== 'ADMISSIBLE';
+          const admStyle = admMark ? ' style="color:#f85149;border-color:#f85149"' : '';
+          html += `<button class="btn-edge-adm" data-id="${step.id}" title="Verbindung zum Eltern-Argument markieren"${admStyle}>⊘</button>`;
+        }
         html += `</div>`;
       }
       if (!isStage2Split) html += `</div>`;
     }
 
     card.innerHTML = html;
+
+    // Short-ID plate (e.g. #2) appended AFTER innerHTML so it can be
+    // absolutely positioned over the top-right corner without affecting the
+    // header layout (= without pushing the title to the right).
+    const shortId = nodeShortIds[step.id];
+    if (shortId) {
+      const idBadge = document.createElement('span');
+      idBadge.className = 'card-shortid';
+      idBadge.textContent = `#${shortId}`;
+      idBadge.title = `Argument #${shortId}`;
+      card.appendChild(idBadge);
+    }
+
+    // Drag handle: bigger 24×24 grip in the top-LEFT corner so it doesn't
+    // collide with the short-ID badge in the top-right and stays easy to hit.
+    if (DRAG_ENABLED) {
+      const handle = document.createElement('span');
+      handle.className = 'card-drag-handle';
+      handle.title = 'Karte verschieben';
+      handle.textContent = '⠿';
+      card.appendChild(handle);
+    }
+
+    // Floating "+" reply button — Stage 4+ only. Lives outside the actions
+    // row, anchored below the card so it visually creates a new connection.
+    if (currentStage >= 4) {
+      const replyBtn = document.createElement('button');
+      replyBtn.className = 'btn-reply-float';
+      replyBtn.dataset.id = step.id;
+      replyBtn.title = 'Antworten – neues Argument anhängen';
+      replyBtn.textContent = '＋';
+      card.appendChild(replyBtn);
+    }
+
+    // Z.4b — Inadmissible-edge badge sits in the bottom-left corner of the
+    // CHILD card (the card that owns the rejected incoming edge). Click
+    // re-opens the edit form. Only shown in Stage 4 where the marker is
+    // editable, but the *line* styling itself applies in any stage that
+    // draws connections so the rejection isn't invisible while scrolling
+    // back to earlier views.
+    if (currentStage >= 4 && step.parent_id && step.edge_admissibility && step.edge_admissibility !== 'ADMISSIBLE') {
+      const admBadge = document.createElement('span');
+      admBadge.className = 'edge-inadmissible-badge';
+      const meta = EDGE_ADMISSIBILITY_OPTIONS.find(o => o.value === step.edge_admissibility);
+      admBadge.textContent = meta ? meta.label : '⊘';
+      admBadge.title = meta ? `${meta.label} – ${meta.desc}` : 'Verbindung markiert';
+      admBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showEdgeAdmissibilityForm(step.id, card, step.edge_admissibility);
+      });
+      card.appendChild(admBadge);
+    }
+
     if (shouldStartCollapsed) {
       card.classList.add('collapsed');
     }
 
-    // Collapse toggle (Stage-3+ cards)
-    const collapseToggle = card.querySelector('.collapse-toggle');
-    if (collapseToggle) {
-      collapseToggle.addEventListener('click', (e) => {
+    // Collapse divider (Stage-3+ cards). Toggles the .collapsed class on the
+    // card, which hides .card-content via CSS. Stops propagation so the card
+    // doesn't also get picked up as a drag/select target.
+    const collapseDivider = card.querySelector('.collapse-divider');
+    if (collapseDivider) {
+      collapseDivider.addEventListener('click', (e) => {
         e.stopPropagation();
         card.classList.toggle('collapsed');
-        collapseToggle.textContent = card.classList.contains('collapsed') ? '▸' : '▾';
+        if (typeof relayout === 'function') relayout();
+      });
+    }
+    // When collapsed, clicking the title (the only visible element) should
+    // expand the card back — gives users the same one-click affordance the
+    // old ▸-toggle had.
+    const titleEl = card.querySelector('.card-title');
+    if (titleEl && shouldHaveToggle) {
+      titleEl.addEventListener('click', (e) => {
+        if (!card.classList.contains('collapsed')) return;
+        e.stopPropagation();
+        card.classList.remove('collapsed');
         if (typeof relayout === 'function') relayout();
       });
     }
@@ -1382,8 +1664,24 @@
     // Action handlers (only stages 3+)
     card.querySelector('.btn-vote-up')?.addEventListener('click', (e) => { e.stopPropagation(); vote(step.id, 1); });
     card.querySelector('.btn-vote-down')?.addEventListener('click', (e) => { e.stopPropagation(); vote(step.id, -1); });
-    card.querySelector('.btn-reply')?.addEventListener('click', (e) => { e.stopPropagation(); showReplyForm(step.id, card); });
+    card.querySelector('.btn-reply-float')?.addEventListener('click', (e) => { e.stopPropagation(); showReplyForm(step.id, card); });
     card.querySelector('.btn-comment')?.addEventListener('click', (e) => { e.stopPropagation(); showCommentForm(step.id, card); });
+    card.querySelector('.btn-label')?.addEventListener('click', (e) => { e.stopPropagation(); showLabelForm(step.id, card); });
+    // Z.4b — opens the edge-admissibility editor (Stage 4 only).
+    card.querySelector('.btn-edge-adm')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showEdgeAdmissibilityForm(step.id, card, step.edge_admissibility);
+    });
+    // Z.4 — clicking an existing label chip offers to delete it (no edit yet).
+    card.querySelectorAll('.label-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lid = parseInt(chip.dataset.labelId);
+        if (!Number.isFinite(lid)) return;
+        if (!confirm(`Label "${chip.textContent}" entfernen?`)) return;
+        deleteLabel(lid);
+      });
+    });
 
     // Z.2b — Split toggle click handler
     card.querySelector('.split-toggle')?.addEventListener('click', (e) => {
@@ -1635,10 +1933,10 @@
     const stepMap = {};
     steps.forEach(s => { stepMap[s.id] = s; });
 
-    // ── Stage 3 (Verfeinerung): filter out originals that have been split ──
-    // Build set of IDs that are referenced by split_from_id
+    // ── Stages 3 + 4 (Verfeinerung / Einordnung): filter out originals that
+    // have been split — never show "original + splits" simultaneously. ──
     const splitOriginIds = new Set();
-    if (currentStage === 3) {
+    if (currentStage >= 3) {
       steps.forEach(s => { if (s.split_from_id) splitOriginIds.add(s.split_from_id); });
     }
 
@@ -1646,7 +1944,7 @@
     // Z.2b: a split-origin can be temporarily revealed by the user. While
     // revealed, the origin is shown and its splits are hidden — preserving the
     // "never show original + splits simultaneously" rule from the design doc.
-    const displaySteps = currentStage === 3
+    const displaySteps = currentStage >= 3
       ? steps.filter(s => {
           if (splitOriginIds.has(s.id)) {
             // It's a split-origin: show only if user revealed it
@@ -1903,6 +2201,10 @@
         line.setAttribute('stroke', color);
         line.setAttribute('stroke-width', String(lineWidth));
         line.setAttribute('stroke-opacity', String(lineOpacity));
+        // Z.4b — recolour as dashed red when this child's incoming edge is
+        // marked inadmissible. The child stays on canvas; only the line
+        // changes appearance.
+        applyEdgeAdmissibilityToLine(line, item.step);
         svg.appendChild(line);
         item.mainLine = line;
       } else {
@@ -1930,6 +2232,31 @@
       // Splits are attached to their base argument, not to the connection between arguments.
       // Stage 2: sibling lines become "Ursprungs-Argument" connections (neutral grey),
       // attaching slightly lower on the origin card to distinguish from parent connections.
+      // Stage 4: siblings share the same parent_id as the primary — draw a regular
+      // parent→child line from the parent (or topic if root) so they don't appear
+      // disconnected on the canvas.
+      if (currentStage === 4 && item.siblings.length > 0) {
+        item.siblings.forEach((sibItem) => {
+          const sibColor = sibItem.side === 'L' ? PRO_C : CON_C;
+          // Connect from the same source the primary uses (parent_id or topic).
+          const parentItem = sibItem.step.parent_id ? itemById[sibItem.step.parent_id] : null;
+          const sFromX = parentItem ? parentItem.edgeX : CX;
+          const sFromY = parentItem ? (parentItem.botY - 4) : topicBottom;
+          const sToX = sibItem.edgeX;
+          const sToY = sibItem.topY + 8;
+          const sLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          sLine.setAttribute('x1', sFromX); sLine.setAttribute('y1', sFromY);
+          sLine.setAttribute('x2', sToX);   sLine.setAttribute('y2', sToY);
+          sLine.setAttribute('stroke', sibColor);
+          sLine.setAttribute('stroke-width', '2');
+          sLine.setAttribute('stroke-opacity', '0.4');
+          applyEdgeAdmissibilityToLine(sLine, sibItem.step);
+          svg.appendChild(sLine);
+          sibItem.line = sLine;
+          sibItem.parentItemRef = parentItem || null;
+        });
+      }
+
       if (currentStage === 2 && item.siblings.length > 0) {
         const defaultSibColor = item.side === 'L' ? PRO_C : CON_C;
         // Dock point = bottom of the primary card (where splits branch off)
@@ -2042,6 +2369,7 @@
         sLine.setAttribute('stroke', color);
         sLine.setAttribute('stroke-width', '2');
         sLine.setAttribute('stroke-opacity', '0.6');
+        applyEdgeAdmissibilityToLine(sLine, splitItem.step);
         svg.appendChild(sLine);
         extraLines.push({
           el: sLine, type: 'split',
@@ -2091,6 +2419,7 @@
         refLine.setAttribute('stroke', item.side === 'L' ? PRO_C : CON_C);
         refLine.setAttribute('stroke-width', '2');
         refLine.setAttribute('stroke-opacity', '0.58');
+        applyEdgeAdmissibilityToLine(refLine, item.step);
         svg.appendChild(refLine);
         extraLines.push({
           el: refLine, type: 'logical',
@@ -2376,6 +2705,10 @@
         conflict_zone: form.querySelector('#reply-zone').value || null,
         edge_type: form.querySelector('#reply-edge').value || null,
         is_edge_attack: form.querySelector('#reply-edge-attack').checked,
+        // Z.4 — replies created while reviewing in Stage 4+ are recorded as
+        // late additions (`stage_added=currentStage`). They stay hidden in
+        // earlier stages and become visible from that stage onwards.
+        stage_added: currentStage >= 4 ? currentStage : 1,
       };
       try {
         await postJSON(`${API}/arguments/?user_id=${getUserId()}`, body);
@@ -2414,15 +2747,185 @@
           argument_node_id: nodeId, text,
         });
         removeInlineForms();
+        // Reload so the comment-count badge on the card reflects the new entry.
+        await loadZigzag();
       } catch(e) {
         alert('Fehler: ' + e.message);
       }
     });
   }
 
+  // Z.4 — Label on argument. Justification is mandatory server-side, so
+  // we keep the form intentionally minimal but require both fields.
+  // No edit flow yet (delete + recreate covers the rare case).
+  const LABEL_TYPES = [
+    'FALLACY','DOUBLE_STANDARD','CIRCULAR','MISSING_EVIDENCE','OFF_TOPIC',
+    'SPAM','ANECDOTE','DUPLICATE','CONTENTLESS','SCOPE_VIOLATION',
+    'MANIPULATION','INVALID',
+  ];
+
+  function showLabelForm(nodeId, anchorCard) {
+    removeInlineForms();
+    const form = document.createElement('div');
+    form.className = 'inline-form';
+    const rect = anchorCard.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    form.style.left = (rect.left - canvasRect.left) + 'px';
+    form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+
+    const opts = LABEL_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+    form.innerHTML = `
+      <h4>🏷 Label hinzufügen</h4>
+      <label>Typ</label>
+      <select id="label-type">${opts}</select>
+      <label>Begründung *</label>
+      <textarea id="label-just" placeholder="Warum trifft dieses Label zu?"></textarea>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="removeInlineForms()">Abbrechen</button>
+        <button class="btn-submit" id="label-submit">Speichern</button>
+      </div>
+    `;
+    document.getElementById('canvas').appendChild(form);
+
+    form.querySelector('#label-submit').addEventListener('click', async () => {
+      const label_type = form.querySelector('#label-type').value;
+      const justification = form.querySelector('#label-just').value.trim();
+      if (!justification) { alert('Begründung erforderlich'); return; }
+      try {
+        await postJSON(`${API}/labels/?user_id=${getUserId()}`, {
+          argument_node_id: nodeId, label_type, justification,
+        });
+        removeInlineForms();
+        await loadZigzag();
+      } catch(e) {
+        alert('Fehler: ' + e.message);
+      }
+    });
+  }
+
+  async function deleteLabel(labelId) {
+    try {
+      await deleteJSON(`${API}/labels/${labelId}`);
+      await loadZigzag();
+    } catch(e) {
+      alert('Fehler: ' + e.message);
+    }
+  }
+
+  // ── Z.4b — Edge admissibility (taxonomy §27) ────────────────────────
+  // Marks the parent→child *connection* as inadmissible (not the child).
+  // Stage 4 only — earlier stages don't show enough structure to make the
+  // distinction meaningful.
+  const EDGE_ADMISSIBILITY_OPTIONS = [
+    { value: 'OFF_TOPIC',       label: '⊘ Off-Topic',          desc: 'Inhalt unverbunden zum Eltern-Argument' },
+    { value: 'SCOPE_VIOLATION', label: '🚧 Scope-Bruch',        desc: 'Springt auf eine andere Ebene (z.B. von Politik zu Anekdote)' },
+    { value: 'NON_SEQUITUR',    label: '↯ Folgt nicht',         desc: 'Stützt / widerlegt das Eltern-Argument nicht wirklich' },
+  ];
+
+  /** Apply Z.4b styling to an SVG parent→child line element. No-op when
+   *  the child's edge is ADMISSIBLE (default). Idempotent. */
+  function applyEdgeAdmissibilityToLine(line, step) {
+    if (!line || !step) return;
+    const adm = step.edge_admissibility || 'ADMISSIBLE';
+    if (adm === 'ADMISSIBLE') return;
+    // Override colour + style without touching the dashed/curved variants:
+    // we keep the existing stroke-width and let the dash + colour change
+    // signal the rejection.
+    line.setAttribute('stroke', '#f85149');
+    line.setAttribute('stroke-opacity', '0.55');
+    line.setAttribute('stroke-dasharray', '5,4');
+  }
+
+  function showEdgeAdmissibilityForm(nodeId, anchorCard, currentValue) {
+    removeInlineForms();
+    const form = document.createElement('div');
+    form.className = 'inline-form';
+    const rect = anchorCard.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    form.style.left = (rect.left - canvasRect.left) + 'px';
+    form.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+
+    const opts = EDGE_ADMISSIBILITY_OPTIONS.map(o =>
+      `<option value="${o.value}" ${o.value === currentValue ? 'selected' : ''}>${o.label} – ${o.desc}</option>`
+    ).join('');
+    const isMarked = currentValue && currentValue !== 'ADMISSIBLE';
+
+    form.innerHTML = `
+      <h4>⊘ Verbindung markieren</h4>
+      <div style="font-size:0.62rem;color:#8b949e;margin-bottom:6px">
+        Markiert nur die <em>Verbindung</em> zum Eltern-Argument, nicht das Argument selbst.
+      </div>
+      <label>Grund</label>
+      <select id="edge-adm-type">${opts}</select>
+      <div class="form-actions">
+        ${isMarked ? '<button class="btn-cancel" id="edge-adm-clear" style="background:#3b1d1d;color:#fca5a5">Markierung entfernen</button>' : ''}
+        <button class="btn-cancel" onclick="removeInlineForms()">Abbrechen</button>
+        <button class="btn-submit" id="edge-adm-submit">Speichern</button>
+      </div>
+    `;
+    document.getElementById('canvas').appendChild(form);
+
+    form.querySelector('#edge-adm-submit').addEventListener('click', async () => {
+      const value = form.querySelector('#edge-adm-type').value;
+      try {
+        await patchJSON(`${API}/arguments/${nodeId}/edge-admissibility`, { admissibility: value });
+        removeInlineForms();
+        await loadZigzag();
+      } catch(e) { alert('Fehler: ' + e.message); }
+    });
+    form.querySelector('#edge-adm-clear')?.addEventListener('click', async () => {
+      try {
+        await patchJSON(`${API}/arguments/${nodeId}/edge-admissibility`, { admissibility: null });
+        removeInlineForms();
+        await loadZigzag();
+      } catch(e) { alert('Fehler: ' + e.message); }
+    });
+  }
+
   function removeInlineForms() {
     document.querySelectorAll('.inline-form').forEach(f => f.remove());
   }
+
+  /**
+   * "Dirty" check used by the outside-click / Escape dismissers.
+   * A form counts as dirty as soon as the user has typed anything into an
+   * <input type="text"> or <textarea> — explicit select changes are not
+   * counted because selects always have a value (defaults shouldn't block
+   * dismissal). Submission and the explicit "Abbrechen" button always close
+   * regardless of dirty state.
+   */
+  function _isInlineFormDirty(form) {
+    const fields = form.querySelectorAll('textarea, input[type="text"], input:not([type])');
+    for (const f of fields) {
+      if ((f.value || '').trim().length > 0) return true;
+    }
+    return false;
+  }
+
+  function _tryDismissInlineForms(triggerEl) {
+    const forms = document.querySelectorAll('.inline-form');
+    if (forms.length === 0) return;
+    // If the user clicked inside one of the forms, don't dismiss.
+    if (triggerEl && triggerEl.closest && triggerEl.closest('.inline-form')) return;
+    let anyDirty = false;
+    forms.forEach(f => { if (_isInlineFormDirty(f)) anyDirty = true; });
+    if (anyDirty) return; // preserve in-progress input
+    forms.forEach(f => f.remove());
+  }
+
+  // Click outside an open inline form (e.g. reply / comment / label) closes
+  // it — unless the user has already started typing. The Cancel button keeps
+  // working as before. Mousedown is used (not click) so the dismissal beats
+  // any focus-loss issues on inputs.
+  document.addEventListener('mousedown', (e) => {
+    _tryDismissInlineForms(e.target);
+  }, true);
+
+  // Esc also closes the form when nothing has been typed yet.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    _tryDismissInlineForms(null);
+  });
 
   // ── Z.2c — Split creation + connection editing (Stage 2) ─────────────
   // Two inline forms reuse the existing .inline-form styles.
@@ -2997,7 +3500,20 @@
         const dockY = (currentStage === 2) ? item.botY + 2 : item.botY;
 
         item.siblings.forEach((sibItem) => {
-          if (sibItem.line) {
+          if (!sibItem.line) return;
+          if (currentStage === 4) {
+            // Stage-4 siblings render a straight line from their parent (not
+            // from the primary's dock point) — keep it in sync during drag.
+            const parentItem = sibItem.parentItemRef || null;
+            const sFromX = parentItem ? parentItem.edgeX : CX;
+            const sFromY = parentItem ? (parentItem.botY - 4) : renderState.topicBottom;
+            const sToX = sibItem.edgeX;
+            const sToY = sibItem.topY + 8;
+            sibItem.line.setAttribute('x1', sFromX);
+            sibItem.line.setAttribute('y1', sFromY);
+            sibItem.line.setAttribute('x2', sToX);
+            sibItem.line.setAttribute('y2', sToY);
+          } else {
             const sibToX = sibItem.edgeX;
             const sibToY = sibItem.topY + 8;
             const cx1 = dockX, cy1 = (dockY + sibToY) / 2;
@@ -3057,10 +3573,11 @@
   if (DRAG_ENABLED) {
     document.getElementById('canvas').addEventListener('mousedown', (e) => {
       const card = e.target.closest('.zz-card');
-      if (!card || e.target.closest('.collapse-toggle') || e.target.closest('button') || e.target.closest('.inline-form')) return;
+      if (!card || e.target.closest('.inline-form')) return;
 
       // Polygon selection mode: toggle card instead of drag
       if (isSelectingPolygon) {
+        if (e.target.closest('button') || e.target.closest('.collapse-toggle')) return;
         e.preventDefault();
         toggleCardSelection(card);
         return;
@@ -3068,10 +3585,16 @@
 
       // Pattern selection mode: toggle card for persistent multi-node pattern
       if (isSelectingPattern) {
+        if (e.target.closest('button') || e.target.closest('.collapse-toggle')) return;
         e.preventDefault();
         togglePatternCardSelection(card);
         return;
       }
+
+      // Drag only when grabbing the dedicated handle — keeps the card body
+      // text-selectable so users can copy quotes.
+      const handle = e.target.closest('.card-drag-handle');
+      if (!handle) return;
 
       dragInfo = {
         card,

@@ -30,6 +30,7 @@ in this document.
 15. [Statement Types: Positive vs. Normative](#15-statement-types-positive-vs-normative)
 25. [Conflict Zones](#25-conflict-zones-)
 26. [Edge Types](#26-edge-types-)
+27. [Edge Admissibility](#27-edge-admissibility-)
 16. [Authority Types](#16-authority-types)
 17. [Scope & Branching](#17-scope--branching)
 18. [Thought Experiments, Analogies & Transferability](#18-thought-experiments-analogies--transferability)
@@ -996,4 +997,33 @@ Used by the zigzag view to render semantic labels on connection lines.
 **Related fields:**
 - `is_edge_attack` (bool): When `true`, the argument targets the *connection* between parent and grandparent (undercutting defeater), not the parent's content directly.
 - `opens_conflict` (string, nullable): If this argument opens a new sub-debate, this field names the new conflict space.
+
+---
+
+## 27. Edge Admissibility ✅
+
+Enum `EdgeAdmissibility` — marks a single parent→child *connection* as
+inadmissible. The *child argument itself* may be perfectly fine elsewhere;
+it just doesn't belong **at this position in the tree**.
+
+Distinct from `NodeLabel` values like `SCOPE_VIOLATION` or `OFF_TOPIC`,
+which target the argument's content. An admissibility marker targets the
+**edge** (the act of attaching child X under parent Y).
+
+| Value | Emoji | Label | Description |
+|-------|-------|-------|-------------|
+| `ADMISSIBLE` | — | Zulässig | Default — connection accepted, no marker rendered. |
+| `OFF_TOPIC` | ⊘ | Off-Topic | Statement is true/false but unrelated to the parent's question. |
+| `SCOPE_VIOLATION` | 🚧 | Scope-Bruch | Jumps from the discussed level (e.g. policy) to an unrelated level (e.g. personal anecdote). |
+| `NON_SEQUITUR` | ↯ | Folgt nicht | Even if true, doesn't actually support / attack the parent. |
+
+**Model field:** `ArgumentNode.edge_admissibility` (non-null enum,
+default `ADMISSIBLE`). Stored on the *child* because the parent→child edge
+currently lives only as `parent_id` — when a dedicated `Edge` model is
+introduced later, the field migrates there.
+
+**UI:** Stage 4 (Einordnung) renders non-default values as a dashed grey-red
+connection line plus a small ⊘ badge on the child card. The child stays on
+canvas so a meta-discussion about *whether* the link is admissible remains
+possible.
 

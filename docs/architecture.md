@@ -37,7 +37,7 @@ Client (React)  ──►  FastAPI  ──►  SQLAlchemy  ──►  SQLite (in
 
 ## Data flow
 1. Server starts → `lifespan` creates tables and seeds if empty.
-2. Client fetches `GET /api/topics/{id}/zigzag` → flat chronological list with zigzag fields (`conflict_zone`, `edge_type`, `is_edge_attack`, `opens_conflict`, `sibling_ids`).
+2. Client fetches `GET /api/topics/{id}/zigzag` → flat chronological list with zigzag fields (`conflict_zone`, `edge_type`, `is_edge_attack`, `opens_conflict`, `edge_admissibility`, `sibling_ids`).
 3. Client fetches `GET /api/topics/{id}/tree` → nested JSON with vote scores (used by commented-out tree view).
 4. Write operations pass `user_id` as query parameter (no auth yet).
 5. `POST /api/topics/{id}/import-srt` parses SRT content → clean text → Stage-0 YAML stored in `transcript_yaml`. Speaker diarization is a separate manual/LLM step (TODO: post-dev).
@@ -105,7 +105,7 @@ The central model carries fields for multiple concerns:
 | **Position** | `position` (PRO/CONTRA/NEUTRAL), `position_score` (0.0–1.0) | 1 |
 | **Anatomy** | `claim`, `reason`, `example`, `implication` | 3 (TODO) |
 | **Classification** | `statement_type`, `visibility`, `hidden_reason` | 3 (TODO) |
-| **Zigzag view** | `conflict_zone`, `edge_type`, `is_edge_attack`, `opens_conflict` | 1 |
+| **Zigzag view** | `conflict_zone`, `edge_type`, `is_edge_attack`, `opens_conflict`, `edge_admissibility` | 1 |
 | **Refinement** | `stage_added` (1=base, 2=split), `split_from_id` | 1–2 |
 | **Grouping** | `argument_group_id` | 4 (TODO) |
 
@@ -118,6 +118,7 @@ The central model carries fields for multiple concerns:
 | `StatementType` | POSITIVE, NORMATIVE, MIXED, UNCLASSIFIED | ArgumentNode.statement_type |
 | `ConflictZone` | FACT, CAUSAL, VALUE | ArgumentNode.conflict_zone |
 | `EdgeType` | COMMUNITY_NOTE, CONSEQUENCES, WEAKENING, REFRAME, CONCESSION | ArgumentNode.edge_type |
+| `EdgeAdmissibility` | ADMISSIBLE (default), OFF_TOPIC, SCOPE_VIOLATION, NON_SEQUITUR | ArgumentNode.edge_admissibility |
 | `EvidenceType` | PROOF, META_ANALYSIS, STUDY, STATISTIC, LAW, EXPERT_OPINION, JOURNALISM, SURVEY, HISTORICAL, ANECDOTE, THOUGHT_EXPERIMENT, HEARSAY, UNFALSIFIABLE, FABRICATION | Evidence.evidence_type |
 | `LabelType` | FALLACY, DOUBLE_STANDARD, CIRCULAR, MISSING_EVIDENCE, OFF_TOPIC, SPAM, ANECDOTE, DUPLICATE, CONTENTLESS, SCOPE_VIOLATION, MANIPULATION, INVALID | NodeLabel.label_type |
 | `PatternType` | GISH_GALLOP, CREEPING_RELATIVIZATION, OTHER | MultiNodePattern.pattern_type |
@@ -143,9 +144,9 @@ Diskussionen durchlaufen sieben Analyse-Stufen (0–6). Dieselbe `ArgumentNode`-
 | 1 | `ArgumentNode.stage_added=1` — ein Node pro Turn, **rohe Zuordnung** (nur Gesagtes, keine Analyse, transkript-artiger Stil) |
 | 2 | **Split-Prozess** (Arbeitsschritt) — Originale + Splits gleichzeitig sichtbar. Originale bleiben im Rohformat und offen; Split-Karten zeigen zunächst nur ihren Titel. Unterhalb des Canvas beschreibt ein kleines Legenden-/Control-Panel die vier Verbindungsarten; der blaue Chronologiefluss kann dort ein-/ausgeblendet werden. Vier Verbindungsarten: Roh-Kette, Ursprungs-Argument, chronologischer Fluss, logische Split-Referenzen. **GUI-Editing (Z.2c):** Auf jeder Rohkarte erscheint `✂ Aufteilen` (öffnet Inline-Form mit beliebig vielen Teil-Zeilen → `POST /api/arguments/{id}/split`). Auf jeder Split-Karte erscheint `🔗 …` (öffnet Ziel-Auswahl → `PATCH /api/arguments/{id}/connect`). **Polygon-Overlay:** Subtile Convex-Hull-Polygone markieren Split-Gruppen (Splits vom selben Original) |
 | 3 | **Verfeinerung** — Gesplittete Originale verschwinden, nur Splits bleiben. Hier werden die Inhalte/Beschreibungen der Split-Karten erstmals sichtbar; Karten starten eingeklappt und werden je Seite in einer gemeinsamen Spalte gestapelt. Das Legenden-/Control-Panel bleibt verfügbar und kann die blaue Chronologie ausblenden. Zwei Verbindungsarten: Chronologie (gestrichelt) + logische Referenz (durchgezogen). **Polygon-Overlay:** Subtile Polygone markieren argumentative Äste basierend auf parent_id-Verzweigungen |
-| 4 | ⚙️ TODO: post-dev — Bewertungen, argumentative Verfeinerungen |
-| 5 | ⚙️ TODO: post-dev — Meta-Einordnung, Argumentgruppen, Grundannahmen |
-| 6 | 🔭 Geplant — Diskussionsnetz, Cross-Topic-Links, AbstractArgument-Modell |
+| 4 | **Einordnung** — `?stage=4` an `GET /api/topics/{id}/zigzag` liefert für jeden Step zusätzlich `labels: [{id, label_type, justification, confirmed}]` und `comment_count: int` (bulk-vorgeladen pro Topic, kein N+1). Stage-4-Karten zeigen Labels als Chips (FALLACY-Familie warnrot, Rest neutral), Comment-Count als Badge am 💬-Button, Vote-Score prominent. Buttons `🏷` (Label setzen, Inline-Form, Begründung Pflicht) und `＋` (Antwort als Nachtrag, `stage_added=4`). Späte Nachträge bekommen einen gestrichelten `＋ Nachtrag`-Badge. Klick auf einen Label-Chip löscht ihn (kein Edit). **Z.4b — Edge admissibility:** Button `⊘` (nur auf Nicht-Root-Karten) öffnet einen Dialog, der die *Verbindung* zum Eltern-Argument als `OFF_TOPIC`, `SCOPE_VIOLATION` oder `NON_SEQUITUR` markiert (`PATCH /api/arguments/{id}/edge-admissibility`). Markierte Verbindungen werden gestrichelt rot gezeichnet, das Kind-Argument trägt einen ⊘-Badge in der unteren linken Ecke. Default-Wert `ADMISSIBLE` rendert keinen Marker. |
+| 5 | TODO: post-dev — Meta-Einordnung, Argumentgruppen, Grundannahmen |
+| 6 | Geplant — Diskussionsnetz, Cross-Topic-Links, AbstractArgument-Modell |
 
 - **Kein `is_thread_primary`**: Der rote Faden ist implizit über die `parent_id`-Kette bestimmbar, wird nicht gespeichert.
 - **Kein Edge-Kommentieren** (vorerst): Nur Argumente sind kommentierbar. Verbindungen später.

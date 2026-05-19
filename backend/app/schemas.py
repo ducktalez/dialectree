@@ -59,6 +59,10 @@ class ArgumentNodeCreate(BaseModel):
     edge_type: Optional[str] = None  # COMMUNITY_NOTE / CONSEQUENCES / WEAKENING / REFRAME / CONCESSION
     is_edge_attack: bool = False
     opens_conflict: Optional[str] = None
+    # Z.4b — edge admissibility (taxonomy §27). Optional in Create because
+    # ADMISSIBLE is the column default; callers only set it when rejecting
+    # the parent→child connection.
+    edge_admissibility: Optional[str] = None
     # 5-step refinement model
     stage_added: int = 1
     split_from_id: Optional[int] = None  # Stage-1 base argument this was split from
@@ -85,6 +89,7 @@ class ArgumentNodeOut(BaseModel):
     edge_type: Optional[str]
     is_edge_attack: bool
     opens_conflict: Optional[str]
+    edge_admissibility: str = "ADMISSIBLE"
     stage_added: int = 1
     split_from_id: Optional[int] = None
     created_by: int
@@ -107,6 +112,7 @@ class ArgumentNodeUpdate(BaseModel):
     edge_type: Optional[str] = None
     is_edge_attack: Optional[bool] = None
     opens_conflict: Optional[str] = None
+    edge_admissibility: Optional[str] = None  # Z.4b — null leaves it unchanged
 
 
 # ── ArgumentGroup ─────────────────────────────────────────────────────
@@ -336,6 +342,7 @@ class ArgumentTreeNode(BaseModel):
     edge_type: Optional[str] = None
     is_edge_attack: bool = False
     opens_conflict: Optional[str] = None
+    edge_admissibility: str = "ADMISSIBLE"  # Z.4b — see taxonomy §27
     created_by: int = 0
     vote_score: int = 0
     tags: list[TagOnNode] = []
@@ -346,6 +353,15 @@ class ArgumentTreeNode(BaseModel):
 
 
 # ── Zigzag response ───────────────────────────────────────────────────
+
+class ZigzagLabelOut(BaseModel):
+    """Compact label info embedded in ZigzagStepOut (no need for full author/timestamp here)."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    label_type: str
+    justification: str
+    confirmed: int = 0
+
 
 class ZigzagStepOut(BaseModel):
     """A single argument in the zigzag view (flat, chronological)."""
@@ -360,10 +376,18 @@ class ZigzagStepOut(BaseModel):
     edge_type: Optional[str]
     is_edge_attack: bool
     opens_conflict: Optional[str]
+    # Z.4b — admissibility of THIS node's connection to its parent. Always
+    # serialised so the frontend can decide how to render the edge.
+    edge_admissibility: str = "ADMISSIBLE"
     stage_added: int = 1
     split_from_id: Optional[int] = None
     vote_score: int = 0
     sibling_ids: list[int] = []
+    # Stage-4 (Einordnung) fields. Populated for every stage so the frontend
+    # can decide when to display them; cheap because labels/comments are
+    # fetched in bulk (one query per type per topic, not per node).
+    labels: list[ZigzagLabelOut] = []
+    comment_count: int = 0
     created_at: datetime
 
 

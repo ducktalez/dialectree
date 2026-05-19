@@ -1,7 +1,8 @@
 """
-Seed script: Creates two example topics for the Zigzag view:
-  1. "Sind Quotenregelungen rassistisch?" (Quotenrassismus – full zigzag discussion)
-  2. "Blueprint: Optimale Diskussionsführung" (ideal discussion pattern with branching)
+Seed script: Creates one example topic for the Zigzag view:
+  "Sollte es Quoten für Minderheiten geben?" — a full Stage-0…2 example
+  with raw transcript, basis arguments, splits, a consensus node, evidence,
+  votes, comments and a fallacy label.
 
 Usage:  python -m app.seed
 """
@@ -63,7 +64,7 @@ def seed():
 
     r1 = ArgumentNode(
         topic_id=topic1.id,
-        title="R1",
+        title="Quoten sind rassistisch gegenüber Weißen",
         description="Quotenregelungen sind rassistisch gegenüber Weißen und schlecht.",
         position=Position.CONTRA, created_by=bob.id,
         conflict_zone=ConflictZone.VALUE,
@@ -74,7 +75,7 @@ def seed():
 
     l2 = ArgumentNode(
         topic_id=topic1.id, parent_id=r1.id,
-        title="L2",
+        title="Rassismus braucht Macht – Quoten korrigieren strukturelle Diskriminierung",
         description="Rassismus gegen Weiße gibt es nicht. "
                     "Quoten sollen die Unterrepräsentation durch strukturelle "
                     "Diskriminierung von Gruppen ausgleichen.",
@@ -87,7 +88,7 @@ def seed():
 
     r3 = ArgumentNode(
         topic_id=topic1.id, parent_id=l2.id,
-        title="R3",
+        title="Gruppenunterschiede sind durch Kultur und IQ erklärbar",
         description="Doch, Rassismus gegen Weiße gibt es. "
                     "Die Unterschiede sind erklärbar durch Kultur- und IQ-Unterschiede.",
         position=Position.CONTRA, created_by=bob.id,
@@ -99,7 +100,7 @@ def seed():
 
     l4 = ArgumentNode(
         topic_id=topic1.id, parent_id=r3.id,
-        title="L4",
+        title="IQ-Argument ist rassistisch und sachlich falsch",
         description="Das ist Rassismus. "
                     "IQ hat keine Bedeutung für den Erfolg. "
                     "IQ ist nicht angeboren — Unterschiede folgen aus struktureller Diskriminierung.",
@@ -113,9 +114,11 @@ def seed():
 
     # ── Stage 2: Splits (stage_added=2) ───────────────────────────
     # L2 → (2.1) und (2.2): parent=r1 (gleicher Gegner wie L2)
+    # Titles deliberately drop the "(2.1) ↩ 2.1:" notation — the UI derives
+    # short reference IDs (#L1.1 etc.) automatically from position + order.
     l2_1 = ArgumentNode(
         topic_id=topic1.id, parent_id=r1.id, split_from_id=l2.id,
-        title="(2.1) Rassismus gegen Weiße gibt es nicht",
+        title="Rassismus gegen Weiße gibt es nicht",
         description=None,
         position=Position.PRO, created_by=alice.id,
         conflict_zone=ConflictZone.FACT,
@@ -123,7 +126,7 @@ def seed():
     )
     l2_2 = ArgumentNode(
         topic_id=topic1.id, parent_id=r1.id, split_from_id=l2.id,
-        title="(2.2) Quoten korrigieren Unterrepräsentation durch strukturelle Diskriminierung",
+        title="Quoten korrigieren Unterrepräsentation durch strukturelle Diskriminierung",
         description="Minderheiten sind historisch benachteiligt. "
                     "Quoten sind Korrekturmechanismus, kein Angriff auf andere Gruppen.",
         position=Position.PRO, created_by=alice.id,
@@ -138,7 +141,7 @@ def seed():
     #   (3.2) ↩ 2.2 — antwortet auf L2.2
     r3_1 = ArgumentNode(
         topic_id=topic1.id, parent_id=l2_1.id, split_from_id=r3.id,
-        title="(3.1) ↩ 2.1: Doch, Rassismus gegen Weiße gibt es",
+        title="Doch, Rassismus gegen Weiße gibt es",
         description="Jede Ungleichbehandlung aufgrund von Ethnie ist Rassismus — "
                     "unabhängig von Machtstrukturen.",
         position=Position.CONTRA, created_by=bob.id,
@@ -147,7 +150,7 @@ def seed():
     )
     r3_2 = ArgumentNode(
         topic_id=topic1.id, parent_id=l2_2.id, split_from_id=r3.id,
-        title="(3.2) ↩ 2.2: Unterschiede erklärbar durch Kultur- und IQ-Unterschiede",
+        title="Unterschiede erklärbar durch Kultur- und IQ-Unterschiede",
         description="Gruppenunterschiede haben kulturelle und biologische Ursachen — "
                     "nicht allein strukturelle Diskriminierung.",
         position=Position.CONTRA, created_by=bob.id,
@@ -161,7 +164,7 @@ def seed():
     # (3.1 ist ein dead-end — kein L4-Argument antwortet darauf)
     l4_1 = ArgumentNode(
         topic_id=topic1.id, parent_id=r3_2.id, split_from_id=l4.id,
-        title="(4.1) ↩ 3.2: Das ist Rassismus",
+        title="Das ist Rassismus",
         description="Gruppenunterschiede mit IQ zu erklären reproduziert rassistische Denkmuster.",
         position=Position.PRO, created_by=alice.id,
         conflict_zone=ConflictZone.VALUE,
@@ -169,7 +172,7 @@ def seed():
     )
     l4_2 = ArgumentNode(
         topic_id=topic1.id, parent_id=r3_2.id, split_from_id=l4.id,
-        title="(4.2) ↩ 3.2: IQ hat keine Bedeutung für den Erfolg",
+        title="IQ hat keine Bedeutung für den Erfolg",
         description="Beruflicher Erfolg wird durch soziale Netzwerke, Kapital und Chancen bestimmt — nicht durch IQ.",
         position=Position.PRO, created_by=alice.id,
         conflict_zone=ConflictZone.FACT,
@@ -177,7 +180,7 @@ def seed():
     )
     l4_3 = ArgumentNode(
         topic_id=topic1.id, parent_id=r3_2.id, split_from_id=l4.id,
-        title="(4.3) ↩ 3.2: IQ ist nicht angeboren — Unterschiede folgen aus struktureller Diskriminierung",
+        title="IQ ist nicht angeboren — Unterschiede folgen aus struktureller Diskriminierung",
         description="IQ-Gruppenunterschiede verschwinden bei gleichen Bildungs- und Lebensbedingungen.",
         position=Position.PRO, created_by=alice.id,
         conflict_zone=ConflictZone.FACT,
@@ -230,6 +233,15 @@ def seed():
                      "— und verschiebt die Beweislast auf L."),
         Comment(argument_node_id=l4.id, user_id=bob.id,
                 text="L4 antwortet als Block auf den Sub-Streitpunkt aus R3.2."),
+        # Ad-hominem documentation: the phrase "Bist du bescheuert?" appears
+        # in the Stage-0 transcript right before L4 (Anna → Ben). It is *not*
+        # represented as its own ArgumentNode, because it carries no
+        # argumentative content. Instead it is flagged here as part of the
+        # discussion record so reviewers know it was noticed and discarded.
+        Comment(argument_node_id=l4.id, user_id=charlie.id,
+                text='Hinweis zum Verlauf: Anna sagt vor L4 wörtlich „Bist du '
+                     'bescheuert?". Das ist ein Ad-hominem-Angriff auf Ben und '
+                     'wird nicht als Argument geführt.'),
     ])
 
     # ── Labels ────────────────────────────────────────────────────
@@ -241,236 +253,32 @@ def seed():
         created_by=bob.id,
     ))
 
-    # ══════════════════════════════════════════════════════════════════
-    #  TOPIC 2: Blueprint – Quotenrassismus als 5-Stufen-Beispiel
-    #
-    #  Kanonisches Beispiel mit Argumentbezeichnungen immer am Anfang.
-    #  stage_added=1: Basis-Argumente (ein Node pro Turn)
-    #  stage_added=2: Split-Derivate (Aufspaltung eines Turns)
-    #  split_from_id: Referenz auf das Basis-Argument aus Stufe 1
-    # ══════════════════════════════════════════════════════════════════
-
-    # Load transcript YAML from file for Stage 0
-    _yaml_path = _DATA_DIR / "quoten_blueprint.yaml"
-    transcript_yaml_content = _yaml_path.read_text(encoding="utf-8") if _yaml_path.exists() else None
-
-    topic2 = Topic(
-        title="🔧 Blueprint: Quotenrassismus-Diskussion",
-        description="Idealtypisches Diskussionsmuster am Beispiel der Quoten-Debatte — "
-                    "demonstriert alle 5 Verfeinerungsstufen des Zickzack-Modells.",
-        transcript_yaml=transcript_yaml_content,
-        created_by=charlie.id,
-    )
-    db.add(topic2)
-    db.flush()
-
-    # ── STUFE 1: Basis-Argumente (stage_added=1) ──────────────────
-    # Raw transcript only — one argument per turn, no analytical labels.
-    # The red thread is implicit via parent_id chain: b1 → a1 → a2 → a3 → a4 → a5
-
-    b1 = ArgumentNode(
-        topic_id=topic2.id,
-        title="B₁: Quotenregelungen sind Diskriminierung",
-        description="Ungleichbehandlung nach Ethnie ist per Definition Diskriminierung.",
-        position=Position.PRO, created_by=bob.id,
-        statement_type=StatementType.NORMATIVE,
-        conflict_zone=ConflictZone.VALUE,
-        claim="Quotenregelungen diskriminieren nach Herkunft.",
-        reason="Art. 3 GG verbietet Ungleichbehandlung aufgrund von Abstammung.",
-        example="Bei Harvard brauchen asiatische Bewerber höhere Scores.",
-        implication="Quoten müssen abgeschafft werden.",
-        stage_added=1,
-    )
-    db.add(b1)
-    db.flush()
-
-    a1 = ArgumentNode(
-        topic_id=topic2.id, parent_id=b1.id,
-        title="A₁: Strukturelle Benachteiligung erfordert aktive Korrektur",
-        description="Formale Gleichheit reicht nicht, wenn Startbedingungen ungleich sind.",
-        position=Position.CONTRA, created_by=alice.id,
-        statement_type=StatementType.NORMATIVE,
-        conflict_zone=ConflictZone.VALUE,
-        claim="Ohne aktive Maßnahmen perpetuiert sich strukturelle Ungleichheit.",
-        reason="Jahrhundertelange Diskriminierung hat Ungleichheiten geschaffen.",
-        implication="Temporäre Korrekturmaßnahmen sind ethisch geboten.",
-        stage_added=1,
-    )
-    db.add(a1)
-    db.flush()
-
-    a2 = ArgumentNode(
-        topic_id=topic2.id, parent_id=a1.id,
-        title="A₂: Konsens — Diskriminierung ist schlecht, Methode ist umstritten",
-        description="Beide Seiten stimmen überein: Diskriminierung ist abzulehnen. "
-                    "Der Dissens liegt bei der Methode, nicht beim Ziel.",
+    # ── Consensus node (NEUTRAL + CONCESSION) ─────────────────────
+    # Demonstrates a distinct argument type: both speakers agree that the
+    # term "Rassismus" must be defined before progress is possible. Kept as
+    # the only ported addition from the former blueprint topic — concession
+    # nodes are not otherwise represented in this discussion.
+    consensus = ArgumentNode(
+        topic_id=topic1.id, parent_id=l4.id,
+        title='Konsens — Begriff „Rassismus" muss erst geklärt werden',
+        description="Beide Seiten stimmen überein: ohne gemeinsame Definition "
+                    "von Rassismus reden sie aneinander vorbei. Klärung der "
+                    "Definitionsfrage geht der Sachdebatte voraus.",
         position=Position.NEUTRAL, created_by=charlie.id,
         statement_type=StatementType.MIXED,
         conflict_zone=ConflictZone.VALUE,
         edge_type=EdgeType.CONCESSION,
-        claim="Konsens-Felder explizit benennen.",
-        stage_added=1,
-    )
-    db.add(a2)
-    db.flush()
-
-    a3 = ArgumentNode(
-        topic_id=topic2.id, parent_id=a2.id,
-        title="A₃: Was IST überhaupt Rassismus? — Definitionsebene klären",
-        description="Die Verbindung zwischen 'Korrektur' und 'kein Rassismus' setzt "
-                    "eine umstrittene Definition voraus.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.FACT, edge_type=EdgeType.COMMUNITY_NOTE,
-        is_edge_attack=True,
         opens_conflict="Was ist die korrekte Definition von Rassismus?",
         stage_added=1,
     )
-    db.add(a3)
+    db.add(consensus)
     db.flush()
 
-    # A₄: Basis-Node für den Definitionskonflikt (stage 1)
-    # In Stufe 2 wird dieser Node in A₄a, A₄b, A₄c aufgespalten.
-    a4 = ArgumentNode(
-        topic_id=topic2.id, parent_id=a3.id,
-        title="A₄: Definitionskonflikt — mehrere Positionen zur Rassismus-Definition",
-        description="Verschiedene Positionen existieren nebeneinander: "
-                    "akademisch vs. alltagssprachlich vs. kontextuell.",
-        position=Position.NEUTRAL, created_by=charlie.id,
-        conflict_zone=ConflictZone.FACT,
-        stage_added=1,
-    )
-    db.add(a4)
-    db.flush()
-
-    a5 = ArgumentNode(
-        topic_id=topic2.id, parent_id=a4.id,
-        title="A₅: Bad Faith — Definitionsverschiebung als Totschlagargument",
-        description="Wenn die Definition so gewählt wird, dass das Gegenüber per Definition "
-                    "nicht Recht haben KANN, ist das kein faires Argument.",
-        position=Position.PRO, created_by=bob.id,
-        statement_type=StatementType.NORMATIVE,
-        conflict_zone=ConflictZone.VALUE,
-        edge_type=EdgeType.CONSEQUENCES,
-        is_edge_attack=True,
-        stage_added=1,
-    )
-    db.add(a5)
-    db.flush()
-
-    # ── STUFE 2: Split-Derivate (stage_added=2) ───────────────────
-    # Jeder Turn wird aufgedröselt. Split-Nodes referenzieren:
-    #   - parent_id: denselben Parent wie ihr Basis-Node (der Gegner)
-    #   - split_from_id: das Basis-Argument aus Stufe 1
-
-    # Splits von B₁ (parent=None, gleicher parent wie B₁)
-    b1_alt1 = ArgumentNode(
-        topic_id=topic2.id, parent_id=None,
-        split_from_id=b1.id,
-        title="B₁a: Leistungsprinzip über alles",
-        description="Fokus auf Meritokratie statt auf Rassismus-Begriff.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.CAUSAL,
-        stage_added=2,
-    )
-    b1_alt2 = ArgumentNode(
-        topic_id=topic2.id, parent_id=None,
-        split_from_id=b1.id,
-        title="B₁b: Individuelle Rechte vs. Gruppenidentität",
-        description="Philosophischer Rahmen: Liberalismus vs. Identitätspolitik.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.VALUE,
-        stage_added=2,
-    )
-    db.add_all([b1_alt1, b1_alt2])
-    db.flush()
-
-    # Split von A₁ (parent=B₁, gleicher parent wie A₁)
-    a1_alt1 = ArgumentNode(
-        topic_id=topic2.id, parent_id=b1.id,
-        split_from_id=a1.id,
-        title="A₁a: Diverse Teams liefern bessere Ergebnisse",
-        description="Pragmatisch-ökonomisches Argument: McKinsey-Studien zeigen Innovationsvorteile.",
-        position=Position.CONTRA, created_by=alice.id,
-        conflict_zone=ConflictZone.FACT,
-        stage_added=2,
-    )
-    db.add(a1_alt1)
-    db.flush()
-
-    # Splits von A₄ (parent=A₃, gleicher parent wie A₄)
-    a4a = ArgumentNode(
-        topic_id=topic2.id, parent_id=a3.id,
-        split_from_id=a4.id,
-        title="A₄a: Akademische Definition: Rassismus = Vorurteil + Macht",
-        description="Institutionelle Macht ist konstitutiv für Rassismus. "
-                    "Ohne Machtstrukturen ist es 'nur' Diskriminierung.",
-        position=Position.CONTRA, created_by=alice.id,
-        conflict_zone=ConflictZone.FACT, edge_type=EdgeType.REFRAME,
-        stage_added=2,
-    )
-    a4b = ArgumentNode(
-        topic_id=topic2.id, parent_id=a3.id,
-        split_from_id=a4.id,
-        title="A₄b: Alltagsdefinition: Jede Ungleichbehandlung nach Ethnie = Rassismus",
-        description="Die meisten Menschen verstehen unter Rassismus jede "
-                    "ethnisch motivierte Ungleichbehandlung, unabhängig von Macht.",
-        position=Position.PRO, created_by=bob.id,
-        conflict_zone=ConflictZone.FACT,
-        stage_added=2,
-    )
-    a4c = ArgumentNode(
-        topic_id=topic2.id, parent_id=a3.id,
-        split_from_id=a4.id,
-        title="A₄c: Beide Definitionen haben Berechtigung — kontextabhängig",
-        description="Die Definition hängt vom Kontext ab: Im Recht die enge, "
-                    "in der Soziologie die weite Definition.",
-        position=Position.NEUTRAL, created_by=charlie.id,
-        conflict_zone=ConflictZone.FACT, edge_type=EdgeType.CONCESSION,
-        stage_added=2,
-    )
-    db.add_all([a4a, a4b, a4c])
-    db.flush()
-
-    # ── Votes for Blueprint ───────────────────────────────────────
-    db.add_all([
-        Vote(user_id=bob.id, argument_node_id=b1.id, value=1),
-        Vote(user_id=alice.id, argument_node_id=b1.id, value=-1),
-        Vote(user_id=alice.id, argument_node_id=a1.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=a1.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=a2.id, value=1),
-        Vote(user_id=bob.id, argument_node_id=a3.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=a4.id, value=1),
-        Vote(user_id=alice.id, argument_node_id=a4a.id, value=1),
-        Vote(user_id=bob.id, argument_node_id=a4b.id, value=1),
-        Vote(user_id=charlie.id, argument_node_id=a4c.id, value=1),
-        Vote(user_id=bob.id, argument_node_id=a5.id, value=1),
-    ])
-
-    # ── Comments for Blueprint ────────────────────────────────────
-    db.add_all([
-        Comment(argument_node_id=b1.id, user_id=charlie.id,
-                text="Starke Eröffnung — direkt auf den Punkt."),
-        Comment(argument_node_id=a1.id, user_id=bob.id,
-                text="Fairer Gegenangriff. Steelmanning zeigt Respekt."),
-        Comment(argument_node_id=a3.id, user_id=alice.id,
-                text="Hier wird die Verbindung angegriffen, nicht der Inhalt — "
-                     "das ist ein Edge Attack (undercutting defeater)."),
-        Comment(argument_node_id=a5.id, user_id=charlie.id,
-                text="Wichtig: Bad Faith muss benannt werden, sonst dreht man sich im Kreis."),
-    ])
-
-    # ── Labels for Blueprint ──────────────────────────────────────
-    db.add(NodeLabel(
-        argument_node_id=a4a.id,
-        label_type=LabelType.FALLACY,
-        justification="No-True-Scotsman: Die Definition wird so gewählt, "
-                       "dass Gegenbeispiele per Definition ausgeschlossen werden.",
-        created_by=bob.id,
-    ))
-
-    # ── Evidence for Blueprint ────────────────────────────────────
+    # ── Evidence (demonstrates the Evidence model) ────────────────
+    # Attached to L2 (structural-correction argument); referenced in the
+    # transcript via the McKinsey claim.
     db.add(Evidence(
-        argument_node_id=a1_alt1.id,
+        argument_node_id=l2.id,
         evidence_type=EvidenceType.STUDY,
         title="McKinsey: Diversity Wins (2020)",
         url="https://www.mckinsey.com/capabilities/people-and-organizational-performance/our-insights/diversity-wins-how-inclusion-matters",
@@ -480,22 +288,12 @@ def seed():
 
     db.commit()
     t1_title = topic1.title
-    t2_title = topic2.title
     q_count = db.query(ArgumentNode).filter(ArgumentNode.topic_id == topic1.id).count()
-    b_count = db.query(ArgumentNode).filter(ArgumentNode.topic_id == topic2.id).count()
-    b1_count = db.query(ArgumentNode).filter(
-        ArgumentNode.topic_id == topic2.id, ArgumentNode.stage_added == 1
-    ).count()
-    b2_count = db.query(ArgumentNode).filter(
-        ArgumentNode.topic_id == topic2.id, ArgumentNode.stage_added == 2
-    ).count()
     # ── Quellensammlung: import curated JSON if present and DB is empty ─────
     src_count = _seed_sources_from_json(db)
     db.close()
     print("Seed data created successfully!")
-    print(f"   Topic 1: '{t1_title}' with {q_count} argument nodes")
-    print(f"   Topic 2: '{t2_title}' with {b_count} argument nodes "
-          f"({b1_count} stage-1 basis, {b2_count} stage-2 splits)")
+    print(f"   Topic: '{t1_title}' with {q_count} argument nodes")
     if src_count:
         print(f"   Quellensammlung: {src_count} sources imported from sources.json")
 

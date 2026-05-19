@@ -1,37 +1,19 @@
 # Transkript: Sollte es Quoten für Minderheiten geben?
 
-> **Notation**
-> `R` = rechts (NEIN / CONTRA-Quoten) · `L` = links (JA / PRO-Quoten)
-> `(x.y)` = Argument-Bezeichner · `↩ x.y` = antwortet auf Argument x.y
-> `⚑` = Sub-Streitpunkt / Meta-Hinweis
+**Ben:** Quotenregelungen sind rassistisch gegenüber Weißen und schlecht.
 
----
+**Anna:** Das stimmt so nicht. Rassismus gegen Weiße gibt es nicht — Rassismus
+setzt institutionelle Macht voraus. Quoten sollen die Unterrepräsentation
+ausgleichen, die durch strukturelle Diskriminierung entstanden ist.
 
-## R1 — NEIN
+**Ben:** Doch, Rassismus gegen Weiße gibt es. Und die Unterschiede zwischen
+Gruppen sind erklärbar durch Kultur- und IQ-Unterschiede.
 
-Quotenregelungen sind rassistisch gegenüber Weißen und schlecht.
+**Anna:** Bist du bescheuert? Das ist Rassismus. IQ hat keine Bedeutung für
+beruflichen Erfolg, und IQ ist nicht angeboren — Gruppenunterschiede folgen
+aus struktureller Diskriminierung, nicht aus Biologie.
 
----
+**Ben:** Moment. Bevor wir weiterstreiten, müssten wir uns einigen, was wir
+unter „Rassismus" überhaupt verstehen. Sonst reden wir aneinander vorbei.
 
-## L2
-
-- **(2.1)** Rassismus gegen Weiße gibt es nicht.
-- **(2.2)** Quoten sollen die Unterrepräsentation durch strukturelle Diskriminierung von Gruppen ausgleichen.
-
----
-
-## R3
-
-- **(3.1)** ↩ 2.1 — Doch, Rassismus gegen Weiße gibt es.
-- **(3.2)** ↩ 2.2 — Die Unterschiede sind erklärbar durch Kultur- und IQ-Unterschiede.
-
----
-
-## L4
-
-> ⚑ Sub-Streitpunkt: „Relevance of IQ"
-
-- **(4.1)** ↩ 3.2 — Das ist Rassismus.
-- **(4.2)** ↩ 3.2 — IQ hat keine Bedeutung für den Erfolg.
-- **(4.3)** ↩ 3.2 — IQ ist nicht angeboren — Unterschiede folgen aus struktureller Diskriminierung.
-
+**Anna:** Einverstanden. Ohne gemeinsame Definition kommen wir nicht weiter.

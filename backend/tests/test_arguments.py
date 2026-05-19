@@ -427,3 +427,135 @@ class TestArgumentSplit:
         ).json()[0]
         resp = client.patch(f"/api/arguments/{split['id']}/connect", json={"parent_id": split["id"]})
         assert resp.status_code == 400
+
+
+# ── Z.4b — Edge admissibility ─────────────────────────────────────────
+
+
+class TestEdgeAdmissibility:
+    """Marker on the parent→child connection (taxonomy §27)."""
+
+    def _make_pair(self, client, user, topic):
+        parent = client.post(
+            f"/api/arguments/?user_id={user['id']}",
+            json={"topic_id": topic["id"], "title": "Parent", "position": "PRO"},
+        ).json()
+        child = client.post(
+            f"/api/arguments/?user_id={user['id']}",
+            json={
+                "topic_id": topic["id"],
+                "parent_id": parent["id"],
+                "title": "Child",
+                "position": "CONTRA",
+            },
+        ).json()
+        return parent, child
+
+    def test_default_is_admissible(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        assert child["edge_admissibility"] == "ADMISSIBLE"
+
+    def test_set_via_dedicated_endpoint(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        resp = client.patch(
+            f"/api/arguments/{child['id']}/edge-admissibility",
+            json={"admissibility": "OFF_TOPIC"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["edge_admissibility"] == "OFF_TOPIC"
+
+    def test_reset_via_dedicated_endpoint(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        client.patch(
+            f"/api/arguments/{child['id']}/edge-admissibility",
+            json={"admissibility": "NON_SEQUITUR"},
+        )
+        resp = client.patch(
+            f"/api/arguments/{child['id']}/edge-admissibility",
+            json={"admissibility": None},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["edge_admissibility"] == "ADMISSIBLE"
+
+    def test_set_via_generic_patch(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        resp = client.patch(
+            f"/api/arguments/{child['id']}",
+            json={"edge_admissibility": "SCOPE_VIOLATION"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["edge_admissibility"] == "SCOPE_VIOLATION"
+
+    def test_set_on_create(self, client, sample_user, sample_topic):
+        parent = client.post(
+            f"/api/arguments/?user_id={sample_user['id']}",
+            json={"topic_id": sample_topic["id"], "title": "P", "position": "PRO"},
+        ).json()
+        resp = client.post(
+            f"/api/arguments/?user_id={sample_user['id']}",
+            json={
+                "topic_id": sample_topic["id"],
+                "parent_id": parent["id"],
+                "title": "C",
+                "position": "CONTRA",
+                "edge_admissibility": "OFF_TOPIC",
+            },
+        )
+        assert resp.status_code == 201
+        assert resp.json()["edge_admissibility"] == "OFF_TOPIC"
+
+    def test_invalid_value_rejected(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        resp = client.patch(
+            f"/api/arguments/{child['id']}/edge-admissibility",
+            json={"admissibility": "BOGUS"},
+        )
+        assert resp.status_code == 400
+
+    def test_root_node_rejected(self, client, sample_user, sample_topic):
+        root = client.post(
+            f"/api/arguments/?user_id={sample_user['id']}",
+            json={"topic_id": sample_topic["id"], "title": "Root", "position": "PRO"},
+        ).json()
+        resp = client.patch(
+            f"/api/arguments/{root['id']}/edge-admissibility",
+            json={"admissibility": "OFF_TOPIC"},
+        )
+        assert resp.status_code == 400
+
+    def test_emitted_by_zigzag(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        client.patch(
+            f"/api/arguments/{child['id']}/edge-admissibility",
+            json={"admissibility": "OFF_TOPIC"},
+        )
+        resp = client.get(f"/api/topics/{sample_topic['id']}/zigzag")
+        assert resp.status_code == 200
+        steps = resp.json()["steps"]
+        for s in steps:
+            assert "edge_admissibility" in s
+        marked = [s for s in steps if s["id"] == child["id"]]
+        assert marked and marked[0]["edge_admissibility"] == "OFF_TOPIC"
+
+    def test_emitted_by_tree(self, client, sample_user, sample_topic):
+        _, child = self._make_pair(client, sample_user, sample_topic)
+        client.patch(
+            f"/api/arguments/{child['id']}/edge-admissibility",
+            json={"admissibility": "SCOPE_VIOLATION"},
+        )
+        resp = client.get(f"/api/topics/{sample_topic['id']}/tree")
+        assert resp.status_code == 200
+
+        def find(nodes, nid):
+            for n in nodes:
+                if n["id"] == nid:
+                    return n
+                hit = find(n.get("children", []), nid)
+                if hit:
+                    return hit
+            return None
+
+        node = find(resp.json(), child["id"])
+        assert node is not None
+        assert node["edge_admissibility"] == "SCOPE_VIOLATION"
+

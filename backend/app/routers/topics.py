@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from ..database import get_db
-from ..models import Topic, ArgumentNode, ArgumentNodeTag, Vote, Visibility
+from ..models import Topic, ArgumentNode, ArgumentNodeTag, Vote, Visibility, NodeLabel, Comment
 from ..schemas import (
     TopicCreate, TopicOut, ArgumentTreeNode, TagOnNode,
-    ZigzagStepOut, ZigzagTopicInfo, ZigzagResponse, TranscriptResponse, TranscriptUpdate,
+    ZigzagStepOut, ZigzagLabelOut, ZigzagTopicInfo, ZigzagResponse,
+    TranscriptResponse, TranscriptUpdate,
     SrtImportRequest,
 )
 from ..srt_parser import parse_srt_to_yaml
@@ -111,6 +112,7 @@ def get_argument_tree(topic_id: int, show_hidden: bool = False, db: Session = De
             edge_type=node.edge_type.value if node.edge_type else None,
             is_edge_attack=node.is_edge_attack or False,
             opens_conflict=node.opens_conflict,
+            edge_admissibility=node.edge_admissibility.value if node.edge_admissibility else "ADMISSIBLE",
             created_by=node.created_by,
             vote_score=vote_scores.get(node.id, 0),
             tags=[
@@ -233,8 +235,34 @@ def get_zigzag(
         ).scalar()
         vote_scores[node.id] = score
 
+    # Pre-fetch labels and comment counts in bulk (Stage-4 "Einordnung" fields).
+    # Doing this once per topic instead of once per node avoids the N+1 trap
+    # that would otherwise hit hard at >50 visible cards.
+    node_ids = [n.id for n in nodes]
+    labels_by_node: dict[int, list[ZigzagLabelOut]] = {nid: [] for nid in node_ids}
+    if node_ids:
+        for lbl in db.query(NodeLabel).filter(NodeLabel.argument_node_id.in_(node_ids)).all():
+            labels_by_node.setdefault(lbl.argument_node_id, []).append(
+                ZigzagLabelOut(
+                    id=lbl.id,
+                    label_type=lbl.label_type.value,
+                    justification=lbl.justification,
+                    confirmed=lbl.confirmed or 0,
+                )
+            )
+    comment_counts: dict[int, int] = {nid: 0 for nid in node_ids}
+    if node_ids:
+        rows = (
+            db.query(Comment.argument_node_id, func.count(Comment.id))
+            .filter(Comment.argument_node_id.in_(node_ids))
+            .group_by(Comment.argument_node_id)
+            .all()
+        )
+        for nid, cnt in rows:
+            comment_counts[nid] = cnt
+
     # Group by parent_id for sibling lookup (only among visible nodes in this stage)
-    node_ids = {n.id for n in nodes}
+    node_id_set = set(node_ids)
     parent_groups: dict[int | None, list[int]] = {}
     for node in nodes:
         parent_groups.setdefault(node.parent_id, []).append(node.id)
@@ -253,10 +281,13 @@ def get_zigzag(
             edge_type=node.edge_type.value if node.edge_type else None,
             is_edge_attack=node.is_edge_attack or False,
             opens_conflict=node.opens_conflict,
+            edge_admissibility=node.edge_admissibility.value if node.edge_admissibility else "ADMISSIBLE",
             stage_added=node.stage_added,
             split_from_id=node.split_from_id,
             vote_score=vote_scores.get(node.id, 0),
             sibling_ids=siblings,
+            labels=labels_by_node.get(node.id, []),
+            comment_count=comment_counts.get(node.id, 0),
             created_at=node.created_at,
         ))
 

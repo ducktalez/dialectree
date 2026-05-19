@@ -12,6 +12,10 @@ Similar arguments (same point, different wording) are grouped into a single bubb
 
 Unprocessed ideas parked here until they have a clear home in the docs.
 
+- Quellen von bestimmten Webseiten importieren und automatisch in Quellen verwandeln
+  - pr0gramm.com (inkl tags)
+  - twitter.com (inkl. thread, + auto-Screenshot?)
+  - paper
 - Um ein Argument posten zu können, muss man ein Bild hochladen.
 - Ich will eine Spieltheoretische Metaanalyse über die Zeit hinweg. ZB. "Iran angreifen für/wieder" - ARgumente ändern sich über die Zeit hinweg.
 - Führe auch Video-Memes ein (Nützlich für Videoproduktion)

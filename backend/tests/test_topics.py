@@ -280,4 +280,67 @@ class TestZigzagView:
         assert stage6.status_code == 200
         assert [s["title"] for s in stage6.json()["steps"]] == ["Base", "Split"]
 
+    def test_zigzag_stage4_exposes_labels_and_comments(self, client, sample_user, sample_topic):
+        """Stage 4 (Einordnung): each step carries its labels + comment_count.
 
+        Bulk-loaded server-side so the frontend can render labels/comments
+        inline without N+1 per-node fetches.
+        """
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        a = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Labelled", "position": "PRO",
+        }).json()
+        b = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Plain", "position": "CONTRA",
+        }).json()
+        # Two labels on `a`, none on `b`.
+        l1 = client.post(f"/api/labels/?user_id={uid}", json={
+            "argument_node_id": a["id"], "label_type": "FALLACY",
+            "justification": "Strawman.",
+        })
+        assert l1.status_code == 201
+        l2 = client.post(f"/api/labels/?user_id={uid}", json={
+            "argument_node_id": a["id"], "label_type": "MISSING_EVIDENCE",
+            "justification": "No source given.",
+        })
+        assert l2.status_code == 201
+        # Two comments on `a`, one on `b`.
+        for txt in ("First", "Second"):
+            client.post(f"/api/comments/?user_id={uid}", json={
+                "argument_node_id": a["id"], "text": txt,
+            })
+        client.post(f"/api/comments/?user_id={uid}", json={
+            "argument_node_id": b["id"], "text": "Sole",
+        })
+
+        steps = client.get(f"/api/topics/{tid}/zigzag?stage=4").json()["steps"]
+        step_a = next(s for s in steps if s["id"] == a["id"])
+        step_b = next(s for s in steps if s["id"] == b["id"])
+        assert {lb["label_type"] for lb in step_a["labels"]} == {"FALLACY", "MISSING_EVIDENCE"}
+        assert all("justification" in lb and "id" in lb for lb in step_a["labels"])
+        assert step_a["comment_count"] == 2
+        assert step_b["labels"] == []
+        assert step_b["comment_count"] == 1
+
+    def test_zigzag_late_added_arguments_visible_from_stage4(self, client, db, sample_user, sample_topic):
+        """An argument with stage_added=4 is hidden in stages 1-3 and surfaces in 4+."""
+        uid = sample_user["id"]
+        tid = sample_topic["id"]
+        early = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Early", "position": "PRO",
+        }).json()
+        late = client.post(f"/api/arguments/?user_id={uid}", json={
+            "topic_id": tid, "title": "Late addition", "position": "CONTRA",
+            "parent_id": early["id"],
+        }).json()
+        db.execute(
+            text("UPDATE argument_nodes SET stage_added = 4 WHERE id = :id"),
+            {"id": late["id"]},
+        )
+        db.commit()
+
+        titles3 = [s["title"] for s in client.get(f"/api/topics/{tid}/zigzag?stage=3").json()["steps"]]
+        titles4 = [s["title"] for s in client.get(f"/api/topics/{tid}/zigzag?stage=4").json()["steps"]]
+        assert "Late addition" not in titles3
+        assert "Late addition" in titles4

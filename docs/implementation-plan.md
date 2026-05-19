@@ -1,703 +1,415 @@
 # Dialectree – Implementation Plan
 
-> **Implementation red thread:** see [`docs/discussion-flow.md`](discussion-flow.md) for the guiding example
-> that defines the order in which features should be built.
->
-> **Taxonomy:** see [`docs/taxonomy.md`](taxonomy.md) for the canonical list of all argument types,
-> fallacies, evidence tiers, tag categories, and categorisation dimensions.
->
-> **Visualization:** see [`docs/visualization-strategy.md`](visualization-strategy.md) for the
-> three-function model (Raw Data → Retrospective Evaluation → Overview) and edge annotations.
+> Companion docs:
+> [`discussion-flow.md`](discussion-flow.md) (guiding example) ·
+> [`taxonomy.md`](taxonomy.md) (argument types, tags, fallacies) ·
+> [`visualization-strategy.md`](visualization-strategy.md) (visualization model) ·
+> [`architecture.md`](architecture.md) (technical reference)
 
-This document is organized as a **stack**: the most sensible *next* items sit at the top.
-Below the stack come open phases (1–3) and the detailed Zigzag specification.
-The **Changelog** and **Design Discussions** are at the very bottom.
+This document is a **concise list of ideas and future work**. Details are
+written up only when implementation starts (in the relevant doc or PR).
 
----
-
-## 🥞 Next Up (Stack)
-
-The next handful of tasks, ordered by what makes sense to tackle next given current
-state (no auth, no AI stack, in-memory DB). Pick from the top.
-
-1. **Per-user vote tracking on sources** *(blocked by auth — Phase 1)*
-   Replace localStorage trust with server-side per-user vote records.
-2. **Automatic multi-node pattern detection** *(KI, post-dev)*
-   Manual UI exists (see Changelog). Heuristics / KI for auto-suggesting
-   Gish-gallop / creeping-relativization patterns require an embedding stack.
-3. **Twitter/X import via n8n** *(integration, deprioritized — better methods under consideration)*
-   n8n sketch exists in `n8n/`. Parked until a clearer ingestion approach is
-   chosen (e.g. direct API, browser extension, manual paste flow).
-
-Everything below this stack is either a larger phase (security/infra, advanced
-features) or detail spec for items already on the stack.
+Structure (top = now, bottom = later):
+1. Next Up – the immediate next tasks
+2. Phase Z – open zigzag stages (Z.4–Z.6)
+3. Phase 2 – larger feature clusters
+4. Phase 1 / 3 – security / infra / extended tests (pre-go-live)
+5. Design principles
+6. Open technology decisions
+7. Design discussions
+8. Changelog
 
 ---
 
-## Open Technology Decisions
+## Next Up
 
-Decisions that **must be made** before the system can reach its final form, but are
-not yet locked in. Each is listed with the current default and the trade-off.
-
-| Decision | Current Default | Final Candidate | Trade-off |
-|----------|----------------|-----------------|-----------|
-| **Database** | In-memory SQLite (StaticPool) | PostgreSQL | SQLite is zero-friction but can't do full-text search, concurrent writes, or JSONB for flexible tag metadata |
-| **Search** | None | PostgreSQL `tsvector` or Meilisearch | Needed for tag-similarity suggestions, duplicate detection, argument search |
-| **Auth** | `user_id` query param | JWT + OAuth2 (FastAPI `Security`) | Currently no auth at all; must happen before any multi-user deployment |
-| **Real-time Updates** | Polling (frontend refetches) | WebSockets or SSE | Needed once multiple users discuss the same topic concurrently |
-| **KI / Embeddings** | None (Jaccard stand-in for sources) | OpenAI API / local sentence-transformers | Required for automatic tag suggestions, real duplicate detection, argument anatomy extraction |
-| **Task Queue** | None | Celery + Redis or ARQ | Needed for async KI calls, n8n webhook processing |
-| **Frontend State** | Local `useState` | Zustand or React Query | Current approach doesn't scale past 3–4 interacting components |
-| **CSS / Design System** | Inline styles | Tailwind CSS or Radix UI | Current inline styles are unmaintainable |
-| **Migrations** | None (in-memory recreate) | Alembic | Required as soon as data must survive restarts |
-| **Deployment** | `uvicorn` local | Docker Compose (FastAPI + PostgreSQL + Redis) | Not needed during dev, required for any shared instance |
-| **SRT Parsing** | `srt` library (3.5.x) | — | Lightweight (~200 LOC, zero dependencies); locked in |
+1. **Z.5 — Meta Categorisation** (see Phase Z below). Next zigzag step now
+   that Z.4 + Z.4b have shipped.
+2. **Per-user vote tracking on sources** — blocked by auth (Phase 1).
+3. **Multi-node pattern auto-detection** — needs the KI stack.
+4. **Twitter/X import** — n8n sketch exists; better ingestion approach still open.
 
 ---
 
-## Phase 1 – Post-Development (Security & Infrastructure)
+## Phase Z – Open Zigzag Stages
 
-### Security & Auth
-- [ ] Password hashing (bcrypt/passlib)
-- [ ] Token-based authentication (JWT)
-- [ ] User registration / login endpoints
-- [ ] Email verification, password reset
-- [ ] Rate limiting
-- [ ] Input sanitization
-- [ ] Restrict CORS origins
+> Stages 0–3 + Z.4 + Z.4b done (see Changelog). Conventions: no
+> `is_thread_primary`, no edge commenting (for now), no hard deletes.
 
-### Database & Infrastructure
-- [ ] Alembic migrations
-- [ ] PostgreSQL setup for production
-- [ ] Caching layer (Redis or similar)
-- [ ] Monitoring / logging
+### Z.4 — Categorisation (done — see Changelog)
 
-### Frontend
-- [ ] Layout and CSS design (Tailwind CSS or Radix UI)
-- [ ] Component library or design system
-- [ ] Client-side form validation
-- [ ] Error handling UI
-- [ ] Responsive design, accessibility
-- [ ] Routing (React Router or similar — if the static HTML approach is dropped)
-- [ ] State management (Zustand or React Query)
+### Z.4b — Inadmissible / off-topic edge marker (done — see Changelog)
+
+### Z.5 — Meta Categorisation
+Grouping + meta roles.
+- Render `ArgumentGroup` as a clustered card
+- Meta classification (thesis / source / premise / example)
+- Spin a sub-discussion out of an `ArgumentGroup`
+- Mark terminal moral premises (leaves of the goal tree)
+
+### Z.6 — Discussion Network (planned)
+Embed a concrete discussion into a topic-spanning argument network.
+**Needs its own spec before implementation** (new models `AbstractArgument`,
+`ConcreteToAbstractLink`, `DiscussionVersion`; cross-topic edge semantics;
+version selection steelman/neutral/radical/…).
 
 ---
 
 ## Phase 2 – Advanced Features
 
-### Quellensammlung — Remaining
-The MVP (JSON store, CRUD, voting, inline media, Jaccard similarity, 47 tests) is
-done — see Changelog. Still open:
+### Sources collection — remaining
+- Server-side per-user voting (needs auth)
+- Embedding-based similarity (replacing the Jaccard stand-in)
 
-- [ ] **Per-user vote tracking on the server** (requires auth) — currently uses
-      client-side localStorage and trusts the `previous` value sent by the client.
-- [ ] **Replace Jaccard stand-in with embedding-based similarity** once an embedding
-      stack (OpenAI / sentence-transformers) is available.
+### Twitter/X import
+- n8n workflow, Twitter API v2, position detection, duplicate detection
 
-### Twitter/X Import
-- [ ] N8N workflow for importing Twitter threads (see `n8n/` for sketch)
-- [ ] Twitter API v2 integration (Bearer Token)
-- [ ] NLP/Embedding-based position detection (PRO/CONTRA/NEUTRAL)
-- [ ] Duplicate detection (similar tweets → same ArgumentGroup)
+### SRT import — speaker diarization
+Today: SRT → flowing text → manual speaker assignment via LLM.
+Later: `POST /api/topics/{id}/diarize` endpoint with LLM API.
+Fallback if needed: audio diarization (`pyannote.audio` / `WhisperX`).
 
-### SRT Import — Speaker Diarization (Schritt 2)
-Assigning spoken text to speakers. Three options evaluated:
+### AI & embeddings
+- Embedding-based similarity for grouping
+- Simulation: rational vs. derailing discussant
+- GROK-style fact-check
+- Gamification: reward quality, penalise spam
+- KI extraction of argument anatomy from prose
+- Automatic tag suggestions
 
-| Option | Approach | Accuracy | Complexity | When |
-|--------|----------|----------|------------|------|
-| **A — LLM Prompt** (recommended) | Send flowing text to Claude/GPT: *"Identify speakers, output YAML with speaker labels"* | ~95% for clear speaker changes | Low (manual copy-paste or API call) | Now (manual), later as endpoint |
-| **B — Audio Diarization** | `pyannote.audio` or `WhisperX` on downloaded audio (`yt-dlp`) | High (uses audio features) | High (audio download, GPU optional) | Phase 2+ |
-| **C — Heuristic** | Regex patterns (name prefixes like `R:`, `L:`) | Low (only pre-formatted transcripts) | Minimal | Only if input is already semi-structured |
+### Multi-node patterns
+- Auto-detection (Gish-gallop, creeping relativisation) via embeddings
 
-**Current workflow:** User runs SRT import → gets flowing text in Stage 0 → manually
-copies to LLM for speaker segmentation → pastes result back via `PUT /api/topics/{id}/transcript`.
+### Definition forks
+- Dispute / voting on competing definitions (mini-discussion per term)
 
-**Future:** `POST /api/topics/{id}/diarize` endpoint with LLM API integration
-(requires API key management).
+### Conflict & sub-discussions
+- Conflict detection on contradicting arguments
+- Auto sub-topic from conflict
+- Separate normative vs. positive
+- Resolution workflow → validity score back into the parent argument
 
-### AI & Embeddings
-- [ ] Embedding-based similarity detection for argument grouping
-- [ ] Simulation: rational vs. derailing discussant on a topic
-- [ ] GROK-style fact-check: AI-assisted verification of claims (similar to Twitter/X community notes)
-- [ ] Gamification: reward users for quality contributions (good discussion questions, accurate tags), penalise spam/low-quality input
-- [ ] KI-based argument anatomy extraction from free-text input
-- [ ] Automatic tag suggestion based on tag-similarity to existing arguments
+### User reputation
+- Domain-specific reputation
+- Track-record-weighted voting
+- Effects from label confirmations / overturns
 
-### Multi-Node Patterns
-- [x] **Manuelle UI** in `zickzack.html`: Auswahlmodus, persistente Server-Muster (Stand: siehe Changelog 2026-Q2).
-- [ ] Pattern detection heuristics (auto-suggest Gish-gallop / creeping
-      relativization based on graph topology + embeddings — requires KI stack).
-
-### Definition Forks
-- [x] Backend CRUD + `PATCH` + topic-wide listing (`/api/definition-forks/?topic_id=…`).
-- [x] Stage-3 UI: ⑂-Badge mit Inline-Panel zum Hinzufügen/Löschen von Begriffslesarten.
-- [x] Inline-Editing für bestehende Forks (✏-Button schaltet Zeile in einen
-      Edit-Mode mit Term/Variant/Description, Speichern via PATCH).
-- [ ] Dispute/Voting auf konkurrierende Definitionen (eigene Mini-Diskussion pro Term).
-
-### Conflict & Sub-Discussion System
-- [ ] Conflict detection (contradicting arguments on same node)
-- [ ] Automatic sub-topic creation from conflicts
-- [ ] Normative vs. positive conflict separation
-- [ ] Conflict resolution workflow with validity score feedback
-
-### User Reputation
-- [ ] Domain-specific reputation tracking
-- [ ] Weighted voting based on track record
-- [ ] Reputation effects from label confirmations / overturns
-
-### Meme Representation (see `docs/meme-catalog.md`)
-- [ ] **Phase 2a — Meme Tagging:** Users can tag argument chains with a meme template name (new tag category `MEME` in §12)
-- [ ] **Phase 2b — Meme Preview:** Select a meme template + argument chain → static image preview (server-side generation with Pillow or similar)
-- [ ] **Phase 2c — KI Suggestion:** System detects argumentative pattern and suggests matching meme template from catalog
-- [ ] **Phase 2d — Auto-Generation:** Full meme generation: KI condenses argument text to fit panel constraints + image composition
-- [ ] **Phase 2e — Sharability:** Generated memes downloadable as PNG, shareable via link / social media embed
+### Meme representation (see `meme-catalog.md`)
+- Tagging → preview → KI suggestion → auto-generation → shareability
 
 ---
 
-## Phase 3 – Extended Test Coverage
+## Phase 1 – Pre-go-live: Security & Infrastructure
 
-Tests that are **not needed during early development** but must be added before go-live:
+### Security & auth
+- Password hashing, JWT, login/register, email verify, rate limiting,
+  input sanitization, CORS whitelist
 
-### Security Tests
-- [ ] Authentication & authorisation on all write endpoints
-- [ ] Input sanitization (XSS, SQL injection)
-- [ ] Rate limiting behaviour
-- [ ] CORS restriction enforcement
+### Database & infra
+- Alembic, PostgreSQL, caching (Redis), monitoring/logging
 
-### Data Integrity Tests
-- [ ] Cascade delete consistency across all relationships
-- [ ] Concurrent vote/tag operations (race conditions)
-- [ ] Large tree performance (1000+ nodes per topic)
-- [ ] Soft-delete / irrelevance type transitions
-
-### Business Logic Tests
-- [ ] Argument visibility rules (hidden by votes, labels, mod action)
-- [ ] Tag origin authority hierarchy (user < KI < moderator)
-- [ ] Moral foundation soft-assignment summing to 1.0
-- [ ] Uncertainty factor propagation
-- [ ] Meta-discussion → tag verdict → reputation effects
-- [ ] Scope violation → argument relocation + link integrity
-- [ ] ArgumentGroup merging and unmerging
-- [ ] Exhaustive case enumeration (MECE) — adding a new case triggers branching
-
-### Frontend Tests
-- [ ] Tree rendering with deeply nested nodes
-- [ ] Continuous position slider → discrete enum mapping
-- [ ] Tag input, voting, and disputability flow
+### Frontend (if the static HTML view is replaced)
+- Design system (Tailwind/Radix), component library,
+  form validation, error UI, responsiveness/a11y,
+  routing (React Router), state management (Zustand/React Query)
 
 ---
 
-## Phase Z – Dynamic Zigzag View (open stages)
+## Phase 3 – Extended Test Coverage (pre-go-live)
 
-> **Status:** Stufen 0–3 implementiert (siehe Changelog). Hier nur **offene** Stufen.
-> **Depends on:** Phase 0 (core models).
->
-> **Architekturentscheidungen:**
-> - Kein `is_thread_primary`: roter Faden implizit über `parent_id`.
-> - Kein Edge-Kommentieren (vorerst): Kommentare/Labels nur auf Argumente, nicht auf Verbindungen.
-> - Stufe 6 (Diskussionsnetz) erfordert `AbstractArgument`-Modell + Cross-Topic-Links — vor Implementierung separat spezifizieren.
-
-### Z.2b — Split-Toggle-Visualisierung ✅
-
-Erledigt — siehe Changelog. Button auf jeder Split-Karte in Stage 3 zeigt
-temporär das Original an und blendet die Geschwister-Splits aus.
-
-### Z.2c — GUI-Editing für Splits ✅
-
-Erledigt — siehe Changelog. Inline-Forms in Stage 2: `✂ Aufteilen` auf jeder
-Rohkarte erzeugt N Splits (`POST /api/arguments/{id}/split`); `🔗 …` auf
-jeder Split-Karte setzt die logische Referenz (`PATCH /api/arguments/{id}/connect`).
-
-### Z.4 — Zickzack Einordnung ⚙️ TODO: post-dev
-
-Bewertungen und argumentative Verfeinerungen hinzufügen. Nur auf **Argumente**,
-nicht auf Verbindungen (Edge-Kommentieren bleibt deferred).
-
-### Z.5 — Meta-Einordnung ⚙️ TODO: post-dev
-
-Argumentgruppen als zu klärende Unterpunkte markieren. Weitere Aufdröslung von
-Argumenten (Quelle, Grundannahme etc.). Gehört konzeptuell zu Z.4, wird als
-eigener Schritt implementiert.
-
-### Z.6 — Diskussionsnetz 🔭 Geplant
-
-Konkrete Diskussion in allgemeines Argumentationsnetz einordnen. Erfordert:
-- `AbstractArgument`-Modell (Topic-übergreifend)
-- Cross-Topic-Links
-- Auswählbare Versionen (Steelman / neutral / radikal / häufigste / erste Version)
-- Meta-Streit über korrekte Zuordnung
-
-**Vor Implementierung: separate Spezifikation erforderlich.**
-
-### Phase Z — Detailed Specification (reference)
-
-#### 0–6 refinement model
-
-The zigzag view uses one additive data model (`ArgumentNode`) across seven stages:
-
-| Stage | Name | What changes in the UI | Current status |
-|------|------|-------------------------|----------------|
-| 0 | Transcript | Editable raw transcript textarea, no canvas | ✅ |
-| 1 | Basis | Raw transcript-like zigzag, one node per turn, no analysis | ✅ |
-| 2 | Split-Prozess | Work step: originals + splits visible simultaneously | ✅ |
-| 3 | Verfeinerung | Split origins disappear, refined split view only | ✅ |
-| 4 | Einordnung | Votes, comments, conflict-zone markers, edge semantics | ⚙️ TODO: post-dev |
-| 5 | Meta | Argument groups, premises, source/meta classification | ⚙️ TODO: post-dev |
-| 6 | Netz | Cross-topic argument network | 🔭 Planned |
-
-#### Stage-specific rules
-
-**Stage 0 — Transcript**
-- Editable textarea backed by `GET/PUT /api/topics/{id}/transcript`
-- No placeholder-only mode: empty transcript is still editable
-
-**Stage 1 — Basis**
-- Raw content only: no extra analysis, no back-references like `3.1` or `2.2`
-- Transcript/notepad visual style, no votes/comments/labels
-- Pure chronological chain: each card links to the previous one
-
-**Stage 2 — Split-Prozess**
-- Exception to the minimal-information rule: originals and splits are shown together
-- Stage-1 cards stay in raw/notepad style
-- Stage-1/original cards stay expanded by default
-- Split cards also stay expanded by default, but they show only their title at this stage; the body/description is intentionally deferred
-- A small legend/control panel sits below the canvas inside the visualization frame and explains the four connection types
-- The dashed blue chronology line can be toggled on/off directly from that panel
-- Four connection types:
-  1. raw chain between originals (thick, dimmed)
-  2. origin connection `split_from_id` → original (grey dashed)
-  3. blue chronological flow through unfolded sequence (curved, card-center docked)
-  4. bright green/red logical references via `parent_id`
-- Cards are draggable; all connection types follow during drag
-
-**Stage 3 — Verfeinerung**
-- Any original referenced by `split_from_id` is hidden
-- Unsplit originals remain visible in normal card style
-- Split cards receive their body/description for the first time in this stage
-- Stage-3 cards are collapsible and start collapsed by default; expanding reveals the full content
-- In chronological view, split cards on the same side stack in one shared column instead of being laterally offset
-- The legend/control panel below the canvas remains available; the dashed blue chronology line can still be toggled on/off
-- Exactly two connection types remain:
-  1. chronological flow (topic-blue, dashed, flowing through card centers)
-  2. logical reference (green/red, straight, side-docked), including the root argument's connection to the topic
-- Backend currently reuses stage-2 node data; Stage-3 semantics are applied in the frontend
-
-#### Split model
-
-- `split_from_id` points from a split node to its stage-1 origin
-- `parent_id` points to the specific opponent node or opponent split the split answers
-- Visual grouping in Stage 2 is done by `split_from_id`, not by `parent_id`
-
-#### Data model fields used by Phase Z
-
-| Field | Model | Meaning |
-|------|-------|---------|
-| `transcript_yaml` | `Topic` | Raw transcript for stage 0 |
-| `stage_added` | `ArgumentNode` | The stage in which the node first appears |
-| `split_from_id` | `ArgumentNode` | Stage-1 base node this split was extracted from |
-| `conflict_zone` | `ArgumentNode` | FACT / CAUSAL / VALUE |
-| `edge_type` | `ArgumentNode` | Semantic reaction type |
-| `is_edge_attack` | `ArgumentNode` | Undercutting/edge attack |
-| `opens_conflict` | `ArgumentNode` | Name of newly opened sub-conflict |
-
-#### API semantics
-
-`GET /api/topics/{id}/zigzag?stage=N`
-- Returns a flat chronologically sorted list
-- Filters by `stage_added <= N`
-- `stage=1` = base nodes only
-- `stage=2` = base + split nodes
-- `stage=3..6` currently return the same backend node set as stage 2; later-stage visibility/line semantics are currently handled in the frontend
-
-`GET /api/topics/{id}/transcript` — Returns `Topic.transcript_yaml`
-`PUT /api/topics/{id}/transcript` — Replaces the full transcript content
-
-#### Source transcript files
-
-| File | Format | Purpose |
-|------|--------|---------|
-| `backend/app/data/quoten_diskussion.md` | Markdown | Human-readable quota discussion transcript |
-| `backend/app/data/quoten_blueprint.yaml` | YAML | Machine-readable blueprint topic |
+- **Security:** auth/authz on write endpoints, input sanitization, rate-limit, CORS
+- **Data integrity:** cascade deletes, race conditions on votes/tags,
+  performance with 1000+ nodes, soft-delete transitions
+- **Business logic:** visibility rules, tag-origin hierarchy,
+  moral-foundation soft-assignment (sum=1), uncertainty propagation,
+  meta-discussion → reputation, scope-violation → relocation,
+  ArgumentGroup merge/unmerge, MECE branching
+- **Frontend:** deep trees, position slider → enum, tag/vote/dispute flow
 
 ---
 
-## Design Principles (guiding future implementation)
+## Design Principles
 
-These are not features but **architectural decisions** that should inform all implementation:
+Architectural decisions that should inform every implementation:
 
-### Complexity vs. Simplicity
-> The data model should be **extremely complex**. The presentation should be reduced to the
-> **simplest and most intuitive view possible**.
-
-- Tags are the primary UI surface — the lightweight entry point for all categorisation.
-- Behind the scenes, tags carry meta-categories, origin tracking, moral foundation weights,
-  and uncertainty factors (see `taxonomy.md` §12).
-- A neural network should eventually learn from tag patterns to improve automatic categorisation
-  (e.g. `Gutmensch` → probable moral-values argument, Care foundation).
-
-### Nothing Is Deleted
-- Every node, edge, tag, or vote is preserved. Hidden content gets an **irrelevance type**
-  (see `taxonomy.md` §13) — never a hard delete.
-- Any hidden argument can become the seed for a new discussion.
-
-### Three Tagging Origins
-All assessments (tags, labels, scores) can come from three sources:
-1. **User-generated** — votable, pr0gramm-style
-2. **Moderator-assigned** — with justification, higher authority
-3. **KI-generated** — suggested, needs confirmation
-
-Each origin has different authority and disputability rules (see `taxonomy.md` §12.5).
-
-### Continuous Position Slider
-- PRO/CONTRA/NEUTRAL is the canonical enum, but the UI should allow **continuous input**:
-  click far right = 100% PRO, middle = NEUTRAL, far left = 100% CONTRA.
-- The continuous value is stored alongside the discrete enum.
-
-### Contradicting Sources
-- When two evidence items on the same node contradict each other, the system should surface
-  the semantic difference as prominently as possible (not average it away).
-- Conflicting studies → open a sub-discussion to resolve the contradiction.
-
-### Goal Hierarchy Tracking
-- Argument strands should track whether a claim is a **terminal goal** (end in itself) or
-  an **intermediate goal** (means to an end). See `taxonomy.md` §19.3.
-- Intermediate goals must not be promoted to terminal goals without explicit justification.
-
-### Tag Disputability
-- If a user considers a tag incorrect, they can **open a meta-discussion** about the tag
-  itself. The result affects both the tag and the participants' reputation.
-
-### Debug-First, Integrate-Later
-- Every new data dimension must first be **inspectable via Swagger** (`/docs`) and **verified
-  by tests** before any frontend work begins.
-- Only after the backend is stable and tested should the feature be visually integrated
-  into the tree view — keeping the UI simple and progressive.
+- **Complex behind, simple in front** – the data model may be rich, the UI
+  stays minimal. Tags are the primary input surface.
+- **Nothing is deleted** – hidden content gets an `IrrelevanceType`
+  (`taxonomy.md` §13); it can seed a new discussion.
+- **Three tagging origins** – user (votable) / moderator (authoritative) /
+  KI (suggestive). Different authority, see `taxonomy.md` §12.5.
+- **Continuous position slider** – stepless input, stored as float + discrete enum.
+- **Surface contradicting sources** – do not average them away; open a
+  sub-discussion instead.
+- **Goal hierarchy tracking** – separate terminal vs. intermediate goals
+  explicitly (`taxonomy.md` §19.3).
+- **Tag disputability** – every assessment can become a meta-discussion.
+- **Debug-first** – verify a new model field via Swagger + tests before
+  pulling it into the UI.
 
 ---
 
-## UI Collaboration Workflow
+## Open Technology Decisions
 
-> *How to communicate UI/layout ideas efficiently between developer and Copilot.*
+Must be made before go-live:
 
-When describing UI changes, reference the **blueprint step names** (B₁, A₁, A₂, etc.)
-and specify the **view mode** (chronological or fan). This creates an unambiguous shared
-vocabulary. Preferred channels:
-
-1. **Edit-and-point:** edit `zickzack.html` directly in PyCharm or dev tools, screenshot
-   the result and reference the blueprint dialogue (`🔧 Blueprint`) as the shared test case.
-2. **ASCII mockups** in chat for layout sketches.
-3. **Annotated screenshots** — drop into chat, Copilot can analyse images.
-4. **HTML as whiteboard** — use the draggable blueprint cards in `zickzack.html` to
-   demonstrate the desired arrangement, then describe the change.
-
----
-
-## 💬 Design Discussions & Deferred Concepts
-
-Open architectural questions and conceptual sketches that are not yet ready to
-become tasks. Captured here so the reasoning isn't lost in chat history.
-
-### Edge Semantics & Edge Attacks (Zickzack View)
-
-> **Status:** Prototyped in `zickzack.html` (static demo). Not yet backed by API models.
->
-> **Context:** The Zickzack view visualizes dialogues as alternating argument chains.
-> Edges (connections between argument cards) carry semantic meaning beyond just
-> "this responds to that".
-
-#### Edge Types (implemented in static demo)
-
-Edges are annotated with a semantic label that describes *how* the argument responds:
-
-| `edgeType`       | Emoji | Label     | Meaning |
-|------------------|-------|-----------|---------|
-| `community_note` | 📢    | Unwahr!   | Fact-check / Community-Notes style correction |
-| `consequences`   | ⚠️    | Folgen    | Highlights unintended consequences or side-effects |
-| `weakening`      | 🤷    | Schwach   | Argues the point is weaker than claimed |
-| `reframe`        | 💡    | Reframing | Introduces a new perspective / redefines the debate |
-| `concession`     | 🤝    | Konsens   | Partial agreement, finding common ground |
-
-**Future candidates:** `steelmanning` (🛡️), `question` (❓), `analogy` (🔗), `scope_shift` (🎯).
-
-#### Edge Attacks (prototyped)
-
-An **edge attack** targets the *connection* between two arguments, not the content
-of either argument. It challenges whether the response is a legitimate continuation
-of the discussion at all.
-
-**Example:** In the Rassismus dialogue, R2 ("DOCH! Was ist überhaupt Rassismus?")
-doesn't counter L1's *content* — it attacks the *inference* from R1 to L1. L1 claims
-"Rassismus gegen Weiße gibt es nicht" as a response to "Quotenregelungen sind
-rassistisch." R2 says: the connection itself is flawed because the definition of
-Rassismus is disputed.
-
-**Visualized as:** A card with dashed red border (`.edge-attack`) positioned at the
-midpoint of the sibling's connection line, connected by a dashed red line with ❌.
-
-**Argumentation-theoretic parallel:** This is an *undercutting defeater* — it doesn't
-deny the conclusion but undermines the inferential link between premise and conclusion.
-
-**Open questions for backend modeling:**
-1. Should edge attacks be a separate model (`EdgeAttack`) or a special `ArgumentNode`
-   with `target_type = 'EDGE'`?
-2. How to represent the "target edge" in the DB? Options:
-   - `parent_id` + `target_parent_id` (the two nodes forming the edge)
-   - A dedicated `edge_id` referencing a first-class `Edge` model
-3. Edge attacks often open a **new conflict space** (e.g., "What IS racism?").
-   Should this auto-create a new `Topic` or a sub-discussion?
-
-#### Edge Challenge System (removed — rationale preserved)
-
-The interactive challenge popup (7-button popup on edge click) was **removed** from
-`zickzack.html`. Rationale: every challenge category is already covered by existing
-mechanisms (`Label.FALLACY`, follow-up arguments, `Label.SCOPE_VIOLATION`,
-`Label.KILLER_ARGUMENT`, `Label.LABEL_ARGUMENT`, downvote).
-
-**What remains:** Edge *types* (author-set semantic labels like `reframe`, `concession`)
-and Edge *attacks* (undercutting defeaters — cards that target a connection, not content).
-
-### Drag-and-Drop (enabled — reference)
-
-Card dragging is implemented and enabled (`DRAG_ENABLED = true`). All connection types
-update live during drag. Positions are not persisted — they reset on reload. The zigzag
-view uses one common geometric core for all early stages (shared anchor resolution, shared
-SVG update helpers); stage-specific rendering only decides *which* connection types are
-drawn, not how anchor math works.
+| Area | Default now | Final candidate | Trade-off |
+|---|---|---|---|
+| Database | In-memory SQLite | PostgreSQL | Full-text, concurrent writes, JSONB |
+| Search | – | PG `tsvector` / Meilisearch | Tag similarity, dedup, argument search |
+| Auth | `user_id` query param | JWT + OAuth2 | Multi-user deployment |
+| Real-time | Polling | WebSockets / SSE | Multiple concurrent users |
+| KI / embeddings | – | OpenAI / sentence-transformers | Tag suggestions, real dedup, anatomy |
+| Task queue | – | Celery+Redis / ARQ | Async KI, n8n webhooks |
+| Frontend state | `useState` | Zustand / React Query | Does not scale past ~4 components |
+| CSS | Inline | Tailwind / Radix | Maintainability |
+| Migrations | – (in-memory recreate) | Alembic | Data must survive restarts |
+| Deployment | `uvicorn` local | Docker Compose | Shared instance |
+| SRT parsing | `srt` (3.5.x) | locked in | – |
 
 ---
 
-## 📜 Changelog (completed work)
+## Design Discussions
 
-Consolidated record of finished features so the upper sections can stay focused on
-what's next. Newest at the top.
+Open conceptual questions not yet ready as tasks.
 
-### 2026-Q2 — Definition Forks: inline edit in Stage-3 panel
-Closing the last gap for the Stage-3 fork UI. Backend was already complete.
+### Edge semantics & edge attacks
+Prototype in `zickzack.html`, no backend model yet.
 
-- **Frontend** (`zickzack.html`): each list row in the ⑂ panel now carries a ✏
-  button next to 🗑. Click switches the single row to an inline edit form
-  (term + variant + description prefilled, Speichern/Abbrechen buttons).
-  PATCH is sent via the existing `patchJSON` helper; after success the panel
-  re-opens in normal mode. Only one row can be in edit mode at a time so the
-  panel stays narrow.
-- **Backend**: no changes — `PATCH /api/definition-forks/{id}` already shipped
-  in the previous Definition-Forks change.
-- **Tests**: unchanged, still 216/216 green (frontend-only change, backend
-  PATCH path is already covered by `test_patch_definition_fork` /
-  `test_patch_rejects_empty_term` / `test_patch_not_found`).
+- **Edge types** (semantic annotation, *how* an argument responds):
+  `community_note`, `consequences`, `weakening`, `reframe`, `concession`.
+  Candidates: `steelmanning`, `question`, `analogy`, `scope_shift`.
+- **Edge attacks** = cards that attack the *connection* between two
+  arguments rather than their content (undercutting defeater).
+  Example: R2 attacks the inference R1→L1 because the underlying definition
+  of racism is disputed.
+- Open questions: dedicated `EdgeAttack` model vs. `ArgumentNode` with
+  `target_type='EDGE'`? How to reference the target edge
+  (`parent_id`+`target_parent_id` vs. dedicated `Edge` model)?
+  Should an edge attack auto-open a sub-discussion?
 
-### 2026-Q2 — Seed cleanup: removed "Migration" demo topic
-Third seed topic "Deutschland sollte mehr Migranten aufnehmen" entirely removed
-from `app/seed.py` (it had served as a Phase-0 full-feature demo). Reasoning:
-the topic added clutter to the seed/landing experience without contributing
-anything that isn't already exercised by the Quotenrassismus topics or by
-`tests/`. Topics 1 ("Sollte es Quoten für Minderheiten geben?") and 2
-("🔧 Blueprint: Quotenrassismus-Diskussion") remain. Print-summary trimmed
-accordingly. Tests still 216/216 green (no test depended on topic 3).
+**Rejected:** edge-challenge popup with 7 buttons — every category is
+already covered by `FALLACY` / `SCOPE_VIOLATION` / `KILLER_ARGUMENT` /
+follow-up.
 
-### 2026-Q2 — Definition Forks UI (Stage 3) + backend polish
-The Stage-3 Verfeinerung view now lets users attach competing term
-interpretations directly to argument cards.
+### Drag & drop
+Enabled, not persisted (`DRAG_ENABLED=true`). The zigzag view has a shared
+geometry core (anchor resolution + SVG updates); stages only decide
+*which* connection types are drawn.
 
-- **Backend** (`routers/definition_forks.py`):
-  - `POST` now validates `argument_node_id` → 404 instead of 500 on dangling FK.
-  - New `PATCH /api/definition-forks/{id}` to edit term / variant / description.
-  - `GET /api/definition-forks/?topic_id=…` joins on `ArgumentNode.topic_id` so
-    the frontend can fetch every fork for a topic in one request (badge counts).
-- **Frontend** (`zickzack.html`):
-  - New per-topic state `currentDefinitionForks`, loaded alongside patterns.
-  - Stage-3+ cards carry a `⑂ <n>` badge (or `⑂ +` when empty). Click opens an
-    inline panel with the existing forks (term + variant + optional description)
-    + an add-row. Delete via 🗑. Mutations reload the topic-wide list and
-    re-open the panel so the user sees the new state immediately.
-  - Reuses the existing `.inline-form` styling and `postJSON`/`deleteJSON`
-    helpers — no new CSS.
-- **Tests**: +5 tests in `test_definition_forks.py` (FK 404, topic filter, PATCH
-  happy path, PATCH 400 on empty term, PATCH 404). Total 216/216 green.
-- **Deferred**: editing existing forks from the UI (currently only add+delete);
-  scoring / dispute mechanics on competing definitions.
+### UI collaboration
+- Blueprint step names (B₁, A₁, …) + view mode as a shared vocabulary
+- Edit-and-point in `zickzack.html`, ASCII mock-ups, annotated screenshots,
+  HTML as a whiteboard
 
-### 2026-Q2 — Sources JSON → SQLAlchemy (Quellensammlung promoted)
-The Quellensammlung is now backed by proper SQL models instead of `sources.json`.
+---
 
-- **Models** (`models.py`): `Source`, `SourceTag` (n:m via `source_tag_link`),
-  `SourceComment`, `SourceUsage`. `SourceUsage.argument_id` is a real FK with
-  `ON DELETE SET NULL` so curation history survives argument deletion.
-- **Router** (`routers/sources.py`): full surface preserved (`GET/POST/PATCH/DELETE
-  /api/sources/…`, `/tags`, `/similar`, `/{id}/comments`, `/{id}/usages`,
-  `/{id}/vote`) so the frontend keeps working without changes. Tag deduplication
-  is now enforced at the schema level (`SourceTag.name UNIQUE`).
-- **Seed** (`seed.py`): `_seed_sources_from_json` idempotently imports legacy
-  `data/sources.json` on first start; JSON file kept as authoring source for now.
-- **Tests** (`tests/test_sources.py`): 47 tests still green (total 211/211).
-- **Deferred** (still in Phase 2): per-user vote tracking (needs auth);
-  embedding-based similarity (Jaccard stand-in remains).
+## Changelog (completed work)
 
-### 2026-Q2 — Multi-Node-Muster (manuelle UI, Zickzack)
-Manuelle Markierung von Mehrknoten-Mustern (z.B. Gish Gallop, schleichende
-Relativierung) im Zickzack-View. Backend (Router + 12 Tests) war bereits
-vorhanden; jetzt vollständig vom UI bedient.
+Newest first.
 
-- **Frontend** (`zickzack.html`):
-  - Neuer Auswahlmodus parallel zu Polygon-Bereichen: „🧩 Muster markieren"-Button
-    im Legend-Panel, fixe Toolbar unten mit Name-Input + `PatternType`-Select +
-    Erstellen/Abbrechen.
-  - Persistente Muster werden bei Topic-Wechsel via `GET /api/patterns/?topic_id=…`
-    geladen und in `currentPatterns` gehalten.
-  - Rendering als **zweite Overlay-Ebene**: dashed convex-hull Outline, Farbe
-    nach `pattern_type` (`GISH_GALLOP` rot, `CREEPING_RELATIVIZATION` orange,
-    `OTHER` neutralgrau). Folgt Karten beim Draggen.
-  - Eigene Legend-Sektion „Muster" mit Type-Badge, Mitgliederzahl, 🗑-Löschen
-    pro Eintrag.
-  - Sichtbar in Stages 1–3 (in Placeholder-Stages 4–6 nicht).
-- **Backend**: keine Änderungen — bestehende Endpunkte (`POST/GET/DELETE
-  /api/patterns/`) ausreichend. Pattern-Editing (PATCH) bleiben aufgeschoben;
-  bei Bedarf erfolgt Löschen+Neuanlage.
-- **Docs**: `architecture.md` (Static-UI-Eintrag), `taxonomy.md` §6 Status
-  auf 🟡 (Modell + REST + manuelle UI; Auto-Detection post-dev),
-  `implementation-plan.md` Multi-Node-Patterns-Phase 2 aktualisiert.
-- Tests unverändert grün (205/205).
+### 2026-Q2 — Z.4b: inadmissible-edge marker
+Annotates a single parent→child *connection* as inadmissible without
+attacking the child argument itself (e.g. someone hangs a true-but-unrelated
+statement under an off-topic parent).
+
+- **New enum `EdgeAdmissibility`** with values `ADMISSIBLE` (default),
+  `OFF_TOPIC`, `SCOPE_VIOLATION`, `NON_SEQUITUR` (taxonomy §27). Stored on
+  `ArgumentNode.edge_admissibility` (non-null, server default `ADMISSIBLE`).
+  Migrates to a dedicated `Edge` model later — for now the edge has no row
+  of its own.
+- **Schemas extended**: `ArgumentNodeCreate`, `ArgumentNodeUpdate`,
+  `ArgumentNodeOut`, `ArgumentTreeNode`, `ZigzagStepOut` all carry the new
+  field.
+- **New endpoint** `PATCH /api/arguments/{id}/edge-admissibility` with body
+  `{admissibility: str|null}`. `null` resets to `ADMISSIBLE` so the UI can
+  offer a one-click "Markierung entfernen". Root nodes (no parent) → 400.
+  The generic `PATCH /api/arguments/{id}` accepts it too.
+- **Frontend (Stage 4)**: new `⊘` action button on non-root cards opens an
+  inline form with the three reason options + a clear button. Marked edges
+  render as dashed red lines (`stroke=#f85149`, `dasharray="5,4"`) and the
+  child card gets a ⊘-badge in its bottom-left corner. Line styling applies
+  to all three connection drawers (main parent line, Stage-2 split-to-split,
+  Stage-3 logical reference) so the marker is consistently visible.
+- **9 new tests** in `TestEdgeAdmissibility` (227 total).
+
+### 2026-Q2 — Card chrome polish (drag handle, short-ID plate, collapse arrow, floating reply, outside-click dismiss)
+A batch of zigzag-card UX tweaks driven by user feedback:
+- **Bigger dedicated drag handle (`.card-drag-handle`, 28×28)** in the
+  top-left corner. The card body is now `user-select: text` so quotes can be
+  copied; drag is bound to the handle only.
+- **Floating short-ID plate (`#1`, `#2`, …)** absolutely positioned over the
+  top-right corner. IDs are a flat per-discussion counter (no `L`/`R`
+  prefixes), making "siehe #2" the shortest possible reference.
+- **Collapse line with chevron** replaces the old `▸/▾` toggle: a thin
+  divider under the title with a centered down-arrow when collapsed
+  (suggesting "click to drop content"). The collapsed title doubles as the
+  click target to re-expand.
+- **Floating "+" reply button** (`.btn-reply-float`) hangs slightly below
+  the card edge — implies "a new connection grows out here".
+- **Outside-click / Escape dismiss** for inline forms (reply / comment /
+  label). Forms with already-typed text are preserved; explicit Cancel /
+  Submit still always close.
+- **Stage 4 split-origin handling**: L-originals now stay hidden in Stage 4
+  exactly like in Stage 3; the `🔄 Original` / `← Splits` toggle continues
+  to work in both stages (`currentStage >= 3` filter).
+
+### 2026-Q2 — Stage descriptions, short IDs, clean titles
+Three coupled UX changes in `zickzack.html` + `seed.py`:
+- **Enumerated stage descriptions**: each stage's banner now lists exactly
+  the new pieces of information that appear in that stage (Stage 1 adds
+  the per-side short IDs, Stage 2 the splits, Stage 3 the steelman titles
+  and definition forks, Stage 4 the ratings/labels/comments/late additions
+  + the planned inadmissible-edge marker).
+- **Auto-derived short IDs**: every card now carries a small monospace
+  reference plate (`#L1`, `#R2`, `#L1.1`, `#N1`, …) computed in the frontend
+  from `position` + chronological order + `split_from_id`. IDs are *not*
+  stored in the DB so the seed stays clean.
+- **Titles cleaned**: the seed used to bake `R1` / `L2` / `(2.1) ↩ 2.1:`
+  prefixes into the `title` column. Those are gone — titles are now plain
+  short summaries ("Quoten sind rassistisch gegenüber Weißen", "Doch,
+  Rassismus gegen Weiße gibt es", …). The notation lives only as the
+  derived plate.
+
+### 2026-Q2 — Seed: blueprint topic removed, transcript cleaned up
+The two seed topics ("Quoten-Diskussion" and "Blueprint Quotenrassismus")
+overlapped heavily. The blueprint topic and its `quoten_blueprint.md` file
+were deleted; only one feature that wasn't otherwise represented in the
+remaining topic was ported across: a **NEUTRAL `CONCESSION` consensus node**
+("Begriff Rassismus muss erst geklärt werden") and one **Evidence record**
+attached to L2 (McKinsey diversity study). `quoten_diskussion.md` was
+rewritten as a readable speaker-prefixed dialogue (Anna/Ben) without the
+former "Notation" header block. The line "Bist du bescheuert?" was added
+into the transcript and flagged via a comment on L4 as an ad-hominem aside —
+deliberately *not* a standalone `ArgumentNode`, so it appears in the raw
+Stage-0 record but never in the structured argument tree.
+
+### 2026-Q2 — Zigzag UI polish (Stage 4 legend, dangling siblings, copy-text)
+Three small UX fixes on `zickzack.html`:
+- **Stage-4 legend**: the legend/settings panel is now visible in Stages 2–4
+  (previously only 2–3) and carries a single consistent heading
+  ("Legende & Einstellungen") across all stages. Stage-4 omits the
+  "Verbindungen" and "Abwählbar" sections (no chrono/origin overlays there)
+  but keeps Bereiche and Muster.
+- **Dangling Stage-4 arguments**: child arguments grouped as "siblings" under
+  the same `parent_id` were stacked visually but had no SVG line. They now
+  receive a regular parent→child line; live-updated during drag.
+- **Copy-paste**: card bodies are no longer `user-select: none`. Drag is bound
+  to a dedicated `.card-drag-handle` (⠿ grip in the top-right corner), so
+  users can select and copy text without triggering a drag. Polygon/pattern
+  selection modes still react to a click anywhere on the card.
+
+### 2026-Q2 — Z.4 Zigzag Categorisation
+Stage 4 ("teacher's view") shipped end-to-end.
+
+- **Backend** (`routers/topics.py`, `schemas.py`): `GET /api/topics/{id}/zigzag?stage=4`
+  bulk-loads labels and comment counts per topic (single query each, not N+1)
+  and embeds them in each `ZigzagStepOut` as `labels: [{id, label_type,
+  justification, confirmed}]` and `comment_count: int`. `POST /api/arguments/`
+  now respects `stage_added` on the payload so late additions can be recorded
+  as Stage-4 nodes.
+- **Frontend** (`zickzack.html`): the Stage-4 button is no longer deferred;
+  the canvas renders. Each card shows label chips (FALLACY-family in
+  warning-red, rest neutral), a comment-count badge on the comment button,
+  a dedicated label button with inline form (label-type select + mandatory
+  justification), and a vote-score next to the up/down arrows. Replies
+  created in Stage 4 are persisted with `stage_added=4` and marked on the
+  card with a dashed "Nachtrag" badge. Clicking an existing label chip
+  prompts to delete it (no edit flow yet — delete + recreate covers the
+  rare case).
+- **Tests** (`tests/test_topics.py`): +2 tests covering the new bulk fields
+  (label list + comment count) and `stage_added=4` filter behaviour.
+- **Deferred**: per-label voting / confirmation flow, label editing,
+  edge commenting.
+
+### 2026-Q2 — Implementation plan: restructured & condensed
+Plan rewritten end-to-end: Next-Up at the top (including Z.4 as the next
+zigzag step), Phase Z / 2 / 1 / 3 as concise lists, technology decisions
+and design discussions at the bottom. Verbose Phase-Z detail spec removed
+(redundant with `architecture.md`). English-only, no emojis.
+
+### 2026-Q2 — Seed data: minimal Stage-0 transcripts
+`quoten_blueprint.yaml` replaced by a minimal `quoten_blueprint.md`
+(speaker + raw text only, analogous to `quoten_diskussion.md`). Structured
+nodes are still created in seed code; YAML stage descriptions were moved
+to `implementation-plan.md`. 216/216 tests green.
+
+### 2026-Q2 — Definition forks: inline edit in the Stage-3 panel
+Pencil button per fork row opens an inline editor (term + variant +
+description), PATCH via the existing endpoint. Frontend-only change.
+
+### 2026-Q2 — Seed cleanup: "Migration" demo topic removed
+Third seed topic dropped (it only demonstrated Phase-0 features); topics
+1+2 (Quoten / Blueprint) remain. Tests unchanged.
+
+### 2026-Q2 — Definition forks UI (Stage 3) + backend polish
+- `POST` validates `argument_node_id` → 404
+- `PATCH /api/definition-forks/{id}` added
+- `GET /api/definition-forks/?topic_id=…` for topic-wide listing
+- Stage-3 cards: badge with inline panel (add/delete). +5 tests.
+
+### 2026-Q2 — Sources JSON → SQLAlchemy
+`Source`, `SourceTag` (n:m), `SourceComment`, `SourceUsage` as SQL models;
+`SourceUsage.argument_id` with `ON DELETE SET NULL`. Router surface
+unchanged. `seed.py` imports `sources.json` idempotently. Deferred:
+per-user voting, embedding similarity.
+
+### 2026-Q2 — Multi-node patterns (manual UI)
+"Mark pattern" mode in the zigzag view, persistent server patterns
+(`POST/GET/DELETE /api/patterns/`). Convex-hull overlay, colour by
+`pattern_type`. Auto-detection remains open.
 
 ### 2026-Q2 — Z.2c GUI editing for splits (Stage 2)
-Interactive split creation and connection editing in the Split-Prozess view.
-
-- **Backend** (`routers/arguments.py`):
-  - `POST /api/arguments/{id}/split?user_id=…` — body `{splits: [{title, position, description?, parent_id?}]}`.
-    Creates N children with `stage_added=2` and `split_from_id=<base>`. If a
-    split omits `parent_id`, it inherits the base node's `parent_id` (logical
-    reference defaults to the original opponent). Rejects splitting an
-    already-split node (Stage-1 only).
-  - `PATCH /api/arguments/{id}/connect` — body `{parent_id: int | null}`.
-    Convenience endpoint to (re)wire only a split node's logical reference;
-    refuses non-split nodes and self-parenting.
-- **Tests** (`tests/test_arguments.py`): +13 tests (205/205 total), covering
-  inheritance of base parent, explicit parent override, cross-topic rejection,
-  zigzag visibility of created splits, connect/unlink, self-parent rejection.
-- **Frontend** (`zickzack.html`):
-  - Stage-2 raw cards get a `✂ Aufteilen` button (hidden if the original is
-    already split). Opens an inline form with addable rows: title, position,
-    optional target opponent dropdown.
-  - Stage-2 split cards get a `🔗 #<n>` / `🔗 kein Ziel` button. Opens a
-    target picker (all Stage-1 raw nodes except own origin); choosing
-    "— kein Ziel —" unlinks the parent.
-  - Both forms reuse the existing `.inline-form` styling and call the new
-    `patchJSON` helper.
+- `POST /api/arguments/{id}/split` (N children with `split_from_id`)
+- `PATCH /api/arguments/{id}/connect` (parent_id (re)wiring)
+- Stage-2 inline forms `Aufteilen` + `Connect`. +13 tests.
 
 ### 2026-Q2 — Retired views: Baum, Waage, Konflikt
-Removed three standalone static pages whose role is now covered by the
-Zickzack data model:
+Three standalone pages removed (`/baum`, `/entscheidung`, `/konflikt`,
+`/dialog`) — functionality now covered by Zigzag. 192/192 tests green.
 
-- **`/baum` (index.html — Argumentbaum)** — superseded by Zickzack's layered
-  refinement view; the layered tree concept added no power beyond what Zickzack
-  already offers.
-- **`/entscheidung` (entscheidung.html — Waage)** — never had a concrete use
-  case beyond visual gimmickry; weighted aggregation is deferred until a real
-  need surfaces.
-- **`/konflikt` (konflikt.html — Konfliktanalyse)** — the three-level
-  Facts/Causal/Values dimension is already first-class on
-  `ArgumentNode.conflict_zone` and will be surfaced inline in Zickzack
-  Stage 4 (Einordnung). The standalone explainer added no model power.
+### 2026-Q2 — Z.2b split toggle (Stage 3)
+Toggle buttons reveal original / restore splits; preserves the rule
+"never show original + splits simultaneously".
 
-Removed: 4 HTML files, 4 routes in `main.py`, nav links across all remaining
-pages (`zickzack.html`, `quellen.html`, `rauchen.html`),
-references in `architecture.md`, `taxonomy.md` §23/§24, `visualization-strategy.md`.
-The standalone `dialog.html` was redundant with the Zickzack Stage-1 view.
-192/192 tests still pass — no backend logic depended on these views.
+### 2026-Q2 — Sources collection MVP (`/quellen`)
+pr0gramm-style 8×128px grid with inline detail. CRUD, voting, inline
+media player (YouTube/Vimeo + upload), Jaccard similarity, tag
+conventions, keyboard navigation. 47 tests.
 
-### 2026-Q2 — Z.2b Split-Toggle (Stage 3)
-- Button `🔄 Original` on every split card in Stage 3 reveals the original
-  argument and hides all sibling splits of the same set.
-- Button `↩ Splits` on a revealed-origin card restores the split view.
-- Preserves the "never show original + splits simultaneously" design rule.
-- Revealed-origin cards start expanded (the user explicitly asked to see them).
-- State (`revealedSplitOrigins`) resets on topic/stage change; not persisted.
-- Pure frontend change in `zickzack.html`; no backend changes; 192/192 tests still pass.
+### 2026-Q2 — SRT import pipeline (YouTube → Stage 0)
+`srt_parser.py` + `POST /api/topics/{id}/import-srt`. 14 tests.
 
-### 2026-Q2 — Quellensammlung (MVP)
-Central, deduplicated registry for evidence sources, served at `/quellen`.
-pr0gramm-style fixed 8×128px grid with inline detail expansion.
+### 2026-Q1 — URL routing & unified header
+Hash-based deep linking in `zickzack.html` (`#topic=N&stage=M`); unified
+header across all static pages.
 
-- JSON-backed data store (`backend/app/data/sources.json`) — no DB table yet
-- Backend router `routers/sources.py`:
-  - `GET /api/sources/` with filters: `kind`, `tag` (repeatable, AND), `q` full-text,
-    `argument_id`, `sort=neu|alt|titel|top|kontrovers|zufall`
-  - `GET /api/sources/tags`, `GET /api/sources/{id}`, `GET /api/sources/similar`
-    (token-set Jaccard on title + description — lightweight stand-in for embeddings)
-  - `POST /api/sources/` with optional thumbnail upload (multipart) — auto-generates
-    placeholder SVG if none given
-  - `POST /api/sources/{id}/comments`, `POST /api/sources/{id}/usages`
-  - `PATCH /api/sources/{id}`, `DELETE /api/sources/{id}` (cleans up managed thumbnail),
-    `DELETE …/comments/{idx}`, `DELETE …/usages/{idx}`
-  - `POST /api/sources/{id}/vote` — `{value, previous}` transition (per-user tracking deferred)
-- Inline media player: YouTube/Vimeo embed for VIDEO sources, `<video>`/`<audio>` for
-  uploaded media via `media_url`; tile shows ▶ play icon when a playable medium is detected
-- Tests (`tests/test_sources.py`): 47 tests across CRUD, filters, comments, usages,
-  patch/delete, voting, media, argument-id filter, random sort, similarity
-- Frontend `quellen.html`: fixed 8×128px grid (responsive 6/4/3), click expands detail
-  inline at end of row, filter chips (kinds / tags / topics) + search + sort, hash-based
-  deep-linking (`#id=<n>&tag=…&q=…`), "Neue Quelle" modal with file upload and live
-  duplicate-warning via `/similar`, inline comment + usage forms, keyboard navigation
-  (← → ↑ ↓, Enter, Esc)
-- Tag conventions: `QUELLE`, `GEGENSEITE`, `SOUNDBOARD`, `WISSENSCHAFT`, `MEME`, plus
-  `TOPIC:<SLUG>` namespace for topic association
-- Dependency: `python-multipart>=0.0.9` for `Form`/`File` support
+### 2026-Q1 — Phase Z stages 0–3
+- **Z.0 Transcript:** `Topic.transcript_yaml`, `GET/PUT /api/topics/{id}/transcript`,
+  minimal `.md` transcripts under `backend/app/data/`
+- **Z.1 Basis:** `ArgumentNode.stage_added`, `GET /api/topics/{id}/zigzag?stage=N`
+- **Z.2 Split:** `ArgumentNode.split_from_id`, 4 connection types,
+  legend panel with toggleable chronology line
+- **Z.2a:** Stage-3 distinct connection types (chronological vs. logical)
+- **Z.3 Verfeinerung:** splits replace originals, bodies become visible,
+  collapsible cards, same-side column stacking
+- **Z.3a Polygon overlay:** convex-hull marking for argument branches
+  (auto + custom)
+- **Z.UI:** Stage tabs 0–6 with placeholders for 4–6
 
-### 2026-Q2 — SRT Import Pipeline (YouTube → Stage 0)
-- `srt_parser.py`: Parse SRT files → clean flowing text (strips timestamps, HTML tags,
-  deduplicates overlapping ASR fragments)
-- `POST /api/topics/{id}/import-srt` endpoint stores parsed text as `transcript_yaml`
-  in Stage-0 YAML format
-- 14 unit + integration tests (`test_srt_parser.py`)
-- Dependency: `srt>=3.5.0`
+### 2025-Q4 — Phase 0 core (complete)
 
-### 2026-Q1 — URL Routing & Unified Header
-- Hash-based deep-linking on `zickzack.html` (`#topic=N&stage=M`) — reload preserves view
-- Unified header across all static pages: title left, nav links inline, role selector
-  far right; active state per page
+| Step | Feature |
+|---|---|
+| 0.1 | Argument anatomy (`claim` / `reason` / `example` / `implication`) |
+| 0.2 | Visibility & soft-delete (`IrrelevanceType`, 6 values) |
+| 0.3 | Evidence types (15 tiers, `default_quality`) |
+| 0.4 | Label types (12+, `confirmed` / `confirmed_at`, visibility effects) |
+| 0.5 | Tag origin & meta categories (`TagCategory`, `TagOrigin`) |
+| 0.6 | `StatementType` (POSITIVE / NORMATIVE / MIXED / UNCLASSIFIED) |
+| 0.7 | Continuous position score (`position_score` float 0–1) |
+| 0.8 | (removed 2026-Q2) Migration seed topic |
+| 0.9 | Frontend rich tree view (anatomy, badges, tag chips, severity) |
+| 0.10 | ArgumentGroup merge / unmerge |
 
-### 2026-Q1 — Phase Z Stages 0–3
-The dynamic zigzag refinement model, stages 0–3 fully implemented.
-
-- **Z.0 — Transcript:** `transcript_yaml` (Text) on `Topic`, `GET/PUT /api/topics/{id}/transcript`,
-  blueprint YAML in `backend/app/data/quoten_blueprint.yaml`
-- **Z.1 — Basis:** `stage_added` (Integer, default 1) on `ArgumentNode`,
-  `GET /api/topics/{id}/zigzag?stage=N` filters `stage_added <= N`,
-  Stage-1 cards use raw/notepad style
-- **Z.2 — Split-Prozess:** `split_from_id` (FK → `argument_nodes`, nullable) on
-  `ArgumentNode`; UI shows originals + splits simultaneously with four connection
-  types (raw chain, origin dashed, blue chronological flow, green/red logical
-  references); legend/control panel below canvas with toggleable chronology line
-- **Z.2a — Stufe-3 Verbindungsarten:** two distinct connection types in Verfeinerung
-  view (chronological flow vs. logical reference), visually distinguishable
-- **Z.3 — Verfeinerung:** filters out originals referenced by `split_from_id`,
-  shows split bodies for the first time, cards collapsible (collapsed by default),
-  chronological column-stacking for same-side splits
-- **Z.3a — Polygon-Overlay:** subtle convex-hull polygons marking argumentative
-  branches; auto-groups (Stage 2: by `split_from_id`; Stage 3: by `parent_id` branching);
-  custom groups via card selection mode; individual group toggles in legend;
-  polygons follow cards during drag
-- **Z.UI — Stage tabs 0–6:** placeholder for stages 4–6, full canvas for 1–3,
-  YAML viewer for stage 0
-
-### 2025-Q4 — Phase 0 Core (complete)
-
-> All core features below are implemented, tested, and documented against
-> `architecture.md` and `taxonomy.md`.
-
-| Step | Feature | What was added |
-|------|---------|----------------|
-| 0.1 | Argument Anatomy | `claim`/`reason`/`example`/`implication` fields on `ArgumentNode`; exposed in tree |
-| 0.2 | Visibility & Soft-Delete | `IrrelevanceType` enum (6 values), `visibility` + `hidden_reason` fields, `?show_hidden=true` toggle |
-| 0.3 | Extended Evidence Types | `EvidenceType` extended to 15 tiers per taxonomy §7 with `default_quality` mapping |
-| 0.4 | Extended Label Types | `LabelType` extended (12+ types), `confirmed`/`confirmed_at` on `NodeLabel`, label → visibility effect mapping |
-| 0.5 | Tag Origin & Meta-Categories | `TagCategory` (10 values), `TagOrigin` (USER/MOD/AI), proper `ArgumentNodeTag` model |
-| 0.6 | Statement Type | `StatementType` enum (POSITIVE/NORMATIVE/MIXED/UNCLASSIFIED) |
-| 0.7 | Continuous Position Score | `position_score` (Float 0.0–1.0) on `ArgumentNode`, auto-derives discrete position |
-| 0.8 | Migration Seed Topic | (Removed 2026-Q2) A third seed topic "Deutschland sollte mehr Migranten aufnehmen" was added to exercise anatomy / visibility / labels / evidence / group end-to-end. Dropped from the seed to keep the demo focused on the Zickzack stages; the underlying features are still covered by tests. |
-| 0.9 | Frontend Rich Tree View | Anatomy sub-sections, gradient borders, Ⓕ/Ⓥ badges, category-grouped tag chips, evidence quality bars, label severity, hidden-node greying |
-| 0.10 | Argument-Group Workflow | `POST /api/argument-groups/{id}/merge` and `/unmerge/{node_id}`, grouped node display |
-
-
-
-
+                                             le

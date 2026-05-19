@@ -119,6 +119,20 @@ class EdgeType(str, enum.Enum):
     CONCESSION = "CONCESSION"
 
 
+class EdgeAdmissibility(str, enum.Enum):
+    """Z.4b — marks a single parent→child edge as inadmissible (taxonomy §27).
+
+    The *child argument* may still be a perfectly valid statement; the marker
+    rejects the **act of attaching it under this parent**. Stored on the
+    child until a dedicated `Edge` model exists. `ADMISSIBLE` is the default
+    and renders no marker.
+    """
+    ADMISSIBLE = "ADMISSIBLE"
+    OFF_TOPIC = "OFF_TOPIC"
+    SCOPE_VIOLATION = "SCOPE_VIOLATION"
+    NON_SEQUITUR = "NON_SEQUITUR"
+
+
 class TagCategory(str, enum.Enum):
     DOMAIN = "DOMAIN"
     MORAL_FOUNDATION = "MORAL_FOUNDATION"
@@ -248,6 +262,15 @@ class ArgumentNode(Base):
     conflict_zone = Column(Enum(ConflictZone), nullable=True)
     edge_type = Column(Enum(EdgeType), nullable=True)
     is_edge_attack = Column(Boolean, nullable=False, default=False)
+    # Z.4b — admissibility of the parent→child edge (this column lives on
+    # the child because the edge has no row of its own yet). Default value
+    # means "no marker rendered". See taxonomy.md §27.
+    edge_admissibility = Column(
+        Enum(EdgeAdmissibility),
+        nullable=False,
+        default=EdgeAdmissibility.ADMISSIBLE,
+        server_default=EdgeAdmissibility.ADMISSIBLE.value,
+    )
     opens_conflict = Column(String(300), nullable=True)
     # 0–6 refinement model (see implementation-plan.md / Phase Z)
     stage_added = Column(Integer, nullable=False, default=1)  # Which stage introduced this node (1=base, 2=split)

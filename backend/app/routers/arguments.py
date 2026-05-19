@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ArgumentNode, Position, StatementType, Visibility, ConflictZone, EdgeType
+from ..models import ArgumentNode, Position, StatementType, Visibility, ConflictZone, EdgeType, EdgeAdmissibility
 from ..schemas import ArgumentNodeCreate, ArgumentNodeOut, ArgumentNodeUpdate
 
 router = APIRouter(prefix="/arguments", tags=["arguments"])
@@ -63,6 +63,15 @@ def create_argument(payload: ArgumentNodeCreate, user_id: int, db: Session = Dep
         except ValueError:
             raise HTTPException(400, f"Invalid edge_type: {payload.edge_type}")
 
+    # Validate edge_admissibility (Z.4b). Defaults to ADMISSIBLE on the
+    # column; we only override when the caller explicitly sets it.
+    edge_admissibility = EdgeAdmissibility.ADMISSIBLE
+    if payload.edge_admissibility:
+        try:
+            edge_admissibility = EdgeAdmissibility(payload.edge_admissibility)
+        except ValueError:
+            raise HTTPException(400, f"Invalid edge_admissibility: {payload.edge_admissibility}")
+
     node = ArgumentNode(
         topic_id=payload.topic_id,
         parent_id=payload.parent_id,
@@ -80,6 +89,11 @@ def create_argument(payload: ArgumentNodeCreate, user_id: int, db: Session = Dep
         edge_type=edge_type,
         is_edge_attack=payload.is_edge_attack,
         opens_conflict=payload.opens_conflict,
+        edge_admissibility=edge_admissibility,
+        # stage_added defaults to 1 (Z.1 base). Stage-4 UI passes 4 for
+        # late additions ("teacher's view": noticed only when reviewing).
+        stage_added=payload.stage_added or 1,
+        split_from_id=payload.split_from_id,
         created_by=user_id,
     )
     db.add(node)
@@ -155,6 +169,11 @@ def update_argument(node_id: int, payload: ArgumentNodeUpdate, db: Session = Dep
         node.is_edge_attack = payload.is_edge_attack
     if payload.opens_conflict is not None:
         node.opens_conflict = payload.opens_conflict
+    if payload.edge_admissibility is not None:
+        try:
+            node.edge_admissibility = EdgeAdmissibility(payload.edge_admissibility)
+        except ValueError:
+            raise HTTPException(400, f"Invalid edge_admissibility: {payload.edge_admissibility}")
     db.commit()
     db.refresh(node)
     return node
@@ -274,6 +293,45 @@ def connect_split(node_id: int, payload: SplitConnectIn, db: Session = Depends(g
         if parent.topic_id != node.topic_id:
             raise HTTPException(400, "Parent argument belongs to a different topic")
     node.parent_id = payload.parent_id
+    db.commit()
+    db.refresh(node)
+    return node
+
+
+# ── Z.4b: edge admissibility ──────────────────────────────────────────
+
+
+class EdgeAdmissibilityIn(BaseModel):
+    """Body for PATCH /arguments/{id}/edge-admissibility.
+
+    `admissibility=None` resets the edge to the default `ADMISSIBLE` value
+    so the UI can offer a one-click "Markierung entfernen" action without
+    having to know the string literal.
+    """
+    admissibility: Optional[str] = None
+
+
+@router.patch("/{node_id}/edge-admissibility", response_model=ArgumentNodeOut)
+def set_edge_admissibility(node_id: int, payload: EdgeAdmissibilityIn, db: Session = Depends(get_db)):
+    """Mark the parent→child edge of `node_id` as (in)admissible.
+
+    Z.4b — see taxonomy.md §27. The child argument is **not** modified
+    semantically; only the connection to its parent is annotated. We refuse
+    the call when the node has no parent (a root cannot have an inadmissible
+    incoming edge — there is no edge).
+    """
+    node = db.query(ArgumentNode).filter(ArgumentNode.id == node_id).first()
+    if not node:
+        raise HTTPException(404, "Argument not found")
+    if node.parent_id is None:
+        raise HTTPException(400, "Root arguments have no incoming edge to annotate")
+    if payload.admissibility is None:
+        node.edge_admissibility = EdgeAdmissibility.ADMISSIBLE
+    else:
+        try:
+            node.edge_admissibility = EdgeAdmissibility(payload.admissibility)
+        except ValueError:
+            raise HTTPException(400, f"Invalid edge_admissibility: {payload.admissibility}")
     db.commit()
     db.refresh(node)
     return node
